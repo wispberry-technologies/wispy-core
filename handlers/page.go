@@ -223,7 +223,7 @@ func (ph *PageHandler) CreatePage(w http.ResponseWriter, r *http.Request) {
 		meta.Template = "default"
 	}
 	if meta.Layout == "" {
-		meta.Layout = "base"
+		meta.Layout = "default"
 	}
 	if meta.CustomData == nil {
 		meta.CustomData = make(map[string]string)

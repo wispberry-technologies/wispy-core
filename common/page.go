@@ -53,20 +53,52 @@ func NewPageManager(site *Site) *PageManager {
 	}
 }
 
-// GetPage loads a page by slug
+// GetPage loads a page by slug, searching through subdirectories
 func (pm *PageManager) GetPage(slug string) (*Page, error) {
 	// Handle index/home page
 	if slug == "" || slug == "/" {
-		slug = "index"
+		slug = "home"
 	}
 
 	// Remove leading slash if present
 	slug = strings.TrimPrefix(slug, "/")
 
-	pagePath := filepath.Join(pm.site.PagesPath, slug+".html")
+	var pagePath string
+	var found bool
 
-	// Check if page exists
-	if _, err := os.Stat(pagePath); os.IsNotExist(err) {
+	// First try to find the page in the main directory
+	mainPagePath := filepath.Join(pm.site.PagesPath, "(main)", slug+".html")
+	if _, err := os.Stat(mainPagePath); err == nil {
+		pagePath = mainPagePath
+		found = true
+	} else {
+		// Search through all subdirectories
+		err := filepath.Walk(pm.site.PagesPath, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			// Skip directories
+			if info.IsDir() {
+				return nil
+			}
+
+			// Check if this is our target file
+			if info.Name() == slug+".html" {
+				pagePath = path
+				found = true
+				return filepath.SkipDir // Stop searching once found
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			return nil, fmt.Errorf("error searching for page: %w", err)
+		}
+	}
+
+	if !found {
 		return nil, fmt.Errorf("page not found: %s", slug)
 	}
 
@@ -76,7 +108,7 @@ func (pm *PageManager) GetPage(slug string) (*Page, error) {
 		return nil, fmt.Errorf("error reading page file: %w", err)
 	}
 
-	// Parse page HTML with head metadata
+	// Parse page HTML with metadata
 	page, err := pm.parsePageHTML(string(content))
 	if err != nil {
 		return nil, fmt.Errorf("error parsing page HTML: %w", err)
@@ -86,135 +118,134 @@ func (pm *PageManager) GetPage(slug string) (*Page, error) {
 	page.Path = "/" + slug
 	page.Site = pm.site
 
-	// Handle index page path
-	if slug == "index" {
+	// Handle home page path
+	if slug == "home" {
 		page.Path = "/"
+	}
+
+	// If the page has a URL specified in metadata, use that instead
+	if page.Meta.URL != "" {
+		page.Path = page.Meta.URL
 	}
 
 	return page, nil
 }
 
-// parsePageHTML parses an HTML file with head metadata
+// parsePageHTML parses an HTML file with HTML comment metadata
 func (pm *PageManager) parsePageHTML(content string) (*Page, error) {
 	page := &Page{
+		Site: pm.site,
 		Meta: PageMeta{
+			Title:      "Untitled Page",
 			IsStatic:   true,
 			Template:   "default",
-			Layout:     "base",
+			Layout:     "default",
 			CustomData: make(map[string]string),
 			CreatedAt:  time.Now(),
 			UpdatedAt:  time.Now(),
 		},
 	}
 
-	// Find the head section
-	headStart := strings.Index(content, "[----HEAD----]")
-	headEnd := strings.Index(content, "[----END----]")
+	// Find HTML comment metadata block
+	metadataStart := strings.Index(content, "<!--")
+	if metadataStart != -1 {
+		// Find the end of the metadata comment block
+		metadataEnd := strings.Index(content[metadataStart:], "-->")
+		if metadataEnd != -1 {
+			metadataEnd += metadataStart + 3 // Include the -->
 
-	if headStart != -1 && headEnd != -1 && headEnd > headStart {
-		// Extract head content
-		headContent := content[headStart+14 : headEnd]
+			// Extract metadata content
+			metadataContent := content[metadataStart+4 : metadataEnd-3] // Remove <!-- and -->
 
-		// Extract body content (everything after [----END----])
-		page.Content = content[headEnd+13:]
+			// Parse HTML comment metadata
+			if err := pm.parseHTMLCommentMetadata(metadataContent, &page.Meta); err != nil {
+				return nil, fmt.Errorf("error parsing HTML comment metadata: %w", err)
+			}
 
-		// Parse head metadata
-		if err := pm.parseHeadMetadata(headContent, &page.Meta); err != nil {
-			return nil, fmt.Errorf("error parsing head metadata: %w", err)
+			// Extract content after metadata (skip any whitespace)
+			remainingContent := strings.TrimSpace(content[metadataEnd:])
+			page.Content = remainingContent
+		} else {
+			// Malformed comment, treat entire content as body
+			page.Content = content
 		}
 	} else {
-		// No head section, treat entire content as body
+		// No metadata comment, treat entire content as body
 		page.Content = content
 	}
 
 	return page, nil
 }
 
-// parseHeadMetadata parses metadata from the head section
-func (pm *PageManager) parseHeadMetadata(headContent string, meta *PageMeta) error {
-	scanner := bufio.NewScanner(strings.NewReader(headContent))
-	inDynamicSection := false
+// parseHTMLCommentMetadata parses metadata from HTML comment format
+func (pm *PageManager) parseHTMLCommentMetadata(commentContent string, meta *PageMeta) error {
+	scanner := bufio.NewScanner(strings.NewReader(commentContent))
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
-		// Skip empty lines and comments
-		if line == "" || strings.HasPrefix(line, "//") {
+		// Skip empty lines
+		if line == "" {
 			continue
 		}
 
-		// Check for dynamic section
-		if line == "[dynamic]" {
-			inDynamicSection = true
-			meta.IsStatic = false
-			continue
-		}
-
-		// Parse key=value pairs
-		if strings.Contains(line, "=") {
-			parts := strings.SplitN(line, "=", 2)
-			if len(parts) != 2 {
+		// Parse @key value format
+		if strings.HasPrefix(line, "@") {
+			// Find the space separator
+			spaceIndex := strings.Index(line, " ")
+			if spaceIndex == -1 {
+				// No value, just a flag
+				key := strings.TrimPrefix(line, "@")
+				switch key {
+				case "is_draft":
+					meta.IsDraft = true
+				case "require_auth":
+					meta.RequireAuth = true
+				}
 				continue
 			}
 
-			key := strings.TrimSpace(parts[0])
-			value := strings.Trim(strings.TrimSpace(parts[1]), `"`)
+			key := strings.TrimPrefix(line[:spaceIndex], "@")
+			value := strings.TrimSpace(line[spaceIndex+1:])
 
-			if inDynamicSection {
-				// Handle dynamic section parameters
-				switch key {
-				case "fetch":
-					meta.Fetch = value
-				case "protected":
-					meta.Protected = value
-				}
-			} else {
-				// Handle regular metadata
-				switch key {
-				case "static":
-					if val, err := strconv.ParseBool(value); err == nil {
-						meta.IsStatic = val
-					}
-				case "url":
-					meta.URL = value
-				case "draft":
-					if val, err := strconv.ParseBool(value); err == nil {
-						meta.IsDraft = val
-					}
-				case "title":
+			// Handle different metadata fields
+			switch key {
+			case "name":
+				// Extract title from filename
+				if strings.HasSuffix(value, ".html") {
+					meta.Title = strings.TrimSuffix(value, ".html")
+				} else {
 					meta.Title = value
-				case "description":
-					meta.Description = value
-				case "author":
-					meta.Author = value
-				case "template":
-					meta.Template = value
-				case "layout":
-					meta.Layout = value
-				case "require_auth":
-					if val, err := strconv.ParseBool(value); err == nil {
-						meta.RequireAuth = val
-					}
-				case "keywords":
-					// Parse comma-separated keywords
-					if value != "" {
-						meta.Keywords = strings.Split(value, ",")
-						for i, keyword := range meta.Keywords {
-							meta.Keywords[i] = strings.TrimSpace(keyword)
-						}
-					}
-				case "required_roles":
-					// Parse comma-separated roles
-					if value != "" {
-						meta.RequiredRoles = strings.Split(value, ",")
-						for i, role := range meta.RequiredRoles {
-							meta.RequiredRoles[i] = strings.TrimSpace(role)
-						}
-					}
-				default:
-					// Store as custom data
-					meta.CustomData[key] = value
 				}
+			case "url":
+				meta.URL = value
+			case "author":
+				meta.Author = value
+			case "layout":
+				meta.Layout = value
+			case "template":
+				meta.Template = value
+			case "is_draft":
+				if val, err := strconv.ParseBool(value); err == nil {
+					meta.IsDraft = val
+				}
+			case "require_auth":
+				if val, err := strconv.ParseBool(value); err == nil {
+					meta.RequireAuth = val
+				}
+			case "required_roles":
+				// Parse array format like []
+				value = strings.Trim(value, "[]")
+				if value != "" {
+					roles := strings.Split(value, ",")
+					for i, role := range roles {
+						roles[i] = strings.TrimSpace(strings.Trim(role, `"`))
+					}
+					meta.RequiredRoles = roles
+				}
+			default:
+				// Store as custom data
+				meta.CustomData[key] = value
 			}
 		}
 	}
@@ -268,8 +299,9 @@ func (pm *PageManager) GetPagesByTemplate(templateName string) ([]*Page, error) 
 
 // CreatePage creates a new page
 func (pm *PageManager) CreatePage(slug string, meta PageMeta, content string, sections []string) error {
-	// Ensure pages directory exists
-	if err := os.MkdirAll(pm.site.PagesPath, 0755); err != nil {
+	// Ensure pages directory and (main) subdirectory exist
+	mainPagesDir := filepath.Join(pm.site.PagesPath, "(main)")
+	if err := os.MkdirAll(mainPagesDir, 0755); err != nil {
 		return fmt.Errorf("error creating pages directory: %w", err)
 	}
 
@@ -291,16 +323,16 @@ func (pm *PageManager) CreatePage(slug string, meta PageMeta, content string, se
 		Sections: sections,
 	}
 
-	// Handle index page
-	if slug == "index" {
+	// Handle home page
+	if slug == "home" {
 		page.Path = "/"
 	}
 
 	// Convert to HTML format
 	htmlContent := pm.generatePageHTML(meta, content)
 
-	// Write to file
-	pagePath := filepath.Join(pm.site.PagesPath, slug+".html")
+	// Write to file in (main) subdirectory
+	pagePath := filepath.Join(mainPagesDir, slug+".html")
 	if err := os.WriteFile(pagePath, []byte(htmlContent), 0644); err != nil {
 		return fmt.Errorf("error writing page file: %w", err)
 	}
@@ -348,8 +380,47 @@ func (pm *PageManager) UpdatePage(slug string, meta PageMeta, content string, se
 	// Convert to HTML format
 	htmlContent := pm.generatePageHTML(meta, content)
 
-	// Write to file
-	pagePath := filepath.Join(pm.site.PagesPath, slug+".html")
+	// Find the existing page file to update in place
+	var pagePath string
+	var found bool
+
+	// First try the main directory
+	mainPagePath := filepath.Join(pm.site.PagesPath, "(main)", slug+".html")
+	if _, err := os.Stat(mainPagePath); err == nil {
+		pagePath = mainPagePath
+		found = true
+	} else {
+		// Search through all subdirectories
+		err := filepath.Walk(pm.site.PagesPath, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			// Skip directories
+			if info.IsDir() {
+				return nil
+			}
+
+			// Check if this is our target file
+			if info.Name() == slug+".html" {
+				pagePath = path
+				found = true
+				return filepath.SkipDir // Stop searching once found
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			return fmt.Errorf("error searching for page to update: %w", err)
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("page not found for update: %s", slug)
+	}
+
+	// Write to the found file location
 	if err := os.WriteFile(pagePath, []byte(htmlContent), 0644); err != nil {
 		return fmt.Errorf("error writing page file: %w", err)
 	}
@@ -359,7 +430,45 @@ func (pm *PageManager) UpdatePage(slug string, meta PageMeta, content string, se
 
 // DeletePage deletes a page
 func (pm *PageManager) DeletePage(slug string) error {
-	pagePath := filepath.Join(pm.site.PagesPath, slug+".html")
+	// Find the page file to delete
+	var pagePath string
+	var found bool
+
+	// First try the main directory
+	mainPagePath := filepath.Join(pm.site.PagesPath, "(main)", slug+".html")
+	if _, err := os.Stat(mainPagePath); err == nil {
+		pagePath = mainPagePath
+		found = true
+	} else {
+		// Search through all subdirectories
+		err := filepath.Walk(pm.site.PagesPath, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			// Skip directories
+			if info.IsDir() {
+				return nil
+			}
+
+			// Check if this is our target file
+			if info.Name() == slug+".html" {
+				pagePath = path
+				found = true
+				return filepath.SkipDir // Stop searching once found
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			return fmt.Errorf("error searching for page to delete: %w", err)
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("page not found for deletion: %s", slug)
+	}
 
 	if err := os.Remove(pagePath); err != nil {
 		return fmt.Errorf("error deleting page file: %w", err)
@@ -383,13 +492,8 @@ func (pm *PageManager) ListPages(includeUnpublished bool) ([]*Page, error) {
 			return nil
 		}
 
-		// Get relative path and slug
-		relPath, err := filepath.Rel(pm.site.PagesPath, path)
-		if err != nil {
-			return err
-		}
-
-		slug := strings.TrimSuffix(relPath, ".html")
+		// Get just the filename without extension as the slug
+		slug := strings.TrimSuffix(info.Name(), ".html")
 
 		// Load page
 		page, err := pm.GetPage(slug)
@@ -413,78 +517,49 @@ func (pm *PageManager) ListPages(includeUnpublished bool) ([]*Page, error) {
 	return pages, nil
 }
 
-// generatePageHTML generates HTML content with head metadata
+// generatePageHTML generates HTML content with HTML comment metadata
 func (pm *PageManager) generatePageHTML(meta PageMeta, content string) string {
 	var head strings.Builder
 
-	head.WriteString("[----HEAD----]\n")
+	head.WriteString("<!--\n")
 
-	// Write basic metadata
-	if meta.IsStatic {
-		head.WriteString("static=true,\n")
-	} else {
-		head.WriteString("static=false,\n")
+	// Write metadata in @key value format
+	if meta.Title != "" {
+		head.WriteString(fmt.Sprintf("@name %s.html\n", meta.Title))
 	}
 
 	if meta.URL != "" {
-		head.WriteString(fmt.Sprintf("url=\"%s\",\n", meta.URL))
-	}
-
-	if meta.IsDraft {
-		head.WriteString("draft=true,\n")
-	} else {
-		head.WriteString("draft=false,\n")
-	}
-
-	if meta.Title != "" {
-		head.WriteString(fmt.Sprintf("title=\"%s\",\n", meta.Title))
-	}
-
-	if meta.Description != "" {
-		head.WriteString(fmt.Sprintf("description=\"%s\",\n", meta.Description))
+		head.WriteString(fmt.Sprintf("@url %s\n", meta.URL))
 	}
 
 	if meta.Author != "" {
-		head.WriteString(fmt.Sprintf("author=\"%s\",\n", meta.Author))
+		head.WriteString(fmt.Sprintf("@author %s\n", meta.Author))
+	}
+
+	if meta.Layout != "" {
+		head.WriteString(fmt.Sprintf("@layout %s\n", meta.Layout))
 	}
 
 	if meta.Template != "" && meta.Template != "default" {
-		head.WriteString(fmt.Sprintf("template=\"%s\",\n", meta.Template))
+		head.WriteString(fmt.Sprintf("@template %s\n", meta.Template))
 	}
 
-	if meta.Layout != "" && meta.Layout != "base" {
-		head.WriteString(fmt.Sprintf("layout=\"%s\",\n", meta.Layout))
-	}
-
-	if meta.RequireAuth {
-		head.WriteString("require_auth=true,\n")
-	}
-
-	if len(meta.Keywords) > 0 {
-		head.WriteString(fmt.Sprintf("keywords=\"%s\",\n", strings.Join(meta.Keywords, ",")))
-	}
+	head.WriteString(fmt.Sprintf("@is_draft %t\n", meta.IsDraft))
+	head.WriteString(fmt.Sprintf("@require_auth %t\n", meta.RequireAuth))
 
 	if len(meta.RequiredRoles) > 0 {
-		head.WriteString(fmt.Sprintf("required_roles=\"%s\",\n", strings.Join(meta.RequiredRoles, ",")))
+		rolesStr := strings.Join(meta.RequiredRoles, ",")
+		head.WriteString(fmt.Sprintf("@required_roles [%s]\n", rolesStr))
+	} else {
+		head.WriteString("@required_roles []\n")
 	}
 
 	// Write custom data
 	for key, value := range meta.CustomData {
-		head.WriteString(fmt.Sprintf("%s=\"%s\",\n", key, value))
+		head.WriteString(fmt.Sprintf("@%s %s\n", key, value))
 	}
 
-	// Write dynamic section if needed
-	if !meta.IsStatic && (meta.Fetch != "" || meta.Protected != "") {
-		head.WriteString("[dynamic]\n")
-		if meta.Fetch != "" {
-			head.WriteString(fmt.Sprintf("fetch=\"%s\",\n", meta.Fetch))
-		}
-		if meta.Protected != "" {
-			head.WriteString(fmt.Sprintf("protected=\"%s\",\n", meta.Protected))
-		}
-	}
-
-	head.WriteString("[----END----]\n")
+	head.WriteString("-->\n\n")
 	head.WriteString(content)
 
 	return head.String()

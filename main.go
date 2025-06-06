@@ -9,8 +9,8 @@ import (
 
 	"github.com/joho/godotenv"
 
-	"github.com/wispberry-technologies/wispy-core/api/routes"
 	"github.com/wispberry-technologies/wispy-core/common"
+	"github.com/wispberry-technologies/wispy-core/routes"
 )
 
 // Define colors for logging
@@ -54,6 +54,10 @@ func main() {
 	// Setup routes with rate limiting configuration
 	r := routes.SetupRoutes(siteManager, renderEngine, rateLimitEnabled, requestsPerSecond, requestsPerMinute)
 
+	// Create and wire API dispatcher for template functions
+	apiDispatcher := common.NewRouterAPIDispatcher(r)
+	renderEngine.SetAPIDispatcher(apiDispatcher)
+
 	if rateLimitEnabled {
 		log.Printf("%s📊 Rate limiting: %d req/sec, %d req/min%s", colorGrey, requestsPerSecond, requestsPerMinute, colorReset)
 	}
@@ -75,8 +79,8 @@ func main() {
 
 	// Start server
 	log.Printf("%s✅ Server starting on http://%s%s", colorGreen, addr, colorReset)
-	log.Printf("%s🔗 Admin interface: http://%s/admin%s", colorGreen, addr, colorReset)
-	log.Printf("%s💚 Health check: http://%s/health%s", colorGreen, addr, colorReset)
+	// log.Printf("%s🔗 Admin interface: http://%s/admin%s", colorGreen, addr, colorReset)
+	// log.Printf("%s💚 Health check: http://%s/health%s", colorGreen, addr, colorReset)
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Server failed to start: %v", err)

@@ -7,8 +7,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httprate"
-	"github.com/wispberry-technologies/wispy-core/api/handlers"
 	"github.com/wispberry-technologies/wispy-core/common"
+	"github.com/wispberry-technologies/wispy-core/handlers"
 )
 
 // SetupRoutes sets up all routes for the application
@@ -31,8 +31,12 @@ func SetupRoutes(siteManager *common.SiteManager, renderEngine *common.RenderEng
 		r.Use(httprate.LimitByIP(requestsPerMinute, time.Minute))
 	}
 
+	// Create logger manager
+	sitesPath := common.GetEnv("SITES_PATH", "./sites")
+	loggerManager := common.NewLoggerManager(sitesPath)
+
 	// Create handlers
-	siteHandler := handlers.NewSiteHandler(siteManager, renderEngine)
+	siteHandler := handlers.NewSiteHandler(siteManager, renderEngine, loggerManager)
 
 	// Health check endpoint
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {

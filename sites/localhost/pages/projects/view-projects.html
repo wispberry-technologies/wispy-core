@@ -1,12 +1,13 @@
 <!--
-@name home.html
-@url /
+@name view-projects.html
+@url /projects
 @author Wispy Core Team
-@layout base
+@layout default
 @is_draft false
 @require_auth false
 @required_roles []
 -->
+{{define "page-content"}}
 <style>
     :root {
         --project-color-default: transparent;
@@ -80,7 +81,7 @@
     </div>
 </dialog>
 
-<div class="px-5 md:px-20 py-5 md:py-10">
+<div class="px-5 md:px-20 py-5 md:py-10 dots-background min-h-screen">
     <div class="flex justify-between items-center mb-5">
         <h1 class="text-2xl font-bold">Projects</h1>
         <button class="btn btn-primary" onclick="createProjectModal.showModal()">Create Project</button>
@@ -92,3 +93,4 @@
         </div>
     </div>
 </div>
+{{end}}
