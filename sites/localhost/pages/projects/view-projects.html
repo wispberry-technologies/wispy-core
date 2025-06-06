@@ -1,0 +1,94 @@
+<!--
+@name home.html
+@url /
+@author Wispy Core Team
+@layout base
+@is_draft false
+@require_auth false
+@required_roles []
+-->
+<style>
+    :root {
+        --project-color-default: transparent;
+        /* Default or transparent */
+        --project-color-red: oklch(0.60 0.22 25);
+        /* Tailwind red-500 approx. */
+        --project-color-blue: oklch(0.60 0.20 250);
+        /* Tailwind blue-500 approx. */
+        --project-color-green: oklch(0.65 0.20 140);
+        /* Tailwind green-500 approx. */
+        --project-color-yellow: oklch(0.85 0.20 90);
+        /* Tailwind yellow-500 approx. */
+        --project-color-purple: oklch(0.60 0.20 290);
+        /* Tailwind purple-500 approx. */
+        --project-color-pink: oklch(0.70 0.20 330);
+        /* Tailwind pink-500 approx. */
+    }
+</style>
+
+<dialog id="createProjectModal" class="modal">
+    <div class="modal-box">
+        <!-- Close button -->
+        <form method="dialog">
+            <button class="btn btn-sm absolute right-2 top-2">close</button>
+        </form>
+
+        <form id="create-project-form" action="/api/v1/projects" method="post">
+        <fieldset class="fieldset w-sm p-4">
+            <legend class="fieldset-legend">Project details</legend>
+            <label class="label">Title</label>
+            <input type="text" class="input validator" name="name" placeholder="My awesome project" required minlength="4" />
+            <p class="validator-hint text-xs text-error">Project title must be at least 4 characters</p>
+            
+            <label class="label">Description</label>
+            <textarea type="text" class="input" name="description" placeholder="Short description" rows="3" maxlength="2000"></textarea>
+
+            <label class="label mt-4">Color</label>
+            <div class="dropdown w-full">
+            <div tabindex="0" role="button" class="btn btn-outline justify-start w-full" id="colorDropdownButton">
+                <span class="inline-block w-4 h-4 mr-2 rounded border" style="background-color: var(--project-color-default);"></span> Default
+            </div>
+            <ul tabindex="0" class="dropdown-content menu p-2 shadow-lg bg-base-100 rounded-box w-full z-[1]" id="colorDropdownMenu">
+                <li><a data-color-var="--project-color-default" data-color-name="Default"><span class="inline-block w-4 h-4 mr-2 rounded border" style="background-color: var(--project-color-default);"></span> Default</a></li>
+                <li><a data-color-var="--project-color-red" data-color-name="Red"><span class="inline-block w-4 h-4 mr-2 rounded" style="background-color: var(--project-color-red);"></span> Red</a></li>
+                <li><a data-color-var="--project-color-blue" data-color-name="Blue"><span class="inline-block w-4 h-4 mr-2 rounded" style="background-color: var(--project-color-blue);"></span> Blue</a></li>
+                <li><a data-color-var="--project-color-green" data-color-name="Green"><span class="inline-block w-4 h-4 mr-2 rounded" style="background-color: var(--project-color-green);"></span> Green</a></li>
+                <li><a data-color-var="--project-color-yellow" data-color-name="Yellow"><span class="inline-block w-4 h-4 mr-2 rounded" style="background-color: var(--project-color-yellow);"></span> Yellow</a></li>
+                <li><a data-color-var="--project-color-purple" data-color-name="Purple"><span class="inline-block w-4 h-4 mr-2 rounded" style="background-color: var(--project-color-purple);"></span> Purple</a></li>
+                <li><a data-color-var="--project-color-pink" data-color-name="Pink"><span class="inline-block w-4 h-4 mr-2 rounded" style="background-color: var(--project-color-pink);"></span> Pink</a></li>
+            </ul>
+            </div>
+            <input type="hidden" name="color" id="selectedColorValue" value="--project-color-default">
+
+            <label class="label mt-4">Icon</label>
+            <select name="icon" class="select select-bordered w-full">
+            <option value="">None</option>
+            <option value="<span>🚀</span>">🚀 Rocket</option>
+            <option value="<span>💡</span>">💡 Lightbulb</option>
+            <option value="<span>💻</span>">💻 Laptop</option>
+            <option value="<span>📁</span>">📁 Folder</option>
+            <option value="<span>⚙️</span>">⚙️ Gear</option>
+            <option value="<span>🌟</span>">🌟 Star</option>
+            </select>
+        </fieldset>
+        <div class="card-actions mt-4 flex justify-end">
+            <button class="btn btn-primary" type="submit">
+            <span>Create</span>
+            </button>
+        </div>
+        </form>
+    </div>
+</dialog>
+
+<div class="px-5 md:px-20 py-5 md:py-10">
+    <div class="flex justify-between items-center mb-5">
+        <h1 class="text-2xl font-bold">Projects</h1>
+        <button class="btn btn-primary" onclick="createProjectModal.showModal()">Create Project</button>
+    </div>
+    <div id="pegboard" class="grid gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <!-- Projects will be rendered here -->
+        <div class="flex justify-center items-center col-span-full" id="loading">
+            <span class="loading loading-spinner loading-lg"></span>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,80 @@
+<!--
+@name home.html
+@url /
+@author Wispy Core Team
+@layout default
+@is_draft false
+@require_auth false
+@required_roles []
+-->
+
+{{define "page-content"}}
+<div class="hero min-h-screen bg-base-200">
+    <div class="hero-content text-center">
+        <div class="max-w-4xl">
+            <h1 class="text-5xl font-bold mb-8">{{ .Page.Meta.CustomData.hero_title }}</h1>
+            <p class="text-xl mb-8">{{ .Page.Meta.CustomData.hero_description }}</p>
+            <a href="{{ .Page.Meta.CustomData.hero_button_link }}" class="btn btn-primary btn-lg">{{ .Page.Meta.CustomData.hero_button_text }}</a>
+        </div>
+    </div>
+</div>
+
+<section class="py-16 bg-base-100">
+    <div class="container mx-auto px-4">
+        <div class="text-center mb-12">
+            <h2 class="text-4xl font-bold mb-4">{{ .Page.Meta.CustomData.features_title }}</h2>
+            <p class="text-xl text-base-content/70">{{ .Page.Meta.CustomData.features_description }}</p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body text-center">
+                    <div class="text-4xl mb-4">🚀</div>
+                    <h3 class="card-title justify-center">Lightning Fast</h3>
+                    <p>Built with Go for exceptional performance and low resource usage.</p>
+                </div>
+            </div>
+            
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body text-center">
+                    <div class="text-4xl mb-4">🏗️</div>
+                    <h3 class="card-title justify-center">Multisite Ready</h3>
+                    <p>Manage multiple websites from a single installation with ease.</p>
+                </div>
+            </div>
+            
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body text-center">
+                    <div class="text-4xl mb-4">🎨</div>
+                    <h3 class="card-title justify-center">Beautiful Templates</h3>
+                    <p>Modern templates built with daisyUI and Tailwind CSS.</p>
+                </div>
+            </div>
+            
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body text-center">
+                    <div class="text-4xl mb-4">🔧</div>
+                    <h3 class="card-title justify-center">Developer Friendly</h3>
+                    <p>Clean architecture with powerful templating and extensibility.</p>
+                </div>
+            </div>
+            
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body text-center">
+                    <div class="text-4xl mb-4">🛡️</div>
+                    <h3 class="card-title justify-center">Secure by Default</h3>
+                    <p>Built-in security features and best practices out of the box.</p>
+                </div>
+            </div>
+            
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body text-center">
+                    <div class="text-4xl mb-4">📱</div>
+                    <h3 class="card-title justify-center">Mobile First</h3>
+                    <p>Responsive designs that work perfectly on all devices.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{{end}}

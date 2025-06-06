@@ -1,0 +1,34 @@
+# Build
+build
+tmp
+
+# Ignore example directory this is currenlty used for testing
+# Will update to contain well documented minimal example at some point.
+example
+run-example.sh
+
+### test executable
+built-example
+
+# Logs
+logs
+*.log
+
+# Env
+.env
+
+# Tests
+*.test.exe
+__debug_*.exe
+
+# Debugging
+### atomicstyle
+atomicstyle/output.css
+atomicstyle/trie_dump.txt
+
+
+# Other
+# .vscode
+.zed
+.DS_Store
+./codebook.toml

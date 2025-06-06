@@ -1,0 +1,46 @@
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="container mx-auto max-w-4xl">
+    {{if .Page}}
+    <article class="prose max-w-none">
+        <header class="mb-8">
+            <h1 class="text-4xl font-bold mb-4">{{.Page.Meta.Title}}</h1>
+            {{if .Page.Meta.Description}}
+            <p class="text-xl text-base-content/70 mb-4">{{.Page.Meta.Description}}</p>
+            {{end}}
+            {{if .Page.Meta.Author}}
+            <div class="text-sm text-base-content/60">
+                By {{.Page.Meta.Author}}
+                {{if .Page.Meta.PublishedAt}}
+                on {{.Page.Meta.PublishedAt.Format "January 2, 2006"}}
+                {{end}}
+            </div>
+            {{end}}
+        </header>
+
+        <div class="content">
+            {{if .Page.Content}}
+            {{.Page.Content}}
+            {{end}}
+
+            {{if .Page.Sections}}
+            {{range .Page.Sections}}
+            {{template . $}}
+            {{end}}
+            {{end}}
+        </div>
+    </article>
+    {{else}}
+    <div class="hero min-h-[50vh]">
+        <div class="hero-content text-center">
+            <div class="max-w-md">
+                <h1 class="text-5xl font-bold">Hello there!</h1>
+                <p class="py-6">Welcome to your new Wispy Core site. This is the default template.</p>
+                <a href="/admin" class="btn btn-primary">Go to Admin</a>
+            </div>
+        </div>
+    </div>
+    {{end}}
+</div>
+{{end}}

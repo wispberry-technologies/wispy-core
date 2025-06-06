@@ -1,0 +1,7 @@
+[site]
+name = "Wispy Core Demo"
+domain = "localhost"
+description = "A demonstration site for Wispy Core CMS"
+language = "en"
+timezone = "UTC"
+theme = "pale-wisp"
