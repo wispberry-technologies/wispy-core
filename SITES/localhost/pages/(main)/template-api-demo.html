@@ -1,0 +1,189 @@
+<!--
+@name template-api-demo.html
+@url /template-api-demo
+@author Wispy Core Team
+@layout default
+@is_draft false
+@require_auth false
+@required_roles []
+-->
+<div class="container mx-auto px-4 py-8">
+    <div class="prose max-w-4xl mx-auto">
+        <h1>Template API Function Demo</h1>
+        <p>This page demonstrates the internal API template functions with real-time examples.</p>
+
+        <!-- Health Check Test -->
+        <div class="card bg-base-200 shadow-xl mb-6">
+            <div class="card-body">
+                <h2 class="card-title">Health Check API</h2>
+                {{ $healthResponse := api "GET" "/health" }}
+                {{ if isAPIError $healthResponse }}
+                    <div class="alert alert-error">
+                        <strong>Error:</strong> {{ getAPIError $healthResponse }}
+                    </div>
+                {{ else }}
+                    <div class="alert alert-success">
+                        <strong>✅ Health Check Successful!</strong>
+                    </div>
+                    <div class="stats stats-vertical lg:stats-horizontal shadow">
+                        <div class="stat">
+                            <div class="stat-title">Status</div>
+                            <div class="stat-value text-success">{{ getAPIData $healthResponse "status" }}</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-title">Duration</div>
+                            <div class="stat-value text-sm">{{ getAPIData $healthResponse "_duration_ms" }}ms</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-title">Cache Hit</div>
+                            <div class="stat-value text-sm">{{ if getAPIData $healthResponse "_cache_hit" }}Yes{{ else }}No{{ end }}</div>
+                        </div>
+                    </div>
+                {{ end }}
+            </div>
+        </div>
+
+        <!-- POST Request Test -->
+        <div class="card bg-base-200 shadow-xl mb-6">
+            <div class="card-body">
+                <h2 class="card-title">POST Request Test</h2>
+                {{ $postResponse := api "POST" "/health" (dict "headers" (dict "Content-Type" "application/json") "body" (dict "test" "data")) }}
+                <div class="stats stats-vertical lg:stats-horizontal shadow">
+                    <div class="stat">
+                        <div class="stat-title">Status Code</div>
+                        <div class="stat-value {{ if eq ($postResponse.status_code | default 0) 405 }}text-warning{{ else }}text-error{{ end }}">
+                            {{ $postResponse.status_code | default "Unknown" }}
+                        </div>
+                        <div class="stat-desc">{{ if eq ($postResponse.status_code | default 0) 405 }}Method Not Allowed (Expected){{ else }}Unexpected{{ end }}</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-title">Duration</div>
+                        <div class="stat-value text-sm">{{ getAPIData $postResponse "_duration_ms" }}ms</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-title">Cached</div>
+                        <div class="stat-value text-sm">{{ if getAPIData $postResponse "_cache_hit" }}Yes{{ else }}No{{ end }}</div>
+                        <div class="stat-desc">POST requests should not be cached</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Handling Test -->
+        <div class="card bg-base-200 shadow-xl mb-6">
+            <div class="card-body">
+                <h2 class="card-title">Error Handling Test</h2>
+                {{ $errorResponse := api "GET" "/nonexistent-endpoint" }}
+                <div class="stats stats-vertical lg:stats-horizontal shadow">
+                    <div class="stat">
+                        <div class="stat-title">Status Code</div>
+                        <div class="stat-value text-error">{{ $errorResponse.status_code | default "Unknown" }}</div>
+                        <div class="stat-desc">{{ if eq ($errorResponse.status_code | default 0) 404 }}Not Found (Expected){{ else }}Unexpected{{ end }}</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-title">Duration</div>
+                        <div class="stat-value text-sm">{{ getAPIData $errorResponse "_duration_ms" }}ms</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-title">Response Type</div>
+                        <div class="stat-value text-sm">{{ if getAPIData $errorResponse "text" }}Text{{ else }}JSON{{ end }}</div>
+                    </div>
+                </div>
+                {{ if getAPIData $errorResponse "text" }}
+                    <div class="alert alert-info mt-4">
+                        <strong>Response:</strong> {{ getAPIData $errorResponse "text" }}
+                    </div>
+                {{ end }}
+            </div>
+        </div>
+
+        <!-- Multiple Requests Performance Test -->
+        <div class="card bg-base-200 shadow-xl mb-6">
+            <div class="card-body">
+                <h2 class="card-title">Caching Performance Demonstration</h2>
+                <p>Multiple identical requests to demonstrate caching performance:</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                    {{ range $i := slice 1 2 3 4 5 6 }}
+                        {{ $response := api "GET" "/health" }}
+                        <div class="stat bg-base-100 rounded-box p-4">
+                            <div class="stat-title">Request {{ $i }}</div>
+                            <div class="stat-value text-sm">{{ getAPIData $response "_duration_ms" }}ms</div>
+                            <div class="stat-desc">
+                                {{ if getAPIData $response "_cache_hit" }}
+                                    <span class="badge badge-success badge-sm">Cached</span>
+                                {{ else }}
+                                    <span class="badge badge-warning badge-sm">Fresh</span>
+                                {{ end }}
+                            </div>
+                        </div>
+                    {{ end }}
+                </div>
+                
+                <div class="alert alert-info mt-4">
+                    <strong>Note:</strong> The first request should be slower and marked as "Fresh", while subsequent requests should be much faster and marked as "Cached".
+                </div>
+            </div>
+        </div>
+
+        <!-- Template Function Usage Examples -->
+        <div class="card bg-base-200 shadow-xl mb-6">
+            <div class="card-body">
+                <h2 class="card-title">Template Function Reference</h2>
+                <div class="tabs tabs-bordered">
+                    <input type="radio" name="function_tabs" role="tab" class="tab" aria-label="Basic API Call" checked />
+                    <div role="tabpanel" class="tab-content p-4">
+                        <h3>Basic API Call</h3>
+                        <div class="mockup-code">
+                            <pre><code>{{ `{{ $response := api "GET" "/health" }}
+{{ $response.status_code }}` }}</code></pre>
+                        </div>
+                    </div>
+
+                    <input type="radio" name="function_tabs" role="tab" class="tab" aria-label="With Headers" />
+                    <div role="tabpanel" class="tab-content p-4">
+                        <h3>API Call with Headers</h3>
+                        <div class="mockup-code">
+                            <pre><code>{{ `{{ $response := api "GET" "/api/v1/data" (dict "headers" (dict "Authorization" "Bearer token")) }}` }}</code></pre>
+                        </div>
+                    </div>
+
+                    <input type="radio" name="function_tabs" role="tab" class="tab" aria-label="POST with Body" />
+                    <div role="tabpanel" class="tab-content p-4">
+                        <h3>POST Request with Body</h3>
+                        <div class="mockup-code">
+                            <pre><code>{{ `{{ $response := api "POST" "/api/v1/create" (dict 
+    "headers" (dict "Content-Type" "application/json")
+    "body" (dict "name" "New Item" "type" "example")
+) }}` }}</code></pre>
+                        </div>
+                    </div>
+
+                    <input type="radio" name="function_tabs" role="tab" class="tab" aria-label="Error Handling" />
+                    <div role="tabpanel" class="tab-content p-4">
+                        <h3>Error Handling</h3>
+                        <div class="mockup-code">
+                            <pre><code>{{ `{{ $response := api "GET" "/api/v1/data" }}
+{{ if isAPIError $response }}
+    Error: {{ getAPIError $response }}
+{{ else }}
+    Success: {{ getAPIData $response "result" }}
+{{ end }}` }}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Debug Information -->
+        <div class="card bg-base-300 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title">Debug Information</h2>
+                {{ $debugResponse := api "GET" "/health" }}
+                <div class="mockup-code">
+                    <pre><code>{{ toJSON $debugResponse }}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

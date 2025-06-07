@@ -63,17 +63,33 @@ func (pm *PageManager) GetPage(slug string) (*Page, error) {
 	// Remove leading slash if present
 	slug = strings.TrimPrefix(slug, "/")
 
+	// Ensure pages directory structure exists
+	if err := os.MkdirAll(pm.site.PagesPath, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create pages directory: %w", err)
+	}
+
+	mainPagesDir := filepath.Join(pm.site.PagesPath, "(main)")
+	if err := os.MkdirAll(mainPagesDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create main pages directory: %w", err)
+	}
+
 	var pagePath string
 	var found bool
 
 	// First try to find the page in the main directory
 	mainPagePath := filepath.Join(pm.site.PagesPath, "(main)", slug+".html")
-	if _, err := os.Stat(mainPagePath); err == nil {
+	relativeMainPath, err := filepath.Rel(filepath.Join(rootPath(), "sites", pm.site.Domain), mainPagePath)
+	if err == nil && SecureExists(relativeMainPath) {
 		pagePath = mainPagePath
 		found = true
 	} else {
-		// Search through all subdirectories
-		err := filepath.Walk(pm.site.PagesPath, func(path string, info os.FileInfo, err error) error {
+		// Search through all subdirectories using secure walk
+		relativePagePath, err := filepath.Rel(filepath.Join(rootPath(), "sites", pm.site.Domain), pm.site.PagesPath)
+		if err != nil {
+			return nil, fmt.Errorf("error getting relative pages path: %w", err)
+		}
+
+		walkErr := SecureWalk(relativePagePath, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -93,8 +109,8 @@ func (pm *PageManager) GetPage(slug string) (*Page, error) {
 			return nil
 		})
 
-		if err != nil {
-			return nil, fmt.Errorf("error searching for page: %w", err)
+		if walkErr != nil {
+			return nil, fmt.Errorf("error searching for page: %w", walkErr)
 		}
 	}
 
@@ -102,8 +118,13 @@ func (pm *PageManager) GetPage(slug string) (*Page, error) {
 		return nil, fmt.Errorf("page not found: %s", slug)
 	}
 
-	// Read page file
-	content, err := os.ReadFile(pagePath)
+	// Read page file securely
+	relativePagePath, err := filepath.Rel(filepath.Join(rootPath(), "sites", pm.site.Domain), pagePath)
+	if err != nil {
+		return nil, fmt.Errorf("error getting relative path: %w", err)
+	}
+
+	content, err := SecureReadFile(relativePagePath)
 	if err != nil {
 		return nil, fmt.Errorf("error reading page file: %w", err)
 	}
@@ -257,8 +278,18 @@ func (pm *PageManager) parseHTMLCommentMetadata(commentContent string, meta *Pag
 func (pm *PageManager) GetPagesByTemplate(templateName string) ([]*Page, error) {
 	var pages []*Page
 
-	// Walk through pages directory
-	err := filepath.Walk(pm.site.PagesPath, func(path string, info os.FileInfo, err error) error {
+	// Ensure pages directory exists
+	if err := os.MkdirAll(pm.site.PagesPath, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create pages directory: %w", err)
+	}
+
+	// Walk through pages directory using secure walk
+	relativePagePath, err := filepath.Rel(filepath.Join(rootPath(), "sites", pm.site.Domain), pm.site.PagesPath)
+	if err != nil {
+		return nil, fmt.Errorf("error getting relative pages path: %w", err)
+	}
+
+	walkErr := SecureWalk(relativePagePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -290,8 +321,8 @@ func (pm *PageManager) GetPagesByTemplate(templateName string) ([]*Page, error) 
 		return nil
 	})
 
-	if err != nil {
-		return nil, fmt.Errorf("error walking pages directory: %w", err)
+	if walkErr != nil {
+		return nil, fmt.Errorf("error walking pages directory: %w", walkErr)
 	}
 
 	return pages, nil
@@ -386,12 +417,18 @@ func (pm *PageManager) UpdatePage(slug string, meta PageMeta, content string, se
 
 	// First try the main directory
 	mainPagePath := filepath.Join(pm.site.PagesPath, "(main)", slug+".html")
-	if _, err := os.Stat(mainPagePath); err == nil {
+	relativeMainPath, err := filepath.Rel(filepath.Join(rootPath(), "sites", pm.site.Domain), mainPagePath)
+	if err == nil && SecureExists(relativeMainPath) {
 		pagePath = mainPagePath
 		found = true
 	} else {
-		// Search through all subdirectories
-		err := filepath.Walk(pm.site.PagesPath, func(path string, info os.FileInfo, err error) error {
+		// Search through all subdirectories using secure walk
+		relativePagePath, err := filepath.Rel(filepath.Join(rootPath(), "sites", pm.site.Domain), pm.site.PagesPath)
+		if err != nil {
+			return fmt.Errorf("error getting relative pages path: %w", err)
+		}
+
+		walkErr := SecureWalk(relativePagePath, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -411,8 +448,8 @@ func (pm *PageManager) UpdatePage(slug string, meta PageMeta, content string, se
 			return nil
 		})
 
-		if err != nil {
-			return fmt.Errorf("error searching for page to update: %w", err)
+		if walkErr != nil {
+			return fmt.Errorf("error searching for page to update: %w", walkErr)
 		}
 	}
 
@@ -436,12 +473,18 @@ func (pm *PageManager) DeletePage(slug string) error {
 
 	// First try the main directory
 	mainPagePath := filepath.Join(pm.site.PagesPath, "(main)", slug+".html")
-	if _, err := os.Stat(mainPagePath); err == nil {
+	relativeMainPath, err := filepath.Rel(filepath.Join(rootPath(), "sites", pm.site.Domain), mainPagePath)
+	if err == nil && SecureExists(relativeMainPath) {
 		pagePath = mainPagePath
 		found = true
 	} else {
-		// Search through all subdirectories
-		err := filepath.Walk(pm.site.PagesPath, func(path string, info os.FileInfo, err error) error {
+		// Search through all subdirectories using secure walk
+		relativePagePath, err := filepath.Rel(filepath.Join(rootPath(), "sites", pm.site.Domain), pm.site.PagesPath)
+		if err != nil {
+			return fmt.Errorf("error getting relative pages path: %w", err)
+		}
+
+		walkErr := SecureWalk(relativePagePath, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -461,8 +504,8 @@ func (pm *PageManager) DeletePage(slug string) error {
 			return nil
 		})
 
-		if err != nil {
-			return fmt.Errorf("error searching for page to delete: %w", err)
+		if walkErr != nil {
+			return fmt.Errorf("error searching for page to delete: %w", walkErr)
 		}
 	}
 
@@ -481,8 +524,13 @@ func (pm *PageManager) DeletePage(slug string) error {
 func (pm *PageManager) ListPages(includeUnpublished bool) ([]*Page, error) {
 	var pages []*Page
 
-	// Walk through pages directory
-	err := filepath.Walk(pm.site.PagesPath, func(path string, info os.FileInfo, err error) error {
+	// Walk through pages directory using secure walk
+	relativePagePath, err := filepath.Rel(filepath.Join(rootPath(), "sites", pm.site.Domain), pm.site.PagesPath)
+	if err != nil {
+		return nil, fmt.Errorf("error getting relative pages path: %w", err)
+	}
+
+	walkErr := SecureWalk(relativePagePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -510,8 +558,8 @@ func (pm *PageManager) ListPages(includeUnpublished bool) ([]*Page, error) {
 		return nil
 	})
 
-	if err != nil {
-		return nil, fmt.Errorf("error walking pages directory: %w", err)
+	if walkErr != nil {
+		return nil, fmt.Errorf("error walking pages directory: %w", walkErr)
 	}
 
 	return pages, nil

@@ -45,9 +45,21 @@ func SetupRoutes(siteManager *common.SiteManager, renderEngine *common.RenderEng
 		w.Write([]byte(`{"status": "healthy"}`))
 	})
 
+	// API routes with versioning
+	r.Route("/api", func(r chi.Router) {
+		r.Route("/v1", func(r chi.Router) {
+			// Setup authentication routes
+			SetupAuthRoutes(r, siteManager)
+		})
+	})
+
 	// Admin routes (for managing sites, pages, etc.)
 	r.Route("/admin", func(r chi.Router) {
-		// TODO: Add admin authentication middleware
+		// Add admin authentication middleware
+		if siteManager != nil {
+			// Use site manager auth middleware for localhost (default admin site)
+			r.Use(siteManager.RequireRoles("localhost", "admin"))
+		}
 		setupAdminRoutes(r, siteManager, renderEngine)
 	})
 

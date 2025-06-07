@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -220,14 +221,38 @@ func (sh *SiteHandler) handleStaticAssets(w http.ResponseWriter, r *http.Request
 		logger.Debug("Serving private asset", map[string]interface{}{
 			"asset_path": assetPath,
 		})
-		http.ServeFile(w, r, site.AssetsPath+"/"+assetPath)
+
+		// Construct site-relative path for assets
+		sitePath := filepath.Join("sites", site.Domain, "assets", assetPath)
+		safeAssetPath, err := common.SecureServeFile(sitePath)
+		if err != nil {
+			logger.Warn("Asset access denied", map[string]interface{}{
+				"path":  r.URL.Path,
+				"error": err.Error(),
+			})
+			http.NotFound(w, r)
+			return
+		}
+		http.ServeFile(w, r, safeAssetPath)
 	} else if strings.HasPrefix(r.URL.Path, "/public/") {
 		// Public assets
 		assetPath = strings.TrimPrefix(r.URL.Path, "/public/")
 		logger.Debug("Serving public asset", map[string]interface{}{
 			"asset_path": assetPath,
 		})
-		http.ServeFile(w, r, site.PublicPath+"/"+assetPath)
+
+		// Construct site-relative path for public assets
+		sitePath := filepath.Join("sites", site.Domain, "public", assetPath)
+		safeAssetPath, err := common.SecureServeFile(sitePath)
+		if err != nil {
+			logger.Warn("Asset access denied", map[string]interface{}{
+				"path":  r.URL.Path,
+				"error": err.Error(),
+			})
+			http.NotFound(w, r)
+			return
+		}
+		http.ServeFile(w, r, safeAssetPath)
 	} else {
 		logger.Warn("Asset not found", map[string]interface{}{
 			"path": r.URL.Path,

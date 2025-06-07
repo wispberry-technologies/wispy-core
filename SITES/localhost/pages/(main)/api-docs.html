@@ -1,0 +1,281 @@
+<!--
+@name api-docs.html
+@url /api-docs
+@author Wispy Core Team
+@layout default
+@is_draft false
+@require_auth false
+@required_roles []
+-->
+{{define "page-content"}}
+<div class="container mx-auto px-4 py-8">
+    <div class="prose max-w-4xl mx-auto">
+        <h1>Internal API Template Function Documentation</h1>
+        <p class="lead">Complete guide to using the <code>api</code> template function for server-side API calls in Wispy Core.</p>
+        
+        <div class="alert alert-info">
+            <svg class="w-6 h-6 stroke-current shrink-0" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>The API template function enables server-side rendering of dynamic content without HTTP overhead by making internal API calls.</span>
+        </div>
+
+        <h2>Basic Syntax</h2>
+        <div class="mockup-code">
+            <pre><code>{{ `{{ $response := api "METHOD" "PATH" OPTIONS }}` }}</code></pre>
+        </div>
+
+        <h3>Parameters</h3>
+        <div class="overflow-x-auto">
+            <table class="table table-zebra">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Type</th>
+                        <th>Required</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>METHOD</code></td>
+                        <td>string</td>
+                        <td>✅</td>
+                        <td>HTTP method: GET, POST, PUT, DELETE, PATCH, etc.</td>
+                    </tr>
+                    <tr>
+                        <td><code>PATH</code></td>
+                        <td>string</td>
+                        <td>✅</td>
+                        <td>API endpoint path, e.g., "/admin/api/v1/pages"</td>
+                    </tr>
+                    <tr>
+                        <td><code>OPTIONS</code></td>
+                        <td>map</td>
+                        <td>❌</td>
+                        <td>Optional configuration map</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>Options Map</h3>
+        <div class="overflow-x-auto">
+            <table class="table table-zebra">
+                <thead>
+                    <tr>
+                        <th>Option</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Example</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>headers</code></td>
+                        <td>map[string]string</td>
+                        <td>HTTP headers to send</td>
+                        <td><code>(dict "Content-Type" "application/json")</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>body</code></td>
+                        <td>string, []byte, or map</td>
+                        <td>Request body data</td>
+                        <td><code>(dict "title" "My Page")</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2>Examples</h2>
+
+        <h3>1. Simple GET Request</h3>
+        <div class="mockup-code">
+            <pre><code>{{ `{{ $pages := api "GET" "/admin/api/v1/pages" }}
+{{ if isAPIError $pages }}
+    <p class="text-error">Error: {{ getAPIError $pages }}</p>
+{{ else }}
+    <p>Found {{ len $pages.data }} pages</p>
+{{ end }}` }}</code></pre>
+        </div>
+
+        <h3>2. GET with Query Parameters</h3>
+        <div class="mockup-code">
+            <pre><code>{{ `{{ $pages := api "GET" "/admin/api/v1/pages?site=localhost&limit=10" }}` }}</code></pre>
+        </div>
+
+        <h3>3. POST with JSON Body</h3>
+        <div class="mockup-code">
+            <pre><code>{{ `{{ $newPage := api "POST" "/admin/api/v1/pages" (dict 
+    "headers" (dict "Content-Type" "application/json")
+    "body" (dict 
+        "title" "New Page"
+        "content" "Page content"
+        "url" "/new-page"
+    )
+) }}` }}</code></pre>
+        </div>
+
+        <h3>4. PUT with Custom Headers</h3>
+        <div class="mockup-code">
+            <pre><code>{{ `{{ $result := api "PUT" "/admin/api/v1/pages/123" (dict 
+    "headers" (dict 
+        "Content-Type" "application/json"
+        "X-Custom-Header" "custom-value"
+    )
+    "body" (dict "title" "Updated Title")
+) }}` }}</code></pre>
+        </div>
+
+        <h2>Response Format</h2>
+        
+        <h3>JSON Responses</h3>
+        <p>For JSON API responses, the function returns the parsed JSON data directly:</p>
+        <div class="mockup-code">
+            <pre><code>{{ `{
+  "data": [...],
+  "status": "success",
+  "message": "Pages retrieved successfully"
+}` }}</code></pre>
+        </div>
+
+        <h3>Non-JSON Responses</h3>
+        <p>For non-JSON responses, returns an object with full response details:</p>
+        <div class="mockup-code">
+            <pre><code>{{ `{
+  "status_code": 200,
+  "headers": {"Content-Type": "text/plain"},
+  "body": "Response content"
+}` }}</code></pre>
+        </div>
+
+        <h3>Error Responses</h3>
+        <p>When an error occurs, returns an object with error information:</p>
+        <div class="mockup-code">
+            <pre><code>{{ `{
+  "error": "API call failed: connection refused",
+  "_debug": "Method: GET, Path: /invalid/endpoint"
+}` }}</code></pre>
+        </div>
+
+        <h2>Helper Functions</h2>
+        
+        <div class="grid md:grid-cols-2 gap-4">
+            <div class="card bg-base-200">
+                <div class="card-body">
+                    <h3 class="card-title">Error Checking</h3>
+                    <div class="mockup-code text-sm">
+                        <pre><code>{{ `{{ if isAPIError $response }}
+  Error: {{ getAPIError $response }}
+{{ end }}` }}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card bg-base-200">
+                <div class="card-body">
+                    <h3 class="card-title">Success Checking</h3>
+                    <div class="mockup-code text-sm">
+                        <pre><code>{{ `{{ if isAPISuccess $response }}
+  Success!
+{{ end }}` }}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card bg-base-200">
+                <div class="card-body">
+                    <h3 class="card-title">Get Specific Data</h3>
+                    <div class="mockup-code text-sm">
+                        <pre><code>{{ `{{ $title := getAPIData $response "title" }}` }}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card bg-base-200">
+                <div class="card-body">
+                    <h3 class="card-title">JSON Conversion</h3>
+                    <div class="mockup-code text-sm">
+                        <pre><code>{{ `{{ $json := toJSON $data }}
+{{ $parsed := fromJSON $jsonString }}` }}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2>Authentication Context</h2>
+        <p>The API function automatically forwards authentication context from the original page request:</p>
+        <ul>
+            <li><strong>Headers:</strong> Authorization, Cookie, X-Session-ID</li>
+            <li><strong>Request Context:</strong> User sessions, authentication state</li>
+            <li><strong>Network Info:</strong> IP address, User-Agent, forwarded headers</li>
+            <li><strong>Site Context:</strong> Multi-tenant site information</li>
+        </ul>
+
+        <h2>Best Practices</h2>
+        
+        <div class="grid md:grid-cols-2 gap-4">
+            <div class="card bg-success/10 border-success">
+                <div class="card-body">
+                    <h3 class="card-title text-success">✅ Do</h3>
+                    <ul class="text-sm">
+                        <li>Always check for errors using <code>isAPIError</code></li>
+                        <li>Use meaningful variable names for responses</li>
+                        <li>Cache expensive API calls when possible</li>
+                        <li>Validate response data before using</li>
+                        <li>Use helper functions for common operations</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card bg-error/10 border-error">
+                <div class="card-body">
+                    <h3 class="card-title text-error">❌ Don't</h3>
+                    <ul class="text-sm">
+                        <li>Make API calls in loops without pagination</li>
+                        <li>Ignore error responses</li>
+                        <li>Make unnecessary API calls for static data</li>
+                        <li>Assume response format without checking</li>
+                        <li>Make external HTTP calls (use internal APIs only)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <h2>Performance Considerations</h2>
+        <div class="alert alert-warning">
+            <svg class="w-6 h-6 stroke-current shrink-0" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.864-.833-2.634 0L3.098 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+            </svg>
+            <div>
+                <h3>Important Notes</h3>
+                <ul>
+                    <li>API calls are executed during template rendering, affecting page load time</li>
+                    <li>Consider caching strategies for frequently accessed data</li>
+                    <li>Use pagination for large datasets</li>
+                    <li>Implement timeouts for potentially slow API calls</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>Debugging</h2>
+        <p>All API responses include debug information for troubleshooting:</p>
+        <div class="mockup-code">
+            <pre><code>{{ `{{ $response := api "GET" "/api/test" }}
+{{ if $response._debug }}
+  Debug: {{ $response._debug }}
+{{ end }}
+{{ if $response._validation_warnings }}
+  Warnings: {{ $response._validation_warnings }}
+{{ end }}` }}</code></pre>
+        </div>
+
+        <div class="divider"></div>
+        
+        <div class="text-center">
+            <a href="/api-test" class="btn btn-primary">View Live Examples</a>
+            <a href="/" class="btn btn-outline">Back to Home</a>
+        </div>
+    </div>
+</div>
+{{end}}

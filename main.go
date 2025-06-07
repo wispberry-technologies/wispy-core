@@ -11,6 +11,7 @@ import (
 
 	"github.com/wispberry-technologies/wispy-core/common"
 	"github.com/wispberry-technologies/wispy-core/routes"
+	"github.com/wispberry-technologies/wispy-core/tests"
 )
 
 // Define colors for logging
@@ -41,6 +42,10 @@ func main() {
 	requestsPerSecond := common.GetEnvInt("RATE_LIMIT_REQUESTS_PER_SECOND", 12)
 	requestsPerMinute := common.GetEnvInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 240)
 
+	if common.GetEnvBool("TEST_MODE", false) {
+		tests.Run(os.Args[1:]...)
+	}
+
 	// Log startup information
 	log.Printf("%s🚀 Starting Wispy Core CMS%s", colorCyan, colorReset)
 	log.Printf("%s📁 Sites directory: %s%s", colorGrey, sitesPath, colorReset)
@@ -48,10 +53,10 @@ func main() {
 	log.Printf("%s🔧 Rate limiting: %v%s", colorGrey, rateLimitEnabled, colorReset)
 
 	// Initialize core components
-	siteManager := common.NewSiteManager(sitesPath)
+	siteManager := common.NewSiteManager()
 	renderEngine := common.NewRenderEngine(siteManager)
 
-	// Setup routes with rate limiting configuration
+	// Setup routes with rate limiting configuration and auth manager
 	r := routes.SetupRoutes(siteManager, renderEngine, rateLimitEnabled, requestsPerSecond, requestsPerMinute)
 
 	// Create and wire API dispatcher for template functions

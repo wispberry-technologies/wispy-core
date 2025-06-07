@@ -17,7 +17,6 @@
 ### Code Style
 - Use of Go's standard formatting tools (gofmt) for consistent code style
 - Use of meaningful variable and function names like `getUserByID`, `createProduct` using CamelCase for function names
-- Use of snake_case for variable names (e.g., `user_id`, `product_name`)
 - Use of Kebab-case for file names (e.g., `get-user-by-id.go`, `create-product.go`)
 - Use of comments to explain complex logic or important decisions
 - Use of Go's error handling idioms (returning errors as the last return value)
@@ -127,3 +126,13 @@
 ```
 - Then for each page file we will call a function that will pull the metadata register the url in a mux for that site
 - the page will be rendered to /.wispy-cache/<site_domain>/<page_slug>.html
+
+## Codebase rules
+- Use of Go's standard library for HTTP handling, templating, and file operations
+- Use bcrypt for password hashing and authentication
+- api arrors should be handled via error code and text response, with debugging information sent in the `X-Debug` header
+- do not use json for error responses, use text/plain for error messages
+- We do not use any third-party libraries for core functionality unless absolutely necessary
+- We do not use JWT for authentication; instead, we use session-based authentication with secure cookies
+- Any models or data structures used outside of their initial file should be defined in the `/models/<name>-structs` directory
+- SQL queries should be defined in the `/models/<name>-sql` directory if they are complex or reused across multiple files
