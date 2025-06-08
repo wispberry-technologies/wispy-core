@@ -2,8 +2,9 @@ package tests
 
 import (
 	"fmt"
+	"path/filepath"
 
-	"github.com/wispberry-technologies/wispy-core/common"
+	"wispy-core/common"
 )
 
 func TestPathSecurity() {
@@ -12,7 +13,8 @@ func TestPathSecurity() {
 
 	// Test 1: Normal file access should work
 	fmt.Println("\n1. Testing normal file access...")
-	exists := common.SecureExists("sites/example.com/config/config.toml")
+	testPath := filepath.Join(common.MustGetEnv("SITES_PATH"), "example.com", "config", "config.toml")
+	exists := common.SecureExists(testPath)
 	fmt.Printf("Config file exists: %v\n", exists)
 
 	// Test 2: Path traversal attempts should be blocked

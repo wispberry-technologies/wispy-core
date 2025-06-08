@@ -69,7 +69,7 @@ func (c *DBCache) GetConnection(domain, dbName string) (*sql.DB, error) {
 // createConnection creates a new database connection and caches it
 func (c *DBCache) createConnection(domain, dbName string) (*sql.DB, error) {
 	// Construct the database path
-	dbPath := filepath.Join("sites", domain, "dbs", dbName+".db")
+	dbPath := filepath.Join(MustGetEnv("SITES_PATH"), domain, "dbs", dbName+".db")
 
 	// Validate path security
 	safePath, err := ValidatePath(dbPath)

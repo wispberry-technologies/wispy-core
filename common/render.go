@@ -19,28 +19,34 @@ type TemplateContext struct {
 
 // RenderEngine handles template rendering
 type RenderEngine struct {
-	siteManager   *SiteManager
-	apiDispatcher APIDispatcher
-	funcMap       template.FuncMap
+	funcMap  *template.FuncMap
+	template *template.Template
 }
 
 // NewRenderEngine creates a new render engine
-func NewRenderEngine(siteManager *SiteManager) *RenderEngine {
-	return &RenderEngine{
-		siteManager:   siteManager,
-		apiDispatcher: nil, // Will be set later via SetAPIDispatcher
-		funcMap:       nil, // Will be created when API dispatcher is set
+func NewRenderEngine(siteManager *SiteInstanceManager) *RenderEngine {
+	var tmpl *template.Template
+	var newEngine = &RenderEngine{
+		funcMap:  createTemplateFuncMapWithRequest(siteManager),
+		template: tmpl,
 	}
-}
 
-// SetAPIDispatcher sets the API dispatcher and creates the function map
-func (re *RenderEngine) SetAPIDispatcher(dispatcher APIDispatcher) {
-	re.apiDispatcher = dispatcher
-	re.funcMap = re.createTemplateFuncMap()
+	// Load templates files first
+	sitePath := filepath.Join(rootPath(), "template-sections")
+	templateGlob := filepath.Join(sitePath, "*.html")
+	templates, err := SecureGlob(templateGlob)
+	if err == nil && len(templates) > 0 {
+		tmpl, err = tmpl.ParseFiles(templates...)
+		if err != nil {
+			panic(fmt.Errorf("error parsing template files: %w", err))
+		}
+	}
+
+	return newEngine
 }
 
 // RenderPage renders a page using its template and layout
-func (re *RenderEngine) RenderPage(w http.ResponseWriter, r *http.Request, site *Site, page *Page) error {
+func (re *RenderEngine) RenderPage(w http.ResponseWriter, r *http.Request, instance *SiteInstance, page *Page) error {
 	// Check if page requires authentication
 	if page.Meta.RequireAuth {
 		// TODO: Implement authentication check
@@ -55,7 +61,7 @@ func (re *RenderEngine) RenderPage(w http.ResponseWriter, r *http.Request, site 
 
 	// Create template context
 	context := &TemplateContext{
-		Site:    site,
+		Site:    instance.Site,
 		Page:    page,
 		Data:    make(map[string]interface{}),
 		Request: r,
@@ -73,31 +79,16 @@ func (re *RenderEngine) RenderPage(w http.ResponseWriter, r *http.Request, site 
 	// Determine layout to use
 	layoutName := page.Meta.Layout
 	if layoutName == "" {
-		layoutName = "default"
+		layoutName = "layouts/default"
 	}
 
-	// Create a function map with request context
-	funcMap := re.createTemplateFuncMapWithRequest(r)
+	// Create a fresh template for this request (to avoid "cannot Parse after Execute" error)
+	tmpl := template.New("").Funcs(*re.funcMap)
 
-	// Create a new template with our function map and load all template files
-	tmpl := template.New("").Funcs(funcMap)
-
-	// Ensure all template directories exist
-	templateDirs := []string{
-		site.LayoutPath,
-		site.SnippetsPath,
-		site.SectionsPath,
-		site.BlocksPath,
-	}
-
-	for _, dir := range templateDirs {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("failed to create template directory %s: %w", dir, err)
-		}
-	}
-
-	// Load layout templates
-	layouts, err := SecureGlob("layout/*.html")
+	// Load layout files first
+	sitePath := filepath.Join(MustGetEnv("SITES_PATH"), instance.Domain)
+	layoutGlob := filepath.Join(sitePath, "layout", "*.html")
+	layouts, err := SecureGlob(layoutGlob)
 	if err == nil && len(layouts) > 0 {
 		tmpl, err = tmpl.ParseFiles(layouts...)
 		if err != nil {
@@ -106,7 +97,8 @@ func (re *RenderEngine) RenderPage(w http.ResponseWriter, r *http.Request, site 
 	}
 
 	// Load snippets
-	snippets, err := SecureGlob("snippets/*.html")
+	snippetGlob := filepath.Join(sitePath, "snippets", "*.html")
+	snippets, err := SecureGlob(snippetGlob)
 	if err == nil && len(snippets) > 0 {
 		tmpl, err = tmpl.ParseFiles(snippets...)
 		if err != nil {
@@ -115,20 +107,12 @@ func (re *RenderEngine) RenderPage(w http.ResponseWriter, r *http.Request, site 
 	}
 
 	// Load sections
-	sections, err := SecureGlob("sections/*.html")
+	sectionGlob := filepath.Join(sitePath, "sections", "*.html")
+	sections, err := SecureGlob(sectionGlob)
 	if err == nil && len(sections) > 0 {
 		tmpl, err = tmpl.ParseFiles(sections...)
 		if err != nil {
 			return fmt.Errorf("error parsing section templates: %w", err)
-		}
-	}
-
-	// Load blocks
-	blocks, err := SecureGlob("blocks/*.html")
-	if err == nil && len(blocks) > 0 {
-		tmpl, err = tmpl.ParseFiles(blocks...)
-		if err != nil {
-			return fmt.Errorf("error parsing block templates: %w", err)
 		}
 	}
 
@@ -156,16 +140,16 @@ func (re *RenderEngine) RenderPage(w http.ResponseWriter, r *http.Request, site 
 }
 
 // RenderTemplate renders a specific template with custom context
-func (re *RenderEngine) RenderTemplate(w http.ResponseWriter, r *http.Request, site *Site, templateName string, data map[string]interface{}) error {
+func (re *RenderEngine) RenderTemplate(w http.ResponseWriter, r *http.Request, instance *SiteInstance, templateName string, data map[string]interface{}) error {
 	// Load template
-	tmpl, err := re.loadTemplateWithRequest(site, templateName, r)
+	tmpl, err := re.loadTemplateWithRequest(instance, templateName, r)
 	if err != nil {
 		return fmt.Errorf("error loading template: %w", err)
 	}
 
 	// Create template context
 	context := &TemplateContext{
-		Site:    site,
+		Site:    instance.Site,
 		Page:    nil,
 		Data:    data,
 		Request: r,
@@ -188,25 +172,24 @@ func (re *RenderEngine) RenderTemplate(w http.ResponseWriter, r *http.Request, s
 	return nil
 }
 
-// loadTemplate loads and parses a template with all its dependencies
-func (re *RenderEngine) loadTemplate(site *Site, templateName string) (*template.Template, error) {
-	return re.loadTemplateWithRequest(site, templateName, nil)
-}
-
 // loadTemplateWithRequest loads and parses a template with all its dependencies and request context
-func (re *RenderEngine) loadTemplateWithRequest(site *Site, templateName string, r *http.Request) (*template.Template, error) {
-	// Create base template with function map including request context
-	funcMap := re.createTemplateFuncMapWithRequest(r)
-	tmpl := template.New("").Funcs(funcMap)
-
+func (re *RenderEngine) loadTemplateWithRequest(instance *SiteInstance, templateName string, r *http.Request) (*template.Template, error) {
+	var site = instance.Site
 	// Ensure all template directories exist
 	templateDirs := []string{
-		site.LayoutPath,
-		site.SnippetsPath,
-		site.SectionsPath,
-		site.BlocksPath,
-		site.TemplatesPath,
+		filepath.Join(MustGetEnv("SITES_PATH"), site.Domain, "layout"),
+		filepath.Join(MustGetEnv("SITES_PATH"), site.Domain, "snippets"),
+		filepath.Join(MustGetEnv("SITES_PATH"), site.Domain, "sections"),
+		filepath.Join(MustGetEnv("SITES_PATH"), site.Domain, "blocks"),
+		filepath.Join(MustGetEnv("SITES_PATH"), site.Domain, "templates"),
 	}
+
+	// copy existing templates from re.Template
+	tmpl, err := re.template.Clone()
+	if err != nil {
+		panic(fmt.Errorf("failed to clone template: %w", err))
+	}
+	tmpl.Funcs(*re.funcMap)
 
 	for _, dir := range templateDirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
@@ -214,62 +197,41 @@ func (re *RenderEngine) loadTemplateWithRequest(site *Site, templateName string,
 		}
 	}
 
-	// Load layout templates first
-	layouts, err := SecureGlob("layout/*.html")
-	if err == nil && len(layouts) > 0 {
-		tmpl, err = tmpl.ParseFiles(layouts...)
+	for _, dir := range templateDirs {
+		// Load all HTML files in the directory
+		globPattern := filepath.Join(dir, "*.html")
+		files, err := SecureGlob(globPattern)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing layout templates: %w", err)
+			return nil, fmt.Errorf("error loading templates from %s: %w", dir, err)
+		}
+		if len(files) == 0 {
+			continue // No templates in this directory
+		}
+		// Parse all templates in the directory
+		tmpl, err = tmpl.ParseFiles(files...)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing templates from %s: %w", dir, err)
 		}
 	}
 
-	// Load snippets
-	snippets, err := SecureGlob("snippets/*.html")
-	if err == nil && len(snippets) > 0 {
-		tmpl, err = tmpl.ParseFiles(snippets...)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing snippet templates: %w", err)
-		}
-	}
-
-	// Load sections
-	sections, err := SecureGlob("sections/*.html")
-	if err == nil && len(sections) > 0 {
-		tmpl, err = tmpl.ParseFiles(sections...)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing section templates: %w", err)
-		}
-	}
-
-	// Load blocks
-	blocks, err := SecureGlob("blocks/*.html")
-	if err == nil && len(blocks) > 0 {
-		tmpl, err = tmpl.ParseFiles(blocks...)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing block templates: %w", err)
-		}
-	}
-
-	// Load the main template
-	templatePath := filepath.Join(site.TemplatesPath, templateName+".html")
-	tmpl, err = tmpl.ParseFiles(templatePath)
+	instance.Templates, err = tmpl.Clone()
 	if err != nil {
-		return nil, fmt.Errorf("error parsing main template %s: %w", templateName, err)
+		return nil, fmt.Errorf("failed to clone templates: %w", err)
 	}
 
 	return tmpl, nil
 }
 
 // RenderError renders an error page
-func (re *RenderEngine) RenderError(w http.ResponseWriter, r *http.Request, site *Site, statusCode int, message string) {
+func (re *RenderEngine) RenderError(w http.ResponseWriter, r *http.Request, instance *SiteInstance, statusCode int, message string) {
 	// Set status code
 	w.WriteHeader(statusCode)
 
 	// Try to load error template
-	tmpl, err := re.loadTemplateWithRequest(site, fmt.Sprintf("error-%d", statusCode), r)
+	tmpl, err := re.loadTemplateWithRequest(instance, fmt.Sprintf("error-%d", statusCode), r)
 	if err != nil {
 		// Fallback to generic error template
-		tmpl, err = re.loadTemplateWithRequest(site, "error", r)
+		tmpl, err = re.loadTemplateWithRequest(instance, "error", r)
 		if err != nil {
 			// Last resort: plain text response
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -280,7 +242,7 @@ func (re *RenderEngine) RenderError(w http.ResponseWriter, r *http.Request, site
 
 	// Create error context
 	context := &TemplateContext{
-		Site:    site,
+		Site:    instance.Site,
 		Page:    nil,
 		Request: r,
 		Data: map[string]interface{}{

@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 )
@@ -58,17 +57,6 @@ type Session struct {
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 	IPAddress string    `json:"ip_address" db:"ip_address"`
 	UserAgent string    `json:"user_agent" db:"user_agent"`
-}
-
-// AuthConfig holds configuration for authentication
-type AuthConfig struct {
-	SecretKey             string
-	SessionTimeout        time.Duration
-	BCryptCost            int
-	OAuth                 map[string]OAuthConfig
-	SessionCookieHTTPOnly bool
-	SessionCookieSecure   bool
-	SessionCookieSameSite http.SameSite
 }
 
 // OAuthConfig holds OAuth provider configuration

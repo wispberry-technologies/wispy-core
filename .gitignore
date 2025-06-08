@@ -5,8 +5,7 @@ tmp
 # Ignore example directory this is currenlty used for testing
 # Will update to contain well documented minimal example at some point.
 example
-run-example.sh
-
+wispy-core
 # Logs
 logs
 *.log

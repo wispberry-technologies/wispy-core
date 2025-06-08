@@ -5,365 +5,79 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
-	"os"
-	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/wispberry-technologies/wispy-core/auth"
-	"github.com/wispberry-technologies/wispy-core/models"
+	"wispy-core/auth"
+	"wispy-core/models"
 )
+
+// RouteEntry represents a single route mapping
+type RouteEntry struct {
+	Pattern    string         // URL pattern like "/blog/post/:slug"
+	PageSlug   string         // The page slug that handles this route
+	Page       *Page          // The actual page object
+	Parameters []string       // List of parameter names like ["slug"]
+	Priority   int            // Lower number = higher priority
+	Regex      *regexp.Regexp // Compiled regex for matching
+}
+
+// RouteInfo represents route information for API responses
+type RouteInfo struct {
+	Pattern    string   `json:"pattern"`
+	PageSlug   string   `json:"page_slug"`
+	Parameters []string `json:"parameters"`
+	Priority   int      `json:"priority"`
+	PageTitle  string   `json:"page_title"`
+	IsDraft    bool     `json:"is_draft"`
+}
 
 // Site represents a single site in the multisite system
 type Site struct {
-	Domain        string `json:"domain"`
-	Name          string `json:"name"`
-	BasePath      string `json:"base_path"`
-	IsActive      bool   `json:"is_active"`
-	Theme         string `json:"theme"`
-	ConfigPath    string `json:"config_path"`
-	PublicPath    string `json:"public_path"`
-	AssetsPath    string `json:"assets_path"`
-	PagesPath     string `json:"pages_path"`
-	LayoutPath    string `json:"layout_path"`
-	SectionsPath  string `json:"sections_path"`
-	TemplatesPath string `json:"templates_path"`
-	BlocksPath    string `json:"blocks_path"`
-	SnippetsPath  string `json:"snippets_path"`
+	Domain   string `json:"domain"`
+	Name     string `json:"name"`
+	BasePath string `json:"base_path"`
+	IsActive bool   `json:"is_active"`
+	Theme    string `json:"theme"`
 }
 
-// SiteManager manages multiple sites
-type SiteManager struct {
-	sites   map[string]*Site
-	dbCache *DBCache
+type SiteConfig struct {
+	MaxFailedLoginAttempts         int
+	FailedLoginAttemptLockDuration time.Duration
+	SessionCookieSameSite          http.SameSite
+	SessionCookieName              string
+	SectionCookieMaxAge            time.Duration
+	SessionTimeout                 time.Duration
+	IsCookieSecure                 bool
 }
 
-// NewSiteManager creates a new site manager
-func NewSiteManager() *SiteManager {
-	return &SiteManager{
-		sites:   make(map[string]*Site),
-		dbCache: NewDBCache(),
-	}
+// SiteInstance handles requests & data for individual sites
+type SiteInstance struct {
+	Domain    string
+	Site      *Site
+	Manager   *SiteInstanceManager
+	Templates *template.Template // Precompiled templates for this site
+	Config    SiteConfig         // Site-specific configuration
+	Routes    []RouteEntry       // routes for this site
+	Mu        sync.RWMutex       // mutex for thread-safe route access
 }
-
-// LoadSite loads a site configuration from the filesystem
-func (sm *SiteManager) LoadSite(domain string) (*Site, error) {
-	// Check if site is already loaded
-	if site, exists := sm.sites[domain]; exists {
-		return site, nil
-	}
-
-	sitePath := rootPath(GetEnv("SITES_PATH", "sites"), domain)
-
-	// Check if site directory exists, create if it doesn't
-	if !SecureExists(domain) {
-		// Create site directory structure automatically
-	}
-
-	site := &Site{
-		Domain:        domain,
-		Name:          domain, // Default name to domain
-		BasePath:      sitePath,
-		IsActive:      true,
-		Theme:         "pale-wisp", // Default theme
-		ConfigPath:    filepath.Join(sitePath, "config"),
-		PublicPath:    filepath.Join(sitePath, "public"),
-		AssetsPath:    filepath.Join(sitePath, "assets"),
-		PagesPath:     filepath.Join(sitePath, "pages"),
-		LayoutPath:    filepath.Join(sitePath, "layout"),
-		SectionsPath:  filepath.Join(sitePath, "sections"),
-		TemplatesPath: filepath.Join(sitePath, "templates"),
-		BlocksPath:    filepath.Join(sitePath, "blocks"),
-		SnippetsPath:  filepath.Join(sitePath, "snippets"),
-	}
-
-	// Cache the site
-	sm.sites[domain] = site
-
-	return site, nil
-}
-
-// GetSite retrieves a site by domain
-func (sm *SiteManager) GetSite(domain string) (*Site, error) {
-	return sm.LoadSite(domain)
-}
-
-// GetSiteFromHost extracts domain from host header and gets the site
-func (sm *SiteManager) GetSiteFromHost(host string) (*Site, error) {
-	// Remove port if present
-	domain := strings.Split(host, ":")[0]
-
-	// Remove www. prefix if present
-	if strings.HasPrefix(domain, "www.") {
-		domain = strings.TrimPrefix(domain, "www.")
-	}
-
-	return sm.GetSite(domain)
-}
-
-// CreateSiteDirectories creates the necessary directory structure for a new site
-func (sm *SiteManager) CreateSiteDirectories(domain string) error {
-	sitePath, err := ValidateSitePath(domain)
-	if err != nil {
-		return fmt.Errorf("failed to validate site path %s: %w", sitePath, err)
-	}
-
-	// Create the base site directory first
-	if err := os.MkdirAll(sitePath, 0755); err != nil {
-		return fmt.Errorf("failed to create site directory %s: %w", sitePath, err)
-	}
-
-	// Define all required directories
-	directories := []string{
-		filepath.Join(sitePath, "config"),
-		filepath.Join(sitePath, "config", "themes"),
-		filepath.Join(sitePath, "public"),
-		filepath.Join(sitePath, "assets"),
-		filepath.Join(sitePath, "pages"),
-		filepath.Join(sitePath, "pages", "(main)"),
-		filepath.Join(sitePath, "layout"),
-		filepath.Join(sitePath, "sections"),
-		filepath.Join(sitePath, "templates"),
-		filepath.Join(sitePath, "blocks"),
-		filepath.Join(sitePath, "snippets"),
-		filepath.Join(sitePath, "dbs"),
-		filepath.Join(sitePath, "migrations"),
-	}
-
-	for _, dir := range directories {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("failed to create directory %s: %w", dir, err)
-		}
-	}
-
-	// Create default config file if it doesn't exist
-	configPath := filepath.Join(sitePath, "config", "config.toml")
-	relativeConfigPath := filepath.Join("config", "config.toml")
-	if !SecureExists(relativeConfigPath) {
-		defaultConfig := fmt.Sprintf(`[site]
-name = "%s"
-domain = "%s"
-description = "A new site powered by Wispy Core"
-language = "en"
-timezone = "UTC"
-theme = "pale-wisp"
-`, domain, domain)
-
-		if err := os.WriteFile(configPath, []byte(defaultConfig), 0644); err != nil {
-			return fmt.Errorf("failed to create default config: %w", err)
-		}
-	}
-
-	// Create default theme files if they don't exist
-	themes := map[string]string{
-		"pale-wisp.css": `/* Pale Wisp Theme */
-@plugin "daisyui" {
-  themes: light --default;
-}`,
-		"midnight-wisp.css": `/* Midnight Wisp Theme */
-@plugin "daisyui" {
-  themes: dark --default;
-}`,
-	}
-
-	for themeName, themeContent := range themes {
-		themePath := filepath.Join(sitePath, "config", "themes", themeName)
-		relativeThemePath := filepath.Join("config", "themes", themeName)
-		if !SecureExists(relativeThemePath) {
-			if err := os.WriteFile(themePath, []byte(themeContent), 0644); err != nil {
-				return fmt.Errorf("failed to create default theme %s: %w", themeName, err)
-			}
-		}
-	}
-
-	// Create default layout if it doesn't exist
-	layoutPath := filepath.Join(sitePath, "layout", "default.html")
-	relativeLayoutPath := filepath.Join("layout", "default.html")
-	if !SecureExists(relativeLayoutPath) {
-		defaultLayout := `<!DOCTYPE html>
-<html lang="en" class="h-full">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Page.Meta.Title}} - {{.Site.Name}}</title>
-    <meta name="description" content="{{.Page.Meta.Description}}">
-    
-    <!-- daisyUI CSS Framework -->
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    
-    {{import "css" .Site "/config/themes/pale-wisp.css"}}
-</head>
-<body class="min-h-screen bg-base-100 text-base-content">
-    <div class="container mx-auto px-4 py-8">
-        <!-- Main Content -->
-        <main>
-            {{block "page-content" .}}
-            <div class="prose max-w-none">
-                <h1>Welcome to {{.Site.Name}}</h1>
-                <p>This is the default layout template.</p>
-            </div>
-            {{end}}
-        </main>
-
-        <!-- Footer -->
-        <footer class="footer footer-center p-4 text-base-content mt-8">
-            <div>
-                <p>&copy; 2025 {{.Site.Name}}. Powered by Wispy Core.</p>
-            </div>
-        </footer>
-    </div>
-</body>
-</html>`
-
-		if err := os.WriteFile(layoutPath, []byte(defaultLayout), 0644); err != nil {
-			return fmt.Errorf("failed to create default layout: %w", err)
-		}
-	}
-
-	// Create default home page if it doesn't exist
-	homePage := filepath.Join(sitePath, "pages", "(main)", "home.html")
-	relativeHomePage := filepath.Join("pages", "(main)", "home.html")
-	if !SecureExists(relativeHomePage) {
-		defaultHomePage := `<!--
-@name home.html
-@url /
-@author Wispy Core Team
-@layout default
-@is_draft false
-@require_auth false
-@required_roles []
--->
-{{define "page-content"}}
-<div class="hero min-h-screen bg-base-200">
-    <div class="hero-content text-center">
-        <div class="max-w-4xl">
-            <h1 class="text-5xl font-bold mb-8">Welcome to {{.Site.Name}}</h1>
-            <p class="text-xl mb-8">A new site powered by Wispy Core CMS</p>
-            <div class="flex gap-4 justify-center">
-                <a href="/admin" class="btn btn-primary btn-lg">Admin Panel</a>
-                <a href="/about" class="btn btn-outline btn-lg">Learn More</a>
-            </div>
-        </div>
-    </div>
-</div>
-{{end}}`
-
-		if err := os.WriteFile(homePage, []byte(defaultHomePage), 0644); err != nil {
-			return fmt.Errorf("failed to create default home page: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// GetTemplate loads and parses a template for the site
-func (s *Site) GetTemplate(templateName string) (*template.Template, error) {
-	templatePath := filepath.Join(s.TemplatesPath, templateName+".html")
-
-	// Ensure templates directory exists
-	if err := os.MkdirAll(s.TemplatesPath, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create templates directory: %w", err)
-	}
-
-	// Check if template exists
-	relativeTemplatePath, pathErr := filepath.Rel(filepath.Join(rootPath(), "sites", s.Domain), templatePath)
-	if pathErr != nil {
-		return nil, fmt.Errorf("error getting relative template path: %w", pathErr)
-	}
-	if !SecureExists(relativeTemplatePath) {
-		return nil, fmt.Errorf("template not found: %s", templateName)
-	}
-
-	// Parse template with layout
-	tmpl := template.New(templateName + ".html")
-
-	// Load layout templates
-	layoutGlob := "layout/*.html"
-	layouts, err := SecureGlob(layoutGlob)
-	if err == nil && len(layouts) > 0 {
-		tmpl, err = tmpl.ParseFiles(layouts...)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing layout templates: %w", err)
-		}
-	}
-
-	// Load snippets
-	snippets, err := SecureGlob("snippets/*.html")
-	if err == nil && len(snippets) > 0 {
-		tmpl, err = tmpl.ParseFiles(snippets...)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing snippet templates: %w", err)
-		}
-	}
-
-	// Load sections
-	sections, err := SecureGlob("sections/*.html")
-	if err == nil && len(sections) > 0 {
-		tmpl, err = tmpl.ParseFiles(sections...)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing section templates: %w", err)
-		}
-	}
-
-	// Load blocks
-	blocks, err := SecureGlob("blocks/*.html")
-	if err == nil && len(blocks) > 0 {
-		tmpl, err = tmpl.ParseFiles(blocks...)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing block templates: %w", err)
-		}
-	}
-
-	// Parse the main template
-	tmpl, err = tmpl.ParseFiles(templatePath)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing template %s: %w", templateName, err)
-	}
-
-	return tmpl, nil
-}
-
-// Authentication methods for SiteManager
 
 // GetDB returns a database connection for the specified site and database
-func (sm *SiteManager) GetDB(domain, dbName string) (*sql.DB, error) {
-	return sm.dbCache.GetConnection(domain, dbName)
-}
-
-// createAuthTables creates all necessary authentication tables for a site
-func (sm *SiteManager) createAuthTables(domain string) error {
-	db, err := sm.GetDB(domain, "users")
-	if err != nil {
-		return fmt.Errorf("failed to get database connection: %w", err)
-	}
-
-	// Create users table
-	if _, err := db.Exec(models.CreateUserTableSQL); err != nil {
-		return fmt.Errorf("failed to create users table: %w", err)
-	}
-
-	// Create sessions table
-	if _, err := db.Exec(models.CreateSessionTableSQL); err != nil {
-		return fmt.Errorf("failed to create sessions table: %w", err)
-	}
-
-	// Create OAuth accounts table
-	if _, err := db.Exec(models.CreateOAuthAccountTableSQL); err != nil {
-		return fmt.Errorf("failed to create oauth accounts table: %w", err)
-	}
-
-	return nil
+func (instance *SiteInstance) GetDB(dbName string) (*sql.DB, error) {
+	return instance.Manager.dbCache.GetConnection(instance.Site.Domain, dbName)
 }
 
 // Register creates a new user account for a site
-func (sm *SiteManager) Register(domain, email, password, firstName, lastName, displayName string) (*models.User, error) {
-	db, err := sm.GetDB(domain, "users")
+func Register(site *SiteInstance, email, password, firstName, lastName, displayName string) (*models.User, error) {
+	db, err := site.GetDB("users")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get database connection: %w", err)
+		return nil, fmt.Errorf("failed to get database connection \"%s\": %w", "users", err)
 	}
 
-	repository := auth.NewUserRepository(db)
+	repository := auth.NewUserSqlDriver(db)
 
 	// Check if email already exists
 	exists, err := repository.EmailExists(email)
@@ -400,15 +114,13 @@ func (sm *SiteManager) Register(domain, email, password, firstName, lastName, di
 }
 
 // Login authenticates a user and creates a session for a site
-func (sm *SiteManager) Login(domain, email, password, ipAddress, userAgent string) (*models.User, *models.Session, error) {
-	db, err := sm.GetDB(domain, "users")
+func (instance *SiteInstance) Login(email, password, ipAddress, userAgent string) (*models.User, *models.Session, error) {
+	db, err := instance.GetDB("users")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get database connection: %w", err)
 	}
 
-	repository := auth.NewUserRepository(db)
-	config := auth.NewAuthConfig()
-	sessionManager := auth.NewSessionManager(db, config)
+	repository := auth.NewUserSqlDriver(db)
 
 	// Get user by email
 	user, err := repository.GetUserByEmail(email)
@@ -427,9 +139,9 @@ func (sm *SiteManager) Login(domain, email, password, ipAddress, userAgent strin
 		user.FailedLoginCount++
 
 		// Lock account if too many failed attempts
-		if user.FailedLoginCount >= config.GetMaxFailedLoginAttempts() {
+		if user.FailedLoginCount >= instance.Config.MaxFailedLoginAttempts {
 			user.IsLocked = true
-			lockUntil := time.Now().Add(config.GetAccountLockoutDuration())
+			lockUntil := time.Now().Add(instance.Config.FailedLoginAttemptLockDuration)
 			user.LockedUntil = &lockUntil
 		}
 
@@ -449,7 +161,8 @@ func (sm *SiteManager) Login(domain, email, password, ipAddress, userAgent strin
 	}
 
 	// Create session
-	session, err := sessionManager.CreateSession(user.ID, ipAddress, userAgent)
+	sessionDriver := auth.NewSessionSqlDriver(db)
+	session, err := sessionDriver.CreateSession(user.ID, ipAddress, userAgent)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create session: %w", err)
 	}
@@ -458,23 +171,22 @@ func (sm *SiteManager) Login(domain, email, password, ipAddress, userAgent strin
 }
 
 // ValidateSession checks if a session is valid and returns the user for a site
-func (sm *SiteManager) ValidateSession(domain, sessionToken string) (*models.User, *models.Session, error) {
-	db, err := sm.GetDB(domain, "users")
+func ValidateSession(instance *SiteInstance, sessionToken string) (*models.User, *models.Session, error) {
+	db, err := instance.GetDB("users")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get database connection: %w", err)
 	}
 
-	config := auth.NewAuthConfig()
-	sessionManager := auth.NewSessionManager(db, config)
-	repository := auth.NewUserRepository(db)
+	sessionDriver := auth.NewSessionSqlDriver(db)
+	repository := auth.NewUserSqlDriver(db)
 
-	session, err := sessionManager.GetSession(sessionToken)
+	session, err := sessionDriver.GetSession(sessionToken)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid session: %w", err)
 	}
 
 	if session.IsExpired() {
-		sessionManager.DeleteSession(session.ID)
+		sessionDriver.DeleteSession(session.ID)
 		return nil, nil, fmt.Errorf("session expired")
 	}
 
@@ -491,36 +203,40 @@ func (sm *SiteManager) ValidateSession(domain, sessionToken string) (*models.Use
 }
 
 // GetSessionFromRequest extracts session from request for a site
-func (sm *SiteManager) GetSessionFromRequest(domain string, r *http.Request) (*models.Session, error) {
-	db, err := sm.GetDB(domain, "users")
+func GetSessionFromRequest(instance *SiteInstance, r *http.Request) (*models.Session, error) {
+	db, err := instance.GetDB("users")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database connection: %w", err)
 	}
 
-	config := auth.NewAuthConfig()
-	sessionManager := auth.NewSessionManager(db, config)
+	sessionDriver := auth.NewSessionSqlDriver(db)
 
-	return sessionManager.GetSessionFromRequest(r)
+	return sessionDriver.GetSessionFromRequest(r)
 }
 
 // Authentication middleware methods
 
 // RequireAuth middleware that requires authentication for a site
-func (sm *SiteManager) RequireAuth(domain string) func(http.Handler) http.Handler {
+func (instance *SiteInstance) RequireAuth() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			session, err := sm.GetSessionFromRequest(domain, r)
+			session, err := GetSessionFromRequest(instance, r)
 			if err != nil {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return
 			}
 
-			user, _, err := sm.ValidateSession(domain, session.Token)
+			db, err := instance.GetDB("users")
+			if err != nil {
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
+
+			user, _, err := auth.ValidateSession(db, session.Token)
 			if err != nil { // Clear invalid session cookie
-				db, _ := sm.GetDB(domain, "users")
-				config := auth.NewAuthConfig()
-				sessionManager := auth.NewSessionManager(db, config)
-				sessionManager.ClearSessionCookie(w)
+				db, _ := instance.GetDB("users")
+				sessionDriver := auth.NewSessionSqlDriver(db)
+				sessionDriver.ClearSessionCookie(w, r)
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return
 			}
@@ -535,9 +251,9 @@ func (sm *SiteManager) RequireAuth(domain string) func(http.Handler) http.Handle
 }
 
 // RequireRoles middleware that requires specific roles for a site
-func (sm *SiteManager) RequireRoles(domain string, roles ...string) func(http.Handler) http.Handler {
+func (instance *SiteInstance) RequireRoles(roles ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return sm.RequireAuth(domain)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		return instance.RequireAuth()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user, ok := auth.GetUserFromContext(r.Context())
 			if !ok {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -569,8 +285,154 @@ func (sm *SiteManager) RequireRoles(domain string, roles ...string) func(http.Ha
 	}
 }
 
-// Close closes the database cache
-func (sm *SiteManager) Close() error {
-	sm.dbCache.CloseAll()
+// Routing methods for SiteInstance
+
+// parseRoutePattern converts a URL pattern like "/blog/post/:slug" into a regex
+func (instance *SiteInstance) parseRoutePattern(pattern string) (*regexp.Regexp, []string, error) {
+	if pattern == "" {
+		pattern = "/"
+	}
+
+	// Ensure pattern starts with /
+	if !strings.HasPrefix(pattern, "/") {
+		pattern = "/" + pattern
+	}
+
+	// Track parameter names
+	var parameters []string
+
+	// Escape special regex characters except for our parameter syntax
+	regexPattern := regexp.QuoteMeta(pattern)
+
+	// Replace escaped parameter patterns with regex groups
+	paramRegex := regexp.MustCompile(`\\:([a-zA-Z][a-zA-Z0-9_]*)\\:`)
+	regexPattern = paramRegex.ReplaceAllStringFunc(regexPattern, func(match string) string {
+		// Extract parameter name (remove the escaped colons)
+		paramName := strings.Trim(match, "\\:")
+		parameters = append(parameters, paramName)
+		// Return regex pattern for the parameter
+		return "([^/]+)"
+	})
+
+	// Anchor the pattern to match the full path
+	regexPattern = "^" + regexPattern + "$"
+
+	compiled, err := regexp.Compile(regexPattern)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to compile route pattern '%s': %w", pattern, err)
+	}
+
+	return compiled, parameters, nil
+}
+
+// calculatePriority determines the priority of a route pattern
+// Lower numbers have higher priority
+func (instance *SiteInstance) calculatePriority(pattern string) int {
+	if pattern == "/" {
+		return 1000 // Home page gets lower priority to allow other exact matches
+	}
+
+	priority := 0
+	segments := strings.Split(strings.Trim(pattern, "/"), "/")
+
+	for _, segment := range segments {
+		if strings.Contains(segment, ":") {
+			// Parameter segments get lower priority
+			priority += 100
+		} else {
+			// Static segments get higher priority
+			priority += 1
+		}
+	}
+
+	return priority
+}
+
+// AddRoute adds a new route for this site
+func (instance *SiteInstance) AddRoute(page *Page) error {
+	instance.Mu.Lock()
+	defer instance.Mu.Unlock()
+
+	if page.Meta.URL == "" {
+		return fmt.Errorf("page URL pattern is required")
+	}
+
+	// Remove existing route for this page first
+	instance.RemoveRoute(page.Slug)
+
+	// Parse the URL pattern
+	regex, parameters, err := instance.parseRoutePattern(page.Meta.URL)
+	if err != nil {
+		return fmt.Errorf("failed to parse route pattern '%s': %w", page.Meta.URL, err)
+	}
+
+	// Calculate priority
+	priority := instance.calculatePriority(page.Meta.URL)
+
+	// Create route entry
+	route := RouteEntry{
+		Pattern:    page.Meta.URL,
+		PageSlug:   page.Slug,
+		Page:       page,
+		Parameters: parameters,
+		Priority:   priority,
+		Regex:      regex,
+	}
+
+	// Add route to site's routes
+	instance.Routes = append(instance.Routes, route)
+
+	// Sort routes by priority (lower number = higher priority)
+	sort.Slice(instance.Routes, func(i, j int) bool {
+		return instance.Routes[i].Priority < instance.Routes[j].Priority
+	})
+
 	return nil
+}
+
+// RemoveRoute removes a route for a page
+func (instance *SiteInstance) RemoveRoute(pageSlug string) {
+	instance.Mu.Lock()
+	defer instance.Mu.Unlock()
+
+	for i := len(instance.Routes) - 1; i >= 0; i-- {
+		if instance.Routes[i].PageSlug == pageSlug {
+			instance.Routes = append(instance.Routes[:i], instance.Routes[i+1:]...)
+			break
+		}
+	}
+}
+
+// UpdateRoute updates the route for a page
+func (instance *SiteInstance) UpdateRoute(page *Page) error {
+	return instance.AddRoute(page) // AddRoute already handles removing existing routes
+}
+
+// FindRoute finds the matching route for a given URL path in this site
+func (instance *SiteInstance) FindRoute(urlPath string) (*RouteEntry, map[string]string, error) {
+	instance.Mu.RLock()
+	defer instance.Mu.RUnlock()
+
+	// Clean the URL path
+	if urlPath == "" {
+		urlPath = "/"
+	}
+
+	// Try to match against all routes in priority order
+	for _, route := range instance.Routes {
+		matches := route.Regex.FindStringSubmatch(urlPath)
+		if matches != nil {
+			// Extract parameters
+			params := make(map[string]string)
+			for i, paramName := range route.Parameters {
+				if i+1 < len(matches) {
+					params[paramName] = matches[i+1]
+				}
+			}
+
+			return &route, params, nil
+		}
+	}
+
+	return nil, nil, fmt.Errorf("no route found for path: %s", urlPath)
 }

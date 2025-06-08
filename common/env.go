@@ -13,6 +13,14 @@ func GetEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+// getEnv gets an environment variable with a fallback default
+func MustGetEnv(key string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	panic("Environment variable " + key + " is not set!")
+}
+
 // getEnvInt gets an environment variable as an integer with a fallback default
 func GetEnvInt(key string, defaultValue int) int {
 	if value := os.Getenv(key); value != "" {

@@ -4,18 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"net/http"
 	"strings"
 )
 
-// createTemplateFuncMap creates the function map for templates
-func (re *RenderEngine) createTemplateFuncMap() template.FuncMap {
-	return re.createTemplateFuncMapWithRequest(nil)
-}
-
 // createTemplateFuncMapWithRequest creates the function map for templates with request context
-func (re *RenderEngine) createTemplateFuncMapWithRequest(r *http.Request) template.FuncMap {
-	return template.FuncMap{
+func createTemplateFuncMapWithRequest(siteManager *SiteInstanceManager) *template.FuncMap {
+	return &template.FuncMap{
 		// String functions
 		"upper": strings.ToUpper,
 		"lower": strings.ToLower,
@@ -136,7 +130,7 @@ func (re *RenderEngine) createTemplateFuncMapWithRequest(r *http.Request) templa
 			return value
 		},
 
-		"import": func(importType string, site *Site, relPath string) template.HTML {
+		"import": func(importType string, site Site, relPath string) template.HTML {
 			// Use secure file reader for the site
 			content, err := SecureReadFile(relPath)
 			if err != nil {
@@ -173,12 +167,12 @@ func (re *RenderEngine) createTemplateFuncMapWithRequest(r *http.Request) templa
 			}
 
 			// Check if API dispatcher is available
-			if re.apiDispatcher == nil {
-				return map[string]interface{}{
-					"error":  "API dispatcher not available",
-					"_debug": "Internal API routing is not properly configured",
-				}
-			}
+			// if siteManager.apiDispatcher == nil {
+			// 	return map[string]interface{}{
+			// 		"error":  "API dispatcher not available",
+			// 		"_debug": "Internal API routing is not properly configured",
+			// 	}
+			// }
 
 			// Parse options with validation
 			var headers map[string]string
@@ -246,36 +240,43 @@ func (re *RenderEngine) createTemplateFuncMapWithRequest(r *http.Request) templa
 			}
 
 			// Make the internal API call using the request context from the parameter
-			response, err := re.apiDispatcher.Call(method, path, body, headers, r)
-			if err != nil {
-				result := map[string]interface{}{
-					"error":  fmt.Sprintf("API call failed: %v", err),
-					"_debug": fmt.Sprintf("Method: %s, Path: %s", method, path),
-				}
-				if len(debugInfo) > 0 {
-					result["_validation_warnings"] = debugInfo
-				}
-				return result
-			}
+			// var dispatcher = *siteManager.apiDispatcher
+			// response, err := dispatcher.Call(method, path, body, headers)
+			// if err != nil {
+			// 	result := map[string]interface{}{
+			// 		"error":  fmt.Sprintf("API call failed: %v", err),
+			// 		"_debug": fmt.Sprintf("Method: %s, Path: %s", method, path),
+			// 	}
+			// 	if len(debugInfo) > 0 {
+			// 		result["_validation_warnings"] = debugInfo
+			// 	}
+			// 	return result
+			// }
 
-			// Add debug information to successful responses
-			if response.Data != nil {
-				if len(debugInfo) > 0 {
-					response.Data["_validation_warnings"] = debugInfo
-				}
-				return response.Data
-			}
+			// // Add debug information to successful responses
+			// if response.Data != nil {
+			// 	if len(debugInfo) > 0 {
+			// 		response.Data["_validation_warnings"] = debugInfo
+			// 	}
+			// 	return response.Data
+			// }
 
 			// Return full response for non-JSON responses
-			result := map[string]interface{}{
-				"status_code": response.StatusCode,
-				"headers":     response.Headers,
-				"body":        response.Body,
+			// result := map[string]interface{}{
+			// 	"status_code": response.StatusCode,
+			// 	"headers":     response.Headers,
+			// 	"body":        response.Body,
+			// }
+			// if len(debugInfo) > 0 {
+			// 	result["_validation_warnings"] = debugInfo
+			// }
+			// return result
+
+			return map[string]interface{}{
+				"error":  "API dispatcher not implemented",
+				"_debug": "This function is a placeholder and does not perform actual API calls",
+				"body":   string(body),
 			}
-			if len(debugInfo) > 0 {
-				result["_validation_warnings"] = debugInfo
-			}
-			return result
 		},
 
 		// Helper functions for API responses

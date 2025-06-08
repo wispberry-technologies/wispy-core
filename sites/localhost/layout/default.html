@@ -1,0 +1,100 @@
+{{define "layouts/default"}}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{if .Page}}{{.Page.Meta.Title}} - {{.Site.Name}}{{else}}{{.Site.Name}}{{end}}</title>
+
+    {{if isTrue .Page .Page.Meta}}
+    {{if .Page.Meta.Description}}
+    <meta name="description" content="{{.Page.Meta.Description}}">{{end}}
+    {{if .Page.Meta.Keywords}}
+    <meta name="keywords" content="{{range $i, $keyword := .Page.Meta.Keywords}}{{if $i}}, {{end}}{{$keyword}}{{end}}">
+    {{end}}
+    {{if .Page.Meta.Author}}
+    <meta name="author" content="{{.Page.Meta.Author}}">{{end}}
+    {{end}}
+
+    <!-- daisyUI CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    {{import "css" .Site "/config/themes/midnight-wisp.css"}}
+
+    <style>
+        html,
+        body {
+            height: 100%;
+            background-color: var(--color-base-300);
+        }
+
+        .dots-background {
+            height: 100%;
+            --dot-bg: var(--color-base-300);
+            --dot-color: color-mix(in oklab, var(--color-base-content) 30%, transparent 0%);
+            --dot-size: 1px;
+            --dot-space: 1.5rem;
+            background:
+                linear-gradient(90deg, var(--dot-bg) calc(var(--dot-space) - var(--dot-size)), transparent 1%) center / var(--dot-space) var(--dot-space),
+                linear-gradient(var(--dot-bg) calc(var(--dot-space) - var(--dot-size)), transparent 1%) center / var(--dot-space) var(--dot-space),
+                var(--dot-color);
+        }
+    </style>
+
+</head>
+
+<body class="min-h-screen bg-base-100 text-base-content">
+    <div class="drawer lg:drawer-open">
+        <input id="drawer-toggle" type="checkbox" class="drawer-toggle" />
+
+        <div class="drawer-content flex flex-col">
+            <!-- Navbar -->
+            <div class="navbar bg-base-200 lg:hidden">
+                <div class="flex-none">
+                    <label for="drawer-toggle" class="btn btn-square btn-ghost">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </label>
+                </div>
+                <div class="flex-1">
+                    <a class="btn btn-ghost text-xl" href="/">{{.Site.Name}}</a>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <main class="flex-1 p-6">
+                {{block "page-content" .}}
+                <div class="prose max-w-none">
+                    <h1>Welcome to {{.Site.Name}}</h1>
+                    <p>This is the default layout template.</p>
+                </div>
+                {{end}}
+            </main>
+
+            <!-- Footer -->
+            <footer class="footer footer-center p-4 text-base-content">
+                <div>
+                    <p>&copy; 2025 {{.Site.Name}}. Powered by Wispy-CMS.</p>
+                </div>
+            </footer>
+        </div>
+
+        <!-- Sidebar -->
+        <!-- <div class="drawer-side">
+            <label for="drawer-toggle" class="drawer-overlay"></label>
+            <aside class="w-80 min-h-full bg-base-200">
+                <div class="p-4">
+                    <h2 class="text-2xl font-bold mb-4">{ {.Site.Name} }</h2>
+                    { {template "navigation" .} }
+                </div>
+            </aside>
+        </div> -->
+    </div>
+</body>
+
+</html>
+{{end}}

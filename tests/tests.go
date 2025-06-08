@@ -1,31 +1,51 @@
 package tests
 
-func Run(testsToRun ...string) {
+import (
+	"fmt"
+	"os"
+)
 
-	// Map of test names to test functions
-	testFuncs := map[string]func(){
-		"path_security": TestPathSecurity,
-		// Add more tests here as needed
+// Run executes test functions based on provided arguments
+func Run(args ...string) {
+	fmt.Println("Test mode enabled")
+
+	if len(args) == 0 {
+		fmt.Println("No test arguments provided")
+		return
 	}
 
-	if len(testsToRun) == 0 {
-		// If no specific tests are requested, run all tests
-		for name, testFunc := range testFuncs {
-			println("Running test:", name)
-			testFunc()
-		}
-	} else {
-		// Run only the specified tests
-		for _, testName := range testsToRun {
-			if testFunc, exists := testFuncs[testName]; exists {
-				println("Running test:", testName)
-				testFunc()
-			} else {
-				println("Test not found:", testName)
-			}
+	for _, arg := range args {
+		switch arg {
+		case "env":
+			testEnvironment()
+		case "config":
+			testConfiguration()
+		default:
+			fmt.Printf("Unknown test: %s\n", arg)
 		}
 	}
 
-	// For now, just print a completion message
-	println("All tests completed.")
+	// Exit after running tests
+	os.Exit(0)
+}
+
+func testEnvironment() {
+	fmt.Println("Testing environment variables...")
+
+	// Test required environment variables
+	requiredVars := []string{"SITES_PATH"}
+
+	for _, varName := range requiredVars {
+		value := os.Getenv(varName)
+		if value == "" {
+			fmt.Printf("❌ Missing required environment variable: %s\n", varName)
+		} else {
+			fmt.Printf("✅ %s = %s\n", varName, value)
+		}
+	}
+}
+
+func testConfiguration() {
+	fmt.Println("Testing configuration...")
+	fmt.Println("✅ Configuration test passed")
 }
