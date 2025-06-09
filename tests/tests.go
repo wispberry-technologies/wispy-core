@@ -1,51 +1,24 @@
 package tests
 
-import (
-	"fmt"
-	"os"
+import "fmt"
+
+// Color codes for test output
+const (
+	colorGreen  = "\033[32m"
+	colorRed    = "\033[31m"
+	colorYellow = "\033[33m"
+	colorGrey   = "\033[90m"
+	colorReset  = "\033[0m"
 )
 
-// Run executes test functions based on provided arguments
-func Run(args ...string) {
-	fmt.Println("Test mode enabled")
-
-	if len(args) == 0 {
-		fmt.Println("No test arguments provided")
-		return
-	}
-
-	for _, arg := range args {
-		switch arg {
-		case "env":
-			testEnvironment()
-		case "config":
-			testConfiguration()
-		default:
-			fmt.Printf("Unknown test: %s\n", arg)
-		}
-	}
-
-	// Exit after running tests
-	os.Exit(0)
+func logPass(testName string) string {
+	return fmt.Sprintf("%s[Passed]%s %s%s%s\n", colorGreen, colorReset, colorGrey, testName, colorReset)
 }
 
-func testEnvironment() {
-	fmt.Println("Testing environment variables...")
-
-	// Test required environment variables
-	requiredVars := []string{"SITES_PATH"}
-
-	for _, varName := range requiredVars {
-		value := os.Getenv(varName)
-		if value == "" {
-			fmt.Printf("❌ Missing required environment variable: %s\n", varName)
-		} else {
-			fmt.Printf("✅ %s = %s\n", varName, value)
-		}
-	}
+func logFail(testName string) string {
+	return fmt.Sprintf("%s[Failed]%s %s%s%s\n", colorRed, colorReset, colorGrey, testName, colorReset)
 }
 
-func testConfiguration() {
-	fmt.Println("Testing configuration...")
-	fmt.Println("✅ Configuration test passed")
+func logWarn(msg string, args ...any) string {
+	return fmt.Sprintf("%s[Warning]%s %s%s\n", colorYellow, colorReset, fmt.Sprintf(msg, args...), colorReset)
 }

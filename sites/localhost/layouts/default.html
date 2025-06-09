@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{{if Page}}{{Page.Meta.Title}} - {{Site.Name}}{{else}}{{Site.Name}}{{end-if}}</title>
+
+        {{if Page}}
+            {{if Page.Meta.Description}}
+            <meta name="description" content="{{Page.Meta.Description}}">{{end-if}}
+            {{if Page.Meta.Keywords}}
+            <meta name="keywords" content="{{for keyword in Page.Meta.Keywords}}{{keyword}}, {{end-for}}">
+            {{end-if}}
+            {{if Page.Meta.Author}}
+            <meta name="author" content="{{Page.Meta.Author}}">{{end-if}}
+        {{end-if}}
+
+        <!-- daisyUI CSS -->
+        <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+        <style>
+            html,
+            body {
+                height: 100%;
+                background-color: var(--color-base-300);
+            }
+
+            .dots-background {
+                height: 100%;
+                --dot-bg: var(--color-base-300);
+                --dot-color: color-mix(in oklab, var(--color-base-content) 30%, transparent 0%);
+                --dot-size: 1px;
+                --dot-space: 1.5rem;
+                background:
+                    linear-gradient(90deg, var(--dot-bg) calc(var(--dot-space) - var(--dot-size)), transparent 1%) center / var(--dot-space) var(--dot-space),
+                    linear-gradient(var(--dot-bg) calc(var(--dot-space) - var(--dot-size)), transparent 1%) center / var(--dot-space) var(--dot-space),
+                    var(--dot-color);
+            }
+        </style>
+
+    </head>
+    <body class="min-h-screen bg-base-100 text-base-content">
+        <!-- Main Content -->
+        <main class="p-6">
+            {{render "page-content"}}
+        </main>
+        
+        <!-- Footer -->
+        <footer class="footer footer-center p-4 text-base-content">
+            <div>
+                <p>&copy; 2025 {{Site.Name}}. Powered by Wispy-CMS.</p>
+            </div>
+        </footer>
+    </body>
+</html>
