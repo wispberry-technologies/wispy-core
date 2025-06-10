@@ -42,7 +42,7 @@ var IfTemplate = models.TemplateTag{
 		}
 		content := raw[pos : pos+endIdx]
 		m, _ := ctx.Data.(map[string]interface{})
-		if m != nil && m[cond] == true {
+		if m != nil && IsTruthy(m[cond]) {
 			sb.WriteString(content)
 		}
 		return pos + endIdx + len(endTag), errs
@@ -70,45 +70,43 @@ var ForTemplate = models.TemplateTag{
 		m, _ := ctx.Data.(map[string]interface{})
 		var list interface{}
 		if m != nil {
-			if strings.Contains(listName, ".") {
-				parts := strings.Split(listName, ".")
-				val := m[parts[0]]
-				for _, p := range parts[1:] {
-					if mm, ok := val.(map[string]interface{}); ok {
-						val = mm[p]
-					} else {
-						val = nil
-						break
-					}
-				}
-				list = val
-			} else {
-				list = m[listName]
-			}
+			// Use ResolveDotNotation to support nested map lookups
+			list = ResolveDotNotation(m, listName)
 		}
+
 		if list != nil {
 			engine := NewTemplateEngine(ctx.Engine.FuncMap)
-			newCtx := models.TemplateContext{Data: m}
+			// Create a new copy of the context for rendering loop content
 			switch v := list.(type) {
 			case []string:
 				for _, item := range v {
+					// Create a new context for each iteration with a copy of the original data
 					localCtx := make(map[string]interface{})
 					for k, val := range m {
 						localCtx[k] = val
 					}
 					localCtx[varName] = item
-					newCtx.Data = localCtx
+					newCtx := models.TemplateContext{
+						Data:            localCtx,
+						Engine:          ctx.Engine,
+						InternalContext: ctx.InternalContext,
+					}
 					res, _ := Render(content, engine, &newCtx)
 					sb.WriteString(res)
 				}
 			case []interface{}:
 				for _, item := range v {
+					// Create a new context for each iteration with a copy of the original data
 					localCtx := make(map[string]interface{})
 					for k, val := range m {
 						localCtx[k] = val
 					}
 					localCtx[varName] = item
-					newCtx.Data = localCtx
+					newCtx := models.TemplateContext{
+						Data:            localCtx,
+						Engine:          ctx.Engine,
+						InternalContext: ctx.InternalContext,
+					}
 					res, _ := Render(content, engine, &newCtx)
 					sb.WriteString(res)
 				}
@@ -130,9 +128,12 @@ var AssignTemplate = models.TemplateTag{
 		}
 		varName := parts[1]
 		value := strings.Join(parts[2:], " ")
+
+		// Ensure we're writing to a map that will be used in future renders
 		if m, ok := ctx.Data.(map[string]interface{}); ok {
 			m[varName] = value
 		}
+
 		return pos, errs
 	},
 }
@@ -169,7 +170,7 @@ var UnlessTemplate = models.TemplateTag{
 		}
 		content := raw[pos : pos+endIdx]
 		m, _ := ctx.Data.(map[string]interface{})
-		if m != nil && m[cond] != true {
+		if m != nil && !IsTruthy(m[cond]) {
 			sb.WriteString(content)
 		}
 		return pos + endIdx + len(endTag), errs
@@ -194,37 +195,58 @@ var CaseTemplate = models.TemplateTag{
 			errs = append(errs, fmt.Errorf("could not find end tag for case"))
 			return pos, errs
 		}
-		block := raw[pos : pos+endIdx]
+
+		// Get the case value
 		m, _ := ctx.Data.(map[string]interface{})
 		var val interface{}
 		if m != nil {
 			val = m[varName]
 		}
-		// Find all when blocks
-		searchPos := 0
-		for searchPos < len(block) {
-			wStart := strings.Index(block[searchPos:], whenTag)
-			if wStart == -1 {
+		valStr := fmt.Sprint(val)
+
+		// Parse and process the case block
+		caseBlock := raw[pos : pos+endIdx]
+
+		// Find and extract each when tag and its content
+		position := 0
+
+		for position < len(caseBlock) {
+			whenStart := strings.Index(caseBlock[position:], whenTag)
+			if whenStart == -1 {
+				break // No more when tags
+			}
+			whenStart += position
+
+			// Find the end of this when tag
+			whenTagEnd := strings.Index(caseBlock[whenStart:], "}}")
+			if whenTagEnd == -1 {
+				break // Invalid format
+			}
+			whenTagEnd += whenStart
+
+			// Get the when value
+			whenValue := strings.TrimSpace(caseBlock[whenStart+len(whenTag) : whenTagEnd])
+
+			// Find the next when tag or end of case
+			nextWhenStart := strings.Index(caseBlock[whenTagEnd+2:], whenTag)
+			var contentEnd int
+			if nextWhenStart == -1 {
+				contentEnd = len(caseBlock) // No more when tags
+			} else {
+				contentEnd = whenTagEnd + 2 + nextWhenStart // Content ends where next when starts
+			}
+
+			// If the value matches, add the content and stop processing
+			if whenValue == valStr {
+				sb.WriteString(caseBlock[whenTagEnd+2 : contentEnd])
 				break
 			}
-			wStart += searchPos
-			wEnd := strings.Index(block[wStart:], "}}")
-			if wEnd == -1 {
-				break
+
+			// Move to next when block
+			if nextWhenStart == -1 {
+				break // No more when tags
 			}
-			wEnd += wStart
-			whenVal := strings.TrimSpace(block[wStart+len(whenTag) : wEnd])
-			// Find next when or end-case
-			nextWhen := strings.Index(block[wEnd:], whenTag)
-			endBlock := len(block)
-			if nextWhen != -1 {
-				endBlock = wEnd + nextWhen
-			}
-			if fmt.Sprint(val) == whenVal {
-				sb.WriteString(block[wEnd+2 : endBlock])
-				break
-			}
-			searchPos = endBlock
+			position = whenTagEnd + 2 + nextWhenStart
 		}
 		return pos + endIdx + len(endTag), errs
 	},

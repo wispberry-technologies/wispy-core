@@ -11,14 +11,14 @@ const (
 	colorReset  = "\033[0m"
 )
 
-func logPass(testName string) string {
-	return fmt.Sprintf("%s[Passed]%s %s%s%s\n", colorGreen, colorReset, colorGrey, testName, colorReset)
+func LogPass(testName string) string {
+	return fmt.Sprintf("%s[Passed]%s %s%s%s", colorGreen, colorReset, colorGrey, testName, colorReset)
 }
 
-func logFail(testName string) string {
-	return fmt.Sprintf("%s[Failed]%s %s%s%s\n", colorRed, colorReset, colorGrey, testName, colorReset)
+func LogFail(testName string) string {
+	return fmt.Sprintf("%s[Failed]%s %s%s%s", colorRed, colorReset, colorGrey, testName, colorReset)
 }
 
-func logWarn(msg string, args ...any) string {
-	return fmt.Sprintf("%s[Warning]%s %s%s\n", colorYellow, colorReset, fmt.Sprintf(msg, args...), colorReset)
+func LogWarn(msg string, args ...any) string {
+	return fmt.Sprintf("%s[Warning]%s %s%s", colorYellow, colorReset, fmt.Sprintf(msg, args...), colorReset)
 }

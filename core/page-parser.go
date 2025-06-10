@@ -15,7 +15,7 @@ import (
 )
 
 // parsePageHTML parses an HTML file with HTML comment metadata
-func ParsePageHTML(instance *SiteInstance, content string) (*models.Page, error) {
+func ParsePageHTML(instance *models.SiteInstance, content string) (*models.Page, error) {
 	page := &models.Page{
 		Site:       *instance.Site,
 		Title:      "Untitled Page",

@@ -1,16 +1,16 @@
-package tests
+package core
 
 import (
 	"testing"
-	"wispy-core/core"
 	"wispy-core/models"
+	"wispy-core/tests"
 )
 
 // TestTemplateEngine runs a suite of tests for the TemplateEngine with various templates and data structures.
 func TestTemplateEngine(t *testing.T) {
-	tmpl := core.NewTemplateEngine(core.DefaultFunctionMap)
+	tmpl := NewTemplateEngine(DefaultFunctionMap)
 
-	tests := []struct {
+	template_engine_tests := []struct {
 		name       string
 		tmpl       string
 		ctx        *models.TemplateContext
@@ -79,29 +79,29 @@ func TestTemplateEngine(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
+	for _, tc := range template_engine_tests {
 		out, errs := tmpl.Render(tc.tmpl, tc.ctx)
 		if tc.shouldFail {
 			if len(errs) == 0 {
-				t.Error(logFail(tc.name))
+				t.Error(tests.LogFail(tc.name))
 			} else {
-				t.Log(logPass(tc.name))
+				t.Log(tests.LogPass(tc.name))
 			}
 			continue
 		}
 		if len(errs) > 0 {
-			t.Error(logFail(tc.name))
+			t.Error(tests.LogFail(tc.name))
 			for _, err := range errs {
-				t.Log(logWarn(err.Error()))
+				t.Log(tests.LogWarn(err.Error()))
 			}
-			t.Errorf("unexpected error for %s: %v", tc.name, errs)
+			t.Error(tests.LogWarn("unexpected error for %s: %v", tc.name, errs))
 			continue
 		}
 		if out != tc.expect {
-			t.Error(logFail(tc.name))
-			t.Log("expected '%s', got '%s'", tc.expect, out)
+			t.Error(tests.LogFail(tc.name))
+			t.Log(tests.LogWarn("expected '%s', got '%s'", tc.expect, out))
 		} else {
-			t.Log(logPass(tc.name))
+			t.Log(tests.LogPass(tc.name))
 		}
 	}
 }

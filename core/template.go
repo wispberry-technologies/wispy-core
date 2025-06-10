@@ -18,10 +18,7 @@ func NewTemplateEngine(funcMap FunctionMap) *TemplateEngine {
 	var value = TemplateEngine{
 		StartTag: common.GetEnv("TEMPLATE_DELIMITER_OPEN", "{{"),
 		EndTag:   common.GetEnv("TEMPLATE_DELIMITER_CLOSE", "}}"),
-	}
-
-	if funcMap == nil {
-		value.FuncMap = funcMap
+		FuncMap:  funcMap,
 	}
 
 	value.Render = func(raw string, ctx TemplateCtx) (string, []error) {
