@@ -8,7 +8,7 @@ import (
 
 // GetDB returns a database connection for the specified site and database
 func GetDB(instance *models.SiteInstance, dbName string) (*sql.DB, error) {
-	return GetConnection(instance.DBCache, instance.Site.Domain, dbName)
+	return GetConnection(instance.DBCache, instance.Domain, dbName)
 }
 
 // NewCache creates a new cache instance

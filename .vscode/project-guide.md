@@ -72,7 +72,7 @@
 ```html
 <!--
 @name home.html
-@url /
+@slug /
 @author Wispy Core Team
 @layout default
 @is_draft false
@@ -92,7 +92,7 @@
 ```html
 <!--
 @name blog-post.html
-@url /blog/post/:slug:
+@slug /blog/post/:slug:
 @author Wispy Core Team
 @layout default
 @is_draft false

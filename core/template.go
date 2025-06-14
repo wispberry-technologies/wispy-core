@@ -5,7 +5,9 @@ import (
 	"maps"
 	"os"
 	"strings"
+	"sync"
 
+	"wispy-core/cache"
 	"wispy-core/common"
 	"wispy-core/models"
 )
@@ -19,6 +21,25 @@ type TemplateCtx = *models.TemplateContext
 // Constructors
 // -------------------
 
+func NewSiteInstance(domain string) *models.SiteInstance {
+	siteInstance := &models.SiteInstance{
+		Domain:   domain,
+		Name:     domain,
+		BasePath: common.RootSitesPath(domain),
+		IsActive: true,
+		Theme:    "default",
+		Config: models.SiteConfig{
+			CssProcessor: "wispy-tail",
+		},
+		DBCache:        cache.NewDBCache(),
+		SecurityConfig: &models.SiteSecurityConfig{},
+		Templates:      make(map[string]string),
+		Pages:          make(map[string]*models.Page), // routes for this site
+		Mu:             sync.RWMutex{},                // mutex for thread-safe route access
+	}
+	return siteInstance
+}
+
 // NewTemplateContext creates a TemplateContext with proper defaults to avoid nil pointers.
 func NewTemplateContext(data map[string]interface{}, engine *models.TemplateEngine) *models.TemplateContext {
 	if data == nil {
@@ -26,9 +47,11 @@ func NewTemplateContext(data map[string]interface{}, engine *models.TemplateEngi
 	}
 	// Always ensure InternalContext is a non-nil map[string]string
 	var internal = &models.InternalContext{
-		Flags:          make(map[string]interface{}),
-		Blocks:         make(map[string]string),
-		TemplatesCache: make(map[string]string),
+		Flags:            make(map[string]interface{}),
+		Blocks:           make(map[string]string),
+		TemplatesCache:   make(map[string]string),
+		HtmlDocumentTags: []models.HtmlDocumentTags{},
+		MetaTags:         []models.HtmlMetaTag{},
 	}
 	ctx := &models.TemplateContext{
 		Data:            data,
@@ -190,11 +213,11 @@ func GetLayout(domain, name string) string {
 		return "<!-- Error reading layout file: " + err.Error() + "-->"
 	}
 
-	return string(bytes)
+	return RemoveMetadataFromContent(string(bytes))
 }
 
-func GetPage(domain, name string) string {
-	pagePath := common.RootSitesPath(domain, "pages", name+".html")
+func GetPage(domain, filePath string) string {
+	pagePath := common.RootSitesPath(domain, "pages", filePath)
 	if _, err := os.Stat(pagePath); os.IsNotExist(err) {
 		return "<!-- Error no page found: " + err.Error() + "-->"
 	}
@@ -204,7 +227,8 @@ func GetPage(domain, name string) string {
 		return "<!-- Error reading page file: " + err.Error() + "-->"
 	}
 
-	return string(bytes)
+	// remove page metadata
+	return RemoveMetadataFromContent(string(bytes))
 }
 
 // Render renders the template with the given TemplateContext and returns the result string and any errors.

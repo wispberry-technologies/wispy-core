@@ -50,13 +50,13 @@ var tailwindColorMap = map[string]string{
 }
 
 // tailwindSizeMap maps tailwind size utilities to CSS values
-var tailwindSizeMap = map[string]string{
-	"xs": "0.75rem",
-	"sm": "0.875rem",
-	"md": "1rem",
-	"lg": "1.125rem",
-	"xl": "1.25rem",
-}
+// var tailwindSizeMap = map[string]string{
+// 	"xs": "0.75rem",
+// 	"sm": "0.875rem",
+// 	"md": "1rem",
+// 	"lg": "1.125rem",
+// 	"xl": "1.25rem",
+// }
 
 // tailwindSpacingMultiplier maps tailwind spacing utilities to multipliers
 var tailwindSpacingMultiplier = map[string]float64{
@@ -71,14 +71,6 @@ var tailwindSpacingMultiplier = map[string]float64{
 	"8":  2,
 	"10": 2.5,
 	"12": 3,
-}
-
-// colorFromName returns the CSS variable for a given color name
-func colorFromName(name string) string {
-	if color, ok := tailwindColorMap[name]; ok {
-		return color
-	}
-	return ""
 }
 
 // getCSSPropertiesForClass generates CSS properties for a given Tailwind class
@@ -654,31 +646,33 @@ func getCSSPropertiesForClass(class string) ([]CSSProperty, error) {
 func applyVariant(properties []CSSProperty, variant string) ([]CSSProperty, error) {
 	result := make([]CSSProperty, 0, len(properties))
 
+	// Store the pseudo-class to be added to selector in the CSS output
+	pseudoClass := ""
 	switch variant {
 	case "hover":
-		// Apply hover variant to all properties
-		for _, prop := range properties {
-			result = append(result, CSSProperty{
-				Name:  "&:hover",
-				Value: fmt.Sprintf("%s: %s;", prop.Name, prop.Value),
-			})
-		}
+		pseudoClass = ":hover"
 	case "focus":
-		// Apply focus variant to all properties
-		for _, prop := range properties {
-			result = append(result, CSSProperty{
-				Name:  "&:focus",
-				Value: fmt.Sprintf("%s: %s;", prop.Name, prop.Value),
-			})
-		}
+		pseudoClass = ":focus"
 	case "active":
-		// Apply active variant to all properties
+		pseudoClass = ":active"
+	}
+
+	// If we have a pseudo-class, use it for all properties
+	if pseudoClass != "" {
 		for _, prop := range properties {
+			// We still need to return a standard CSSProperty, but we'll modify
+			// how these are handled in the CSS output
 			result = append(result, CSSProperty{
-				Name:  "&:active",
-				Value: fmt.Sprintf("%s: %s;", prop.Name, prop.Value),
+				// Store special handling info in global context
+				Name:  prop.Name,
+				Value: prop.Value,
 			})
 		}
+		return result, nil
+	}
+
+	// Handle media queries and other variants
+	switch variant {
 	case "dark":
 		// Apply dark mode variant to all properties
 		for _, prop := range properties {
@@ -811,32 +805,6 @@ func handleSizeProperty(property, value string) ([]CSSProperty, error) {
 	return []CSSProperty{}, fmt.Errorf("unrecognized size value: %s", value)
 }
 
-// handleColorProperty generates CSS for color properties
-func handleColorProperty(property, colorName string) ([]CSSProperty, error) {
-	// Handle opacity modifiers (like bg-white/50)
-	parts := strings.Split(colorName, "/")
-	baseName := parts[0]
-
-	if colorValue, ok := tailwindColorMap[baseName]; ok {
-		if len(parts) > 1 {
-			// Handle opacity
-			opacity := parts[1]
-			opacityValue, err := strconv.ParseInt(opacity, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("invalid opacity value: %s", opacity)
-			}
-
-			// Generate color-mix CSS function for opacity
-			return []CSSProperty{{property, fmt.Sprintf("color-mix(in oklab, %s %d%%, transparent)", colorValue, opacityValue)}}, nil
-		}
-
-		// No opacity modifier
-		return []CSSProperty{{property, colorValue}}, nil
-	}
-
-	return []CSSProperty{}, fmt.Errorf("unrecognized color: %s", colorName)
-}
-
 // handleNegativeSpacingProperty generates CSS for negative spacing properties
 func handleNegativeSpacingProperty(property, value string) ([]CSSProperty, error) {
 	if multiplier, ok := tailwindSpacingMultiplier[value]; ok {
@@ -850,49 +818,6 @@ func handleNegativeSpacingProperty(property, value string) ([]CSSProperty, error
 	}
 
 	return []CSSProperty{}, fmt.Errorf("unrecognized negative spacing value: %s", value)
-}
-
-// handleSvgProperty generates CSS for SVG properties like fill and stroke
-func handleSvgProperty(property, colorValue string) ([]CSSProperty, error) {
-	if strings.Contains(colorValue, "/") {
-		// Handle opacity like fill-sky-400/25
-		parts := strings.Split(colorValue, "/")
-		baseColor := parts[0]
-		opacity := parts[1]
-
-		if baseColorValue, ok := tailwindColorMap[baseColor]; ok {
-			return []CSSProperty{
-				{property, fmt.Sprintf("color-mix(in srgb, %s %s%%, transparent)", baseColorValue, opacity)},
-				{"@supports (color: color-mix(in lab, red, red))",
-					fmt.Sprintf("%s: color-mix(in oklab, var(--color-%s) %s%%, transparent);",
-						property, strings.ReplaceAll(baseColor, "-", "-"), opacity)},
-			}, nil
-		}
-	} else if color, ok := tailwindColorMap[colorValue]; ok {
-		return []CSSProperty{{property, color}}, nil
-	}
-
-	return []CSSProperty{}, fmt.Errorf("unrecognized color for SVG property %s: %s", property, colorValue)
-}
-
-// extractArbitraryValue extracts content from arbitrary value classes like bg-[image:url(...)]
-func extractArbitraryValue(class string) string {
-	start := strings.Index(class, "[")
-	end := strings.LastIndex(class, "]")
-
-	if start == -1 || end == -1 || start >= end {
-		return ""
-	}
-
-	fullValue := class[start+1 : end]
-
-	// If this has a prefix like "image:" or "size:", strip it out
-	colonIndex := strings.Index(fullValue, ":")
-	if colonIndex != -1 {
-		return fullValue[colonIndex+1:]
-	}
-
-	return fullValue
 }
 
 // handleArbitraryValue parses arbitrary Tailwind values like "w-[10px]"

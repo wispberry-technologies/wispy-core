@@ -17,13 +17,28 @@ import (
 // parsePageHTML parses an HTML file with HTML comment metadata
 func ParsePageHTML(instance *models.SiteInstance, content string) (*models.Page, error) {
 	page := &models.Page{
-		Site:       *instance.Site,
-		Title:      "Untitled Page",
-		IsStatic:   true,
-		Layout:     "layout/default",
-		CustomData: make(map[string]string),
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		Title:         "Untitled Page",
+		Description:   "",
+		Lang:          "en",
+		Slug:          "",
+		Keywords:      []string{},
+		Author:        "",
+		LayoutName:    "default",
+		IsDraft:       false,
+		IsStatic:      true,
+		RequireAuth:   false,
+		RequiredRoles: []string{},
+		FilePath:      "",
+		Protected:     "",
+		PageData:      make(map[string]string),
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+		PublishedAt:   nil, // New field in the updated struct
+		MetaTags:      []models.HtmlMetaTag{},
+		SiteDetails: models.SiteDetails{
+			Domain: instance.Domain,
+			Name:   instance.Name,
+		},
 	}
 
 	// Find HTML comment metadata block
@@ -58,17 +73,14 @@ func ParsePageHTML(instance *models.SiteInstance, content string) (*models.Page,
 					break
 				}
 			}
-			page.Content = remainingContent
 		} else {
 			// Malformed comment, treat entire content as body
-			page.Content = "Malformed HTML comment metadata!"
 			log.Printf("Error: Malformed HTML comment metadata, treating entire content as body.")
 			return nil, fmt.Errorf("malformed HTML comment metadata")
 		}
 	} else {
 		// No metadata comment, treat entire content as body
 		log.Printf("Warning: HTML comment metadata not found in content!")
-		page.Content = content
 	}
 
 	return page, nil
@@ -114,12 +126,12 @@ func ParseHTMLCommentMetadata(commentContent string, meta *models.Page) error {
 				} else {
 					meta.Title = value
 				}
-			case "url":
-				meta.URL = value
+			case "slug":
+				meta.Slug = value
 			case "author":
 				meta.Author = value
 			case "layout":
-				meta.Layout = value
+				meta.LayoutName = value
 			case "is_draft":
 				if val, err := strconv.ParseBool(value); err == nil {
 					meta.IsDraft = val
@@ -145,7 +157,7 @@ func ParseHTMLCommentMetadata(commentContent string, meta *models.Page) error {
 				}
 			default:
 				// Store as custom data
-				meta.CustomData[key] = value
+				meta.PageData[key] = value
 			}
 		}
 	}
@@ -167,12 +179,8 @@ func LoadAllSites(sitesPath string) (map[string]*models.SiteInstance, error) {
 		}
 		domain := dir.Name()
 		// Create a new SiteInstance for each domain
-		siteInstance := &models.SiteInstance{
-			Domain: domain,
-			Site:   &models.Site{Domain: domain, Name: domain, IsActive: true},
-			Pages:  make(map[string]*models.Page),
-		}
-		if err := LoadPagesForSite(siteInstance, sitesPathAbs); err != nil {
+		siteInstance := NewSiteInstance(domain)
+		if err := LoadPagesForSite(siteInstance); err != nil {
 			log.Printf("[WARN] Failed to load pages for site %s: %v", domain, err)
 			continue
 		}
@@ -182,7 +190,7 @@ func LoadAllSites(sitesPath string) (map[string]*models.SiteInstance, error) {
 }
 
 // LoadPagesForSite loads all pages for a given site instance
-func LoadPagesForSite(siteInstance *models.SiteInstance, sitesPathAbs string) error {
+func LoadPagesForSite(siteInstance *models.SiteInstance) error {
 	pagesDir := common.RootSitesPath(siteInstance.Domain, "pages") // Use secure path util
 	err := filepath.WalkDir(pagesDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -204,15 +212,46 @@ func LoadPagesForSite(siteInstance *models.SiteInstance, sitesPathAbs string) er
 			return nil
 		}
 		page, err := ParsePageHTML(siteInstance, string(content))
+		// should be safe since we are using filepath.WalkDir on a path that is guaranteed to be within the site instance's pages directory
+		pathParts := strings.SplitN(path, "pages", 2)
+		page.FilePath = strings.Trim(pathParts[1], "/\\") // Store the file path in the Page struct
 		if err != nil {
 			return nil
 		}
-		if page.URL == "" {
+		if page.Slug == "" {
 			return nil
 		}
-		// Store the page in the SiteInstance's Pages map, keyed by URL
-		siteInstance.Pages[page.URL] = page
+		// Store the page in the SiteInstance's Pages map, keyed by Slug
+		siteInstance.Pages[page.Slug] = page
 		return nil
 	})
 	return err
+}
+
+func RemoveMetadataFromContent(content string) string {
+	// Find HTML comment metadata block
+	metadataStart := strings.Index(content, "<!--")
+	if metadataStart != -1 {
+		// Find the end of the metadata comment block
+		metadataEnd := strings.Index(content[metadataStart:], "-->")
+		if metadataEnd != -1 {
+			metadataEnd += metadataStart + 3 // Include the -->
+			// Remove the metadata comment block
+			content = content[:metadataStart] + content[metadataEnd:]
+		}
+	}
+	// Remove all other HTML comments from the remaining content
+	for strings.Contains(content, "<!--") {
+		commentStart := strings.Index(content, "<!--")
+		commentEnd := strings.Index(content[commentStart:], "-->")
+		if commentEnd != -1 {
+			commentEnd += commentStart + 3 // Include the -->
+			// Remove the comment
+			content = content[:commentStart] + content[commentEnd:]
+		} else {
+			// No closing comment found, break to avoid infinite loop
+			break
+		}
+	}
+	return content
 }

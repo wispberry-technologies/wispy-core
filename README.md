@@ -79,7 +79,7 @@ Pages are HTML files with metadata in comment blocks:
 ```html
 <!--
 @name index.html
-@url /
+@slug /
 @author Your Name
 @layout default
 @is_draft false
@@ -103,7 +103,7 @@ Pages are HTML files with metadata in comment blocks:
 ### Metadata Fields
 
 - `@name`: Page filename
-- `@url`: URL path for the page
+- `@slug`: URL path for the page
 - `@author`: Page author
 - `@layout`: Layout template to use
 - `@is_draft`: Whether page is a draft (true/false)
@@ -159,7 +159,7 @@ ttl = 3600
 <!-- sites/example.com/pages/index.html -->
 <!--
 @name index.html
-@url /
+@slug /
 @author Your Name
 @layout default
 @is_draft false

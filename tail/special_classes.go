@@ -2,7 +2,6 @@ package tail
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -41,66 +40,6 @@ func processClass(class string) string {
 		}
 	}
 
-	return class
-}
-
-// Patterns for class extraction and categorization
-var (
-	// Match arbitrary values like w-[10px]
-	arbitraryValuePattern = regexp.MustCompile(`\[.+?\]`)
-
-	// Match color with opacity like bg-red-500/50
-	colorOpacityPattern = regexp.MustCompile(`^(.+?)\/(\d+)$`)
-
-	// Match responsive variants like md:flex
-	responsiveVariantPattern = regexp.MustCompile(`^(sm|md|lg|xl|2xl):`)
-
-	// Match state variants like hover:bg-blue-500
-	stateVariantPattern = regexp.MustCompile(`^(hover|focus|active|disabled|group-hover|peer-hover):`)
-)
-
-// determineClassType identifies what kind of class we're dealing with
-func determineClassType(class string) string {
-	switch {
-	case arbitraryValuePattern.MatchString(class):
-		return "arbitrary"
-	case colorOpacityPattern.MatchString(class):
-		return "color-opacity"
-	case responsiveVariantPattern.MatchString(class):
-		return "responsive"
-	case stateVariantPattern.MatchString(class):
-		return "state"
-	default:
-		return "standard"
-	}
-}
-
-// extractArbitraryValueFromClass extracts the value from an arbitrary class
-func extractArbitraryValueFromClass(class string) string {
-	matches := arbitraryValuePattern.FindStringSubmatch(class)
-	if len(matches) > 0 {
-		// Remove the brackets
-		value := matches[0]
-		return value[1 : len(value)-1]
-	}
-	return ""
-}
-
-// parseColorOpacity extracts the color and opacity from a class like bg-red-500/50
-func parseColorOpacity(class string) (string, string) {
-	matches := colorOpacityPattern.FindStringSubmatch(class)
-	if len(matches) == 3 {
-		return matches[1], matches[2]
-	}
-	return class, ""
-}
-
-// extractBaseClassFromVariant gets the base class from a variant like hover:bg-blue-500
-func extractBaseClassFromVariant(class string) string {
-	parts := strings.Split(class, ":")
-	if len(parts) > 1 {
-		return parts[len(parts)-1]
-	}
 	return class
 }
 
@@ -241,11 +180,16 @@ func handleColorOpacity(class string) ([]CSSProperty, error) {
 		return nil, fmt.Errorf("unknown tailwind color: %s", colorName)
 	}
 
-	// Generate the CSS with both SRGB and OKLAB color mix support
+	// Convert opacity to decimal
+	opacityFloat := float64(0.5) // Default to 50% if not parseable
+	if opacityInt, err := strconv.Atoi(opacity); err == nil {
+		opacityFloat = float64(opacityInt) / 100
+	}
+
+	// Use modern color-mix or opacity syntax
 	return []CSSProperty{{
-		Name: property,
-		Value: fmt.Sprintf("color-mix(in srgb, %s %s%%, transparent); @supports (color: color-mix(in lab, red, red)) { %s: color-mix(in oklab, %s %s%%, transparent); }",
-			colorValue, opacity, property, colorValue, opacity),
+		Name:  property,
+		Value: fmt.Sprintf("%s / %.2f", colorValue, opacityFloat),
 	}}, nil
 }
 

@@ -34,9 +34,11 @@ type TemplateEngine struct {
 }
 
 type InternalContext struct {
-	Flags          map[string]interface{} // Internal flags for the template context
-	Blocks         map[string]string
-	TemplatesCache map[string]string
+	Flags            map[string]interface{} // Internal flags for the template context
+	Blocks           map[string]string
+	TemplatesCache   map[string]string
+	HtmlDocumentTags []HtmlDocumentTags
+	MetaTags         []HtmlMetaTag
 }
 
 type TemplateContext struct {
@@ -51,6 +53,5 @@ type TemplateSiteEngineContext struct {
 	Data   map[string]interface{}
 	Errors []error
 	Engine *TemplateEngine
-	Site   *SiteInstance
 	Page   *Page
 }

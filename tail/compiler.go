@@ -372,14 +372,42 @@ func generateCSS(classes []string) (string, error) {
 		var cssRule strings.Builder
 		cssRule.WriteString("  .")
 
+		// Extract variant (for hover:, focus:, etc.)
+		variant := ""
+
+		// Check for variants like hover:, focus:, etc.
+		if strings.Contains(class, ":") {
+			parts := strings.Split(class, ":")
+			if len(parts) > 1 {
+				// For hover:bg-red-500, variant="hover"
+				variant = parts[0]
+			}
+		}
+
 		// Escape special characters in class names for CSS selectors
 		escapedClass := strings.ReplaceAll(class, ":", "\\:")
+		escapedClass = strings.ReplaceAll(escapedClass, "%", "\\%")
 		escapedClass = strings.ReplaceAll(escapedClass, "/", "\\/")
 		escapedClass = strings.ReplaceAll(escapedClass, ".", "\\.")
 		escapedClass = strings.ReplaceAll(escapedClass, "[", "\\[")
 		escapedClass = strings.ReplaceAll(escapedClass, "]", "\\]")
+		escapedClass = strings.ReplaceAll(escapedClass, ")", "\\)")
+		escapedClass = strings.ReplaceAll(escapedClass, "(", "\\(")
+
+		// Add pseudo-class to selector for variants
+		pseudoClass := ""
+		if variant == "hover" {
+			pseudoClass = ":hover"
+		} else if variant == "focus" {
+			pseudoClass = ":focus"
+		} else if variant == "active" {
+			pseudoClass = ":active"
+		}
 
 		cssRule.WriteString(escapedClass)
+		if pseudoClass != "" {
+			cssRule.WriteString(pseudoClass)
+		}
 		cssRule.WriteString(" { ")
 
 		// Add each property

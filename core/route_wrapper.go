@@ -235,40 +235,54 @@ func (rw *RouteWrapper) addRouteToRouter(router chi.Router, route RouteConfig) {
 		}
 
 		// Create template context using NewTemplateContext
-		data := map[string]interface{}{"Page": route.Page, "Site": route.Instance.Site}
+		data := map[string]interface{}{"Page": route.Page}
 		engine := NewTemplateEngine(DefaultFunctionMap())
 		ctx := NewTemplateContext(data, engine)
 		ctx.Request = r
 
 		// Determine layout to use
-		layoutName := route.Page.Layout
+		layoutName := route.Page.LayoutName
 		if layoutName == "" {
 			layoutName = "default"
 		}
 
-		fullContext := GetLayout(route.Instance.Domain, layoutName)
-		fullContext = fullContext + route.Page.Content
+		fullContent := GetPage(route.Instance.Domain, route.Page.FilePath) + GetLayout(route.Instance.Domain, layoutName)
 
-		switch route.Instance.Site.Config.CssProcessor {
+		switch route.Instance.Config.CssProcessor {
 		case "wispy-tail":
 			// Compile Tailwind CSS if configured
-			css, err := tail.CompileHTMLWithDaisyUI(fullContext)
+			css, err := tail.CompileHTMLWithDaisyUI(fullContent)
 			if err != nil {
 				log.Printf("[ERROR] CompileHTMLWithDaisyUI: Url(%s): %v", route.URL, err.Error())
 			}
-			ctx.Data["Inlined-Styles"] = css
+			ctx.InternalContext.HtmlDocumentTags = append(ctx.InternalContext.HtmlDocumentTags, models.HtmlDocumentTags{
+				TagType:    "style",
+				TagName:    "style",
+				Location:   "head",
+				Contents:   css,
+				Priority:   10,
+				Attributes: map[string]string{},
+			})
 		default:
 			// Use default CSS processing
 		}
 
-		result, errs := engine.Render(fullContext, ctx)
+		result, errs := engine.Render(fullContent, ctx)
 		for _, err := range errs {
 			log.Printf("[ERROR]Render: Url(%s): %v", route.URL, err.Error())
 			return
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write([]byte(result))
+		HtmlDocument := &models.ConstructHTMLDocument{
+			Body:         result,
+			Lang:         route.Page.Lang,
+			Title:        route.Page.Title,
+			DocumentTags: ctx.InternalContext.HtmlDocumentTags,
+			MetaTags:     ConstructMetaTags(ctx, route.Page),
+		}
+
+		WriteHTMLDocument(w, HtmlDocument)
 
 		dur := time.Since(start)
 		log.Printf("[INFO] Rendered %s in %s", route.URL, dur)
@@ -349,7 +363,7 @@ func (rw *RouteWrapper) ListRoutes() []RouteInfo {
 				Domain:    domain,
 				URL:       url,
 				PageName:  config.Page.Title, // Using Title since there's no Name field
-				Layout:    config.Page.Layout,
+				Layout:    config.Page.LayoutName,
 				HookCount: len(config.Hooks),
 			})
 		}
@@ -495,11 +509,10 @@ func (rw *RouteWrapper) GetSiteInfo(domain string) map[string]interface{} {
 
 	if site, exists := rw.sites[domain]; exists {
 		result["exists"] = true
-		result["name"] = site.Site.Name
-		result["is_active"] = site.Site.IsActive
-		result["theme"] = site.Site.Theme
+		result["name"] = site.Name
+		result["is_active"] = site.IsActive
+		result["theme"] = site.Theme
 		result["route_count"] = len(rw.routeConfigs[domain])
-		result["has_templates"] = len(site.Templates) > 0
 	}
 
 	return result
