@@ -8,14 +8,20 @@ import (
 
 // Site represents a single site in the multisite system
 type Site struct {
-	Domain   string `json:"domain"`
-	Name     string `json:"name"`
-	BasePath string `json:"base_path"`
-	IsActive bool   `json:"is_active"`
-	Theme    string `json:"theme"`
+	Domain         string             `json:"domain"`
+	Name           string             `json:"name"`
+	BasePath       string             `json:"base_path"`
+	IsActive       bool               `json:"is_active"`
+	Theme          string             `json:"theme"`
+	Config         SiteConfig         `json:"config"`
+	SecurityConfig SiteSecurityConfig `json:"security_config"`
 }
 
 type SiteConfig struct {
+	CssProcessor string `json:"css_processor"` // e.g. "wispy-tail"
+}
+
+type SiteSecurityConfig struct {
 	MaxFailedLoginAttempts         int
 	FailedLoginAttemptLockDuration time.Duration
 	SessionCookieSameSite          http.SameSite
@@ -27,13 +33,13 @@ type SiteConfig struct {
 
 // SiteInstance handles requests & data for individual sites
 type SiteInstance struct {
-	Domain    string
-	Site      *Site
-	DBCache   *DBCache
-	Templates map[string]string
-	Config    SiteConfig       // Site-specific configuration
-	Pages     map[string]*Page // routes for this site
-	Mu        sync.RWMutex     // mutex for thread-safe route access
+	Domain         string
+	Site           *Site
+	DBCache        *DBCache
+	Templates      map[string]string
+	SecurityConfig *SiteSecurityConfig // Site-specific configuration
+	Pages          map[string]*Page    // routes for this site
+	Mu             sync.RWMutex        // mutex for thread-safe route access
 }
 
 // Page represents a single page

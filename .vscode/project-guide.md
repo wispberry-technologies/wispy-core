@@ -12,8 +12,6 @@
 - Abstracted input validation and sanitization for all API requests
 
 ### Code Style
-- Use of meaningful variable and function names like `getUserByID`, `createProduct` using CamelCase for function names
-- Use of Kebab-case for file names (e.g., `get-user-by-id.go`, `create-product.go`)
 - Use of comments to explain complex logic or important decisions
 - Use of Go's error handling idioms (returning errors as the last return value)
 

@@ -21,24 +21,32 @@ func init() {
 // which have been split using common.FieldsRespectQuotes resulting in a slice of strings.
 func ResolveFilterChain(filterChainString string, ctx TemplateCtx, filters models.FilterMap) (value interface{}, valueType reflect.Type, errors []error) {
 	if len(filterChainString) == 0 {
-		errors = append(errors, fmt.Errorf("empty filter chain provided"))
-		return nil, nil, errors
+		// Empty filter chain is not an error, just return nil
+		return nil, nil, nil
 	}
+
+	// Trim whitespace from the entire string first
+	filterChainString = strings.TrimSpace(filterChainString)
+
 	splitFilters := strings.Split(filterChainString, "|")
 	if len(splitFilters) == 1 {
 		// No filters, just a single value
-		value = resolveValue(splitFilters[0], ctx)
+		value = resolveValue(strings.TrimSpace(splitFilters[0]), ctx)
+		// Don't treat nil values as errors - they should just render as empty
 		if value == nil {
-			errors = append(errors, fmt.Errorf("could not resolve value: %s", splitFilters[0]))
-			return nil, nil, errors
+			return nil, nil, nil // No error, just nil value
 		}
 		return value, reflect.TypeOf(value), errors
 	} else {
 		// Multiple filters found, process them
-		value = splitFilters[0]
+		value = resolveValue(strings.TrimSpace(splitFilters[0]), ctx)
+		if value == nil {
+			// If initial value is nil, don't apply filters, just return nil
+			return nil, nil, nil
+		}
 		valueType = reflect.TypeOf(value)
 		for _, filterExpr := range splitFilters[1:] {
-			filterName, args := ParseFilterExpression(filterExpr)
+			filterName, args := ParseFilterExpression(strings.TrimSpace(filterExpr))
 			if filter, ok := filters[filterName]; ok {
 				value = filter(value, valueType, args)
 				valueType = reflect.TypeOf(value)

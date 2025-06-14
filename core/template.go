@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"maps"
 	"os"
-	"reflect"
 	"strings"
 
 	"wispy-core/common"
@@ -84,13 +83,48 @@ func NewTemplateEngine(funcMap FunctionMap) *TemplateEngine {
 // --------------------
 // Template Functions
 // --------------------
-func SeekEndTag(raw string, pos int, endTag string) (endTagPos int, errs []error) {
-	endIdx := strings.Index(raw[pos:], endTag)
-	if endIdx == -1 {
-		errs = append(errs, fmt.Errorf("could not find end tag: %s", endTag))
-		return pos, errs
+func SeekEndTag(raw string, pos int, tagName string) (endTagPos int, errs []error) {
+	startTagString := "{% " + tagName + " "
+	endTagString := "{% end" + tagName + " %}"
+
+	// Count nested tags to find the correct closing tag
+	depth := 1
+	searchPos := pos
+
+	for depth > 0 && searchPos < len(raw) {
+		// Find next occurrence of start tag or end tag
+		nextStart := strings.Index(raw[searchPos:], startTagString)
+		nextEnd := strings.Index(raw[searchPos:], endTagString)
+
+		// Adjust positions to be absolute
+		if nextStart != -1 {
+			nextStart += searchPos
+		}
+		if nextEnd != -1 {
+			nextEnd += searchPos
+		}
+
+		// If no end tag found, this is an error
+		if nextEnd == -1 {
+			errs = append(errs, fmt.Errorf("could not find end tag: %s", endTagString))
+			return pos, errs
+		}
+
+		// If start tag comes before end tag (or no start tag), process end tag
+		if nextStart == -1 || nextEnd < nextStart {
+			depth--
+			if depth == 0 {
+				return nextEnd + len(endTagString), nil
+			}
+			searchPos = nextEnd + len(endTagString)
+		} else {
+			// Start tag comes first, increase depth
+			depth++
+			searchPos = nextStart + len(startTagString)
+		}
 	}
-	return pos + endIdx + len(endTag), nil
+
+	return pos, nil
 }
 
 // ResolveDotNotation resolves dot notation (e.g., "user.name") in a map[string]interface{} context.
@@ -127,13 +161,6 @@ func ResolveDotNotation(ctx interface{}, key string) interface{} {
 		return policy.Sanitize(s)
 	}
 	return val
-}
-
-// SetContextValue sets a value in a map[string]interface{} context.
-func SetContextValue(ctx interface{}, key string, value interface{}) {
-	if m, ok := ctx.(map[string]interface{}); ok {
-		m[key] = value
-	}
 }
 
 // IsTruthy returns true if a value is considered 'true' for template logic.
@@ -183,153 +210,153 @@ func GetPage(domain, name string) string {
 // Render renders the template with the given TemplateContext and returns the result string and any errors.
 // This function processes template tags (e.g., {{ variable }}, {% if condition %}) and replaces them with
 // their corresponding values or executes the associated logic.
-//
-// Template processing flow:
-// 1. Scan for template tags using start/end delimiters
-// 2. For each tag, determine if it's a block tag (if, for, etc.) or variable expression
-// 3. Block tags are delegated to their specific render functions
-// 4. Variable expressions are resolved from context data and filters are applied
-// 5. Results are written to the output string builder
 func Render(raw string, te *TemplateEngine, ctx TemplateCtx) (string, []error) {
-	// Input validation - early return for edge cases
 	if len(raw) == 0 {
 		return "", nil
 	}
-	if te == nil {
-		return raw, []error{fmt.Errorf("template engine cannot be nil")}
-	}
 
-	// Initialize output buffer and error collection
-	var sb strings.Builder
+	// Pre-allocate with estimated capacity to reduce memory allocations
 	var errs []error
 
-	// Pre-calculate delimiter lengths for performance (avoid repeated len() calls)
-	startDelim := common.GetEnv("TEMPLATE_DELIMITER_OPEN", "{")
-	endDelim := common.GetEnv("TEMPLATE_DELIMITER_CLOSE", "}")
+	// Pre-allocate builder with estimated capacity for efficiency
+	sb := strings.Builder{}
+	sb.Grow(len(raw) + len(raw)/4) // Estimate 25% expansion for typical templates
 
-	// Current position in the raw template string
 	pos := 0
+	rawLen := len(raw)
 
-	// Main template processing loop - scan through the entire template string
-	for pos < len(raw) {
-		// Find the next template tag starting from current position
-		delimOpenIndex := strings.Index(raw[pos:], startDelim)
+	for pos < rawLen {
+		// Find the next template tag or variable
+		varStart := strings.Index(raw[pos:], "{{")
+		tagStart := strings.Index(raw[pos:], "{%")
 
-		if delimOpenIndex == -1 {
-			// No more template tags found - append remaining content and exit
+		// Determine which comes first (or if neither exists)
+		nextTag := -1
+		isVariable := false
+
+		if varStart != -1 && (tagStart == -1 || varStart < tagStart) {
+			nextTag = pos + varStart
+			isVariable = true
+		} else if tagStart != -1 {
+			nextTag = pos + tagStart
+			isVariable = false
+		}
+
+		// If no more tags found, append the rest and break
+		if nextTag == -1 {
 			sb.WriteString(raw[pos:])
 			break
 		}
 
-		// Calculate absolute position of tag start
-		absoluteTagStart := pos + delimOpenIndex
+		// Append content before the tag
+		sb.WriteString(raw[pos:nextTag])
 
-		// Write all content before the tag to output buffer
-		sb.WriteString(raw[pos:absoluteTagStart])
-
-		switch {
-		case strings.HasPrefix(raw[absoluteTagStart:], startDelim+"{"):
-			pos = absoluteTagStart + len(startDelim+"{")
-			// Handle variable expression tag (e.g., {{ variable }})
-			// Find the closing delimiter for this variable tag
-			tagEndPos := strings.Index(raw[pos:], endDelim+"}")
-			if tagEndPos == -1 { // Malformed tag - no closing delimiter found
-				errs = append(errs, fmt.Errorf("unclosed template variable starting at position %d", absoluteTagStart))
-				pos += len("}" + endDelim) // Move past the start delimiter
-				break
-			}
-			// Calculate absolute position of tag end
-			absoluteTagEnd := absoluteTagStart + len(startDelim) + tagEndPos
-			// Extract and clean tag contents (remove surrounding whitespace)
-			tagContents := strings.TrimSpace(raw[pos:absoluteTagEnd])
-			// Process the tag contents as a variable expression
-			resolvedValue, resolvedValueType, filterErrs := ResolveFilterChain(tagContents, ctx, te.FilterMap)
-			// Collect any errors from tag processing
-			if len(filterErrs) > 0 {
-				errs = append(errs, filterErrs...)
-			}
-			if resolvedValueType == nil {
-				errs = append(errs, fmt.Errorf("could not resolve value for tag '%s'", tagContents))
-				pos = absoluteTagEnd + len("}"+endDelim) // Move past the end delimiter
-				break
-			}
-			switch resolvedValueType.Kind() {
-			case reflect.Invalid:
-				// If resolved value is nil, write an empty string
-				sb.WriteString("")
-			case reflect.String:
-				// If resolved value is a string, sanitize and write it
-				if strValue, ok := resolvedValue.(string); ok {
-					sb.WriteString(policy.Sanitize(strValue))
+		if isVariable {
+			// Process variable interpolation {{ }}
+			newPos, err := processVariable(raw, nextTag, &sb, ctx, te.FilterMap)
+			if err != nil {
+				errs = append(errs, err)
+				// Continue processing from the end of the variable tag or skip past {{
+				if newPos > nextTag {
+					pos = newPos
 				} else {
-					errs = append(errs, fmt.Errorf("expected string value for tag '%s', got %T", tagContents, resolvedValue))
+					// Try to find the closing }} and skip past it, or skip minimal amount
+					if closePos := strings.Index(raw[nextTag:], "}}"); closePos != -1 {
+						pos = nextTag + closePos + 2
+					} else {
+						pos = nextTag + 2 // Skip past {{ to avoid infinite loop
+					}
 				}
-			default:
-				// For other types, convert to string and write it
-				sb.WriteString(fmt.Sprintf("%v", resolvedValue))
-			}
-			// Update position for next iteration
-			pos = absoluteTagEnd + len("}"+endDelim) // Move past the end delimiter
-			//
-		case strings.HasPrefix(raw[absoluteTagStart:], startDelim+"#"):
-			pos = absoluteTagStart + len(startDelim+"#")
-			// Handle comment tag (e.g., {# This is a comment #})
-			// Find the closing delimiter for this comment tag
-			tagEndPos := strings.Index(raw[pos+2:], "#"+endDelim)
-			if tagEndPos == -1 { // Malformed comment tag - no closing delimiter found
-				errs = append(errs, fmt.Errorf("unclosed template comment starting at position %d", absoluteTagStart))
-				pos += len("#" + endDelim) // Move past the start delimiter
-				break
-			}
-			// Calculate absolute position of tag end
-			// Write the comment to output (or skip it entirely)
-			// Here we just skip comments, but you could log them if needed
-			// sb.WriteString(raw[absoluteTagStart:absoluteTagEnd+len(endDelim)]) // Uncomment to keep comments
-			//
-			// Update position for next iteration
-			pos = pos + tagEndPos + len(endDelim)
-		case strings.HasPrefix(raw[absoluteTagStart:], startDelim+"%"):
-			pos = absoluteTagStart + len(startDelim+"%")
-			// Handle block tag (e.g., {% if condition %})
-			// Find the closing delimiter for this block tag
-			tagEndPos := strings.Index(raw[pos:], "%"+endDelim)
-			if tagEndPos == -1 {
-				snipLen := 10
-				if len(raw)-pos < snipLen {
-					snipLen = len(raw) - pos
-				}
-				errs = append(errs, fmt.Errorf("unclosed template block starting at position %d \"%s\"", absoluteTagStart, raw[absoluteTagStart:snipLen]))
-				pos += len("%" + endDelim) // Move past the start delimiter
-				break
-			}
-
-			// Split arguments by spaces, respecting quotes
-			args := common.FieldsRespectQuotes(raw[pos : pos+tagEndPos-len(endDelim)])
-			if len(args) == 0 {
-				errs = append(errs, fmt.Errorf("empty template tag starting at position %d", absoluteTagStart))
-				pos = absoluteTagStart + tagEndPos + len(endDelim) // Move past the end delimiter
-				break
-			}
-			tagName := strings.Trim(args[0], " \t\"'")
-			// Call the tag function with the name and arguments
-			if templateTag, ok := te.FuncMap[tagName]; ok {
-				newPos, tagErrs := templateTag.Render(ctx, &sb, append([]string{tagName}, args...), raw[pos:absoluteTagStart+tagEndPos], absoluteTagStart)
-				if len(tagErrs) > 0 {
-					errs = append(errs, tagErrs...)
-				}
-				pos = newPos // Update position to the end of the tag
 			} else {
-				errs = append(errs, fmt.Errorf("unrecognized template tag '%s' starting! :(", raw[absoluteTagStart:pos+tagEndPos]))
-				// Update position for next iteration
-				pos = absoluteTagStart + tagEndPos + len(endDelim)
+				pos = newPos
 			}
-		default:
-			// Unrecognized tag format - write as-is and continue
-			sb.WriteString(raw[absoluteTagStart:])
-			errs = append(errs, fmt.Errorf("unrecognized template tag starting at position %d", absoluteTagStart))
-			pos = absoluteTagStart + len(startDelim) // Move past the start delimiter
+		} else {
+			// Process template tag {% %}
+			newPos, tagErrs := processTemplateTag(raw, nextTag, &sb, ctx, te.FuncMap)
+			if len(tagErrs) > 0 {
+				errs = append(errs, tagErrs...)
+				// Continue processing from the end of the tag or skip past {%
+				if newPos > nextTag {
+					pos = newPos
+				} else {
+					// Try to find the closing %} and skip past it, or skip minimal amount
+					if closePos := strings.Index(raw[nextTag:], "%}"); closePos != -1 {
+						pos = nextTag + closePos + 2
+					} else {
+						pos = nextTag + 2 // Skip past {% to avoid infinite loop
+					}
+				}
+			} else {
+				pos = newPos
+			}
 		}
 	}
 
 	return sb.String(), errs
+}
+
+// processVariable handles {{ variable | filter }} interpolation
+func processVariable(raw string, pos int, sb *strings.Builder, ctx TemplateCtx, filters models.FilterMap) (newPos int, err error) {
+	// Find the closing }}
+	endPos := strings.Index(raw[pos:], "}}")
+	if endPos == -1 {
+		return pos + 2, fmt.Errorf("unclosed variable tag at position %d", pos)
+	}
+	endPos += pos
+
+	// Extract the content between {{ and }}
+	content := strings.TrimSpace(raw[pos+2 : endPos])
+	if len(content) == 0 {
+		// Empty variable tag - just skip it
+		return endPos + 2, nil
+	}
+
+	// Resolve the filter chain - be graceful with errors
+	value, _, resolveErrs := ResolveFilterChain(content, ctx, filters)
+	if len(resolveErrs) > 0 {
+		// Instead of returning an error, just log it and render nothing
+		err = fmt.Errorf("warning: could not resolve variable '%s': %v", content, resolveErrs)
+		// Don't write anything to the builder, just continue
+		return endPos + 2, err
+	}
+
+	// Convert to string and write to builder only if value exists
+	if value != nil {
+		sb.WriteString(fmt.Sprintf("%v", value))
+	}
+	// If value is nil, render nothing (empty string)
+
+	return endPos + 2, nil
+}
+
+// processTemplateTag handles {% tag %} processing
+func processTemplateTag(raw string, pos int, sb *strings.Builder, ctx TemplateCtx, funcMap models.FunctionMap) (newPos int, errs []error) {
+	// Find the closing %}
+	endPos := strings.Index(raw[pos:], "%}")
+	if endPos == -1 {
+		return pos + 2, []error{fmt.Errorf("unclosed template tag at position %d", pos)}
+	}
+	endPos += pos
+
+	// Extract the content between {% and %}
+	content := strings.TrimSpace(raw[pos+2 : endPos])
+	if len(content) == 0 {
+		return endPos + 2, []error{fmt.Errorf("empty template tag at position %d", pos)}
+	}
+
+	// Parse the tag name and arguments
+	parts := common.FieldsRespectQuotes(content)
+	if len(parts) == 0 {
+		return endPos + 2, []error{fmt.Errorf("invalid template tag format at position %d", pos)}
+	}
+
+	tagName := parts[0]
+
+	// Look up the tag in the function map
+	if tag, exists := funcMap[tagName]; exists {
+		return tag.Render(ctx, sb, parts, raw, endPos+2)
+	}
+
+	// Unknown tag - return error but continue processing
+	return endPos + 2, []error{fmt.Errorf("unknown template tag: %s at position %d", tagName, pos)}
 }

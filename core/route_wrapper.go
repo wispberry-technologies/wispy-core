@@ -10,6 +10,7 @@ import (
 
 	"wispy-core/common"
 	"wispy-core/models"
+	"wispy-core/tail"
 
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
@@ -49,10 +50,10 @@ type RouteWrapper struct {
 
 // RouteConfig stores configuration for a specific route
 type RouteConfig struct {
-	Page  *models.Page
-	Site  *models.SiteInstance
-	URL   string
-	Hooks []func(http.ResponseWriter, *http.Request, *models.Page, *models.SiteInstance) bool
+	Page     *models.Page
+	Instance *models.SiteInstance
+	URL      string
+	Hooks    []func(http.ResponseWriter, *http.Request, *models.Page, *models.SiteInstance) bool
 }
 
 // NewRouteWrapper creates a new RouteWrapper instance
@@ -104,10 +105,10 @@ func (rw *RouteWrapper) RegisterSite(site *models.SiteInstance) {
 	// Add all pages from the site
 	for url, page := range site.Pages {
 		config := RouteConfig{
-			Page:  page,
-			Site:  site,
-			URL:   url,
-			Hooks: []func(http.ResponseWriter, *http.Request, *models.Page, *models.SiteInstance) bool{},
+			Page:     page,
+			Instance: site,
+			URL:      url,
+			Hooks:    []func(http.ResponseWriter, *http.Request, *models.Page, *models.SiteInstance) bool{},
 		}
 
 		rw.routeConfigs[site.Domain][url] = config
@@ -134,10 +135,10 @@ func (rw *RouteWrapper) RegisterRoute(site *models.SiteInstance, url string, pag
 
 	// Add the route config
 	config := RouteConfig{
-		Page:  page,
-		Site:  site,
-		URL:   url,
-		Hooks: []func(http.ResponseWriter, *http.Request, *models.Page, *models.SiteInstance) bool{},
+		Page:     page,
+		Instance: site,
+		URL:      url,
+		Hooks:    []func(http.ResponseWriter, *http.Request, *models.Page, *models.SiteInstance) bool{},
 	}
 
 	rw.routeConfigs[site.Domain][url] = config
@@ -222,33 +223,47 @@ func (rw *RouteWrapper) regenerateAllRoutes() {
 }
 
 // addRouteToRouter adds a single route to the given router
-func (rw *RouteWrapper) addRouteToRouter(router chi.Router, config RouteConfig) {
-	router.Get(config.URL, func(w http.ResponseWriter, r *http.Request) {
+func (rw *RouteWrapper) addRouteToRouter(router chi.Router, route RouteConfig) {
+	router.Get(route.URL, func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
 		// Run hooks before processing the page
-		for _, hook := range config.Hooks {
-			if !hook(w, r, config.Page, config.Site) {
+		for _, hook := range route.Hooks {
+			if !hook(w, r, route.Page, route.Instance) {
 				return // Abort processing if a hook returns false
 			}
 		}
 
 		// Create template context using NewTemplateContext
-		data := map[string]interface{}{"Page": config.Page, "Site": config.Site.Site}
+		data := map[string]interface{}{"Page": route.Page, "Site": route.Instance.Site}
 		engine := NewTemplateEngine(DefaultFunctionMap())
 		ctx := NewTemplateContext(data, engine)
 		ctx.Request = r
 
 		// Determine layout to use
-		layoutName := config.Page.Layout
+		layoutName := route.Page.Layout
 		if layoutName == "" {
 			layoutName = "default"
 		}
 
-		layoutAsString := GetLayout(config.Site.Domain, layoutName)
-		result, errs := engine.Render(config.Page.Content+layoutAsString, ctx)
+		fullContext := GetLayout(route.Instance.Domain, layoutName)
+		fullContext = fullContext + route.Page.Content
+
+		switch route.Instance.Site.Config.CssProcessor {
+		case "wispy-tail":
+			// Compile Tailwind CSS if configured
+			css, err := tail.CompileHTMLWithDaisyUI(fullContext)
+			if err != nil {
+				log.Printf("[ERROR] CompileHTMLWithDaisyUI: Url(%s): %v", route.URL, err.Error())
+			}
+			ctx.Data["Inlined-Styles"] = css
+		default:
+			// Use default CSS processing
+		}
+
+		result, errs := engine.Render(fullContext, ctx)
 		for _, err := range errs {
-			log.Printf("[ERROR]Render: Url(%s): %v", config.URL, err.Error())
+			log.Printf("[ERROR]Render: Url(%s): %v", route.URL, err.Error())
 			return
 		}
 
@@ -256,11 +271,11 @@ func (rw *RouteWrapper) addRouteToRouter(router chi.Router, config RouteConfig) 
 		w.Write([]byte(result))
 
 		dur := time.Since(start)
-		log.Printf("[INFO] Rendered %s in %s", config.URL, dur)
+		log.Printf("[INFO] Rendered %s in %s", route.URL, dur)
 
 		// Update route statistics
 		if rw.enableStats {
-			rw.updateRouteStats(config.URL, dur)
+			rw.updateRouteStats(route.URL, dur)
 		}
 	})
 }
