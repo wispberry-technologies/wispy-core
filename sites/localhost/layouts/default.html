@@ -3,17 +3,18 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{{if Page}}{{Page.Meta.Title}} - {{Site.Name}}{{else}}{{Site.Name}}{{end-if}}</title>
-
-        {{if Page}}
-            {{if Page.Meta.Description}}
-            <meta name="description" content="{{Page.Meta.Description}}">{{end-if}}
-            {{if Page.Meta.Keywords}}
-            <meta name="keywords" content="{{for keyword in Page.Meta.Keywords}}{{keyword}}, {{end-for}}">
-            {{end-if}}
-            {{if Page.Meta.Author}}
-            <meta name="author" content="{{Page.Meta.Author}}">{{end-if}}
-        {{end-if}}
+        <title>{% if .Page %}{% .Page.Meta.Title %} - {% .Site.Name %}{% else %}{% .Site.Name %}{% endif %}</title>
+        {% if .Page %}
+            {% if .Page.Meta.Description %}
+                <meta name="description" content="{%Page.Meta.Description%}">
+            {% endif %}
+            {% if .Page.Meta.Keywords  %}
+                <meta name="keywords" content="{% for keyword in .Page.Meta.Keywords %}{{ .keyword }}, {% endfor %}">
+            {% endif %}
+            {% if .Page.Meta.Author %}
+                <meta name="author" content="{% .Page.Meta.Author %}">
+            {% endif %}
+        {% endif %}
 
         <!-- daisyUI CSS -->
         <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
@@ -43,14 +44,18 @@
     <body class="min-h-screen bg-base-100 text-base-content">
         <!-- Main Content -->
         <main class="p-6">
-            {{render "page-content"}}
+            {% render "page-body" %}
         </main>
         
         <!-- Footer -->
-        <footer class="footer footer-center p-4 text-base-content">
-            <div>
-                <p>&copy; 2025 {{Site.Name}}. Powered by Wispy-CMS.</p>
-            </div>
-        </footer>
+        {% block "footer" %}
+            <footer class="footer footer-center p-4 text-base-content">
+                <div>
+                    <p>&copy; 2025
+                        {{ .Site.Name }}. Powered by Wispy-CMS.</p>
+                </div>
+            </footer>
+        {% block %}
+
     </body>
 </html>

@@ -31,9 +31,9 @@ type SiteInstance struct {
 	Site      *Site
 	DBCache   *DBCache
 	Templates map[string]string
-	Config    SiteConfig      // Site-specific configuration
-	Pages     map[string]Page // routes for this site
-	Mu        sync.RWMutex    // mutex for thread-safe route access
+	Config    SiteConfig       // Site-specific configuration
+	Pages     map[string]*Page // routes for this site
+	Mu        sync.RWMutex     // mutex for thread-safe route access
 }
 
 // Page represents a single page

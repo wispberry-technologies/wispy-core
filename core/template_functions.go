@@ -1,333 +1,263 @@
-// Package core provides the main template engine and built-in tag functions for Wispy Core.
-//
-// The template engine supports:
-//   - Per-render context (map[string]interface{} or custom structs)
-//   - Custom tag functions (block and inline)
-//   - Dot notation for nested map lookups (e.g., {{user.name}})
-//   - Block tags (e.g., if, for, unless, case, assign, comment)
-//
-// Built-in tag functions:
-//   - IfTemplate: Conditional rendering ({{if condition}}...{{end-if}})
-//   - ForTemplate: Looping over slices/arrays ({{for item in items}}...{{end-for}})
-//   - AssignTemplate: Assign a value to a variable in the context ({{assign var value}})
-//   - CommentTemplate: Ignore content ({{comment}}...{{end-comment}})
-//   - CaseTemplate: Switch/case logic ({{case var}}...{{when value}}...{{end-case}})
-//   - UnlessTemplate: Render if condition is false ({{unless condition}}...{{end-unless}})
-//   - DefineTemplate: Define a named block ({{define "name"}}...{{end-define}})
-//   - RenderTemplate: Render a previously defined block ({{render "name"}})
-//   - SanitizeTemplate: Escape HTML special characters for safe output ({{sanitize var}})
 package core
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
+	"wispy-core/common"
 	"wispy-core/models"
 )
 
 var IfTemplate = models.TemplateTag{
 	Name: "if",
-	Render: func(ctx TemplateCtx, sb *strings.Builder, tagContents, raw string, pos int) (int, []error) {
-		var errs []error
-		parts := strings.Fields(tagContents)
-		if len(parts) < 2 {
-			errs = append(errs, fmt.Errorf("missing condition in if tag"))
-			return pos, errs
+	Render: func(ctx TemplateCtx, sb *strings.Builder, parts []string, raw string, pos int) (newPos int, errs []error) {
+		var tagName = "if"
+		var args = parts[1:] // First part is the tag name, rest are arguments
+		if len(args) < 1 {
+			errs = append(errs, fmt.Errorf("if tag requires at least one argument"))
+			return pos + 2, errs // advance position to avoid infinite loop
 		}
-		cond := parts[1]
-		endTag := "{{end-if}}"
-		endIdx := strings.Index(raw[pos:], endTag)
-		if endIdx == -1 {
-			errs = append(errs, fmt.Errorf("could not find end tag for if"))
-			return pos, errs
-		}
-		content := raw[pos : pos+endIdx]
-		m, _ := ctx.Data.(map[string]interface{})
-		if m != nil && IsTruthy(m[cond]) {
-			sb.WriteString(content)
-		}
-		return pos + endIdx + len(endTag), errs
-	},
-}
-
-var ForTemplate = models.TemplateTag{
-	Name: "for",
-	Render: func(ctx TemplateCtx, sb *strings.Builder, tagContents, raw string, pos int) (int, []error) {
-		var errs []error
-		parts := strings.Fields(tagContents)
-		if len(parts) < 4 || parts[2] != "in" {
-			errs = append(errs, fmt.Errorf("invalid for tag syntax"))
-			return pos, errs
-		}
-		varName := parts[1]
-		listName := parts[3]
-		endTag := "{{end-for}}"
-		endIdx := strings.Index(raw[pos:], endTag)
-		if endIdx == -1 {
-			errs = append(errs, fmt.Errorf("could not find end tag for for"))
-			return pos, errs
-		}
-		content := raw[pos : pos+endIdx]
-		m, _ := ctx.Data.(map[string]interface{})
-		var list interface{}
-		if m != nil {
-			// Use ResolveDotNotation to support nested map lookups
-			list = ResolveDotNotation(m, listName)
+		resolvedValue, resolvedValueType, resolvedErrs := ResolveFilterChain(args[0], ctx, DefaultFilters())
+		if len(resolvedErrs) > 0 {
+			errs = append(errs, resolvedErrs...)
 		}
 
-		if list != nil {
-			engine := NewTemplateEngine(ctx.Engine.FuncMap)
-			// Create a new copy of the context for rendering loop content
-			switch v := list.(type) {
-			case []string:
-				for _, item := range v {
-					// Create a new context for each iteration with a copy of the original data
-					localCtx := make(map[string]interface{})
-					for k, val := range m {
-						localCtx[k] = val
-					}
-					localCtx[varName] = item
-					newCtx := models.TemplateContext{
-						Data:            localCtx,
-						Engine:          ctx.Engine,
-						InternalContext: ctx.InternalContext,
-					}
-					res, _ := Render(content, engine, &newCtx)
-					sb.WriteString(res)
-				}
-			case []interface{}:
-				for _, item := range v {
-					// Create a new context for each iteration with a copy of the original data
-					localCtx := make(map[string]interface{})
-					for k, val := range m {
-						localCtx[k] = val
-					}
-					localCtx[varName] = item
-					newCtx := models.TemplateContext{
-						Data:            localCtx,
-						Engine:          ctx.Engine,
-						InternalContext: ctx.InternalContext,
-					}
-					res, _ := Render(content, engine, &newCtx)
-					sb.WriteString(res)
-				}
-			}
-		}
-		return pos + endIdx + len(endTag), errs
-	},
-}
-
-// AssignTemplate assigns a value to a variable in the context for the rest of the render.
-var AssignTemplate = models.TemplateTag{
-	Name: "assign",
-	Render: func(ctx TemplateCtx, sb *strings.Builder, tagContents, raw string, pos int) (int, []error) {
-		errs := []error{}
-		parts := strings.Fields(tagContents)
-		if len(parts) < 3 {
-			errs = append(errs, fmt.Errorf("assign tag requires variable name and value"))
-			return pos, errs
-		}
-		varName := parts[1]
-		value := strings.Join(parts[2:], " ")
-
-		// Ensure we're writing to a map that will be used in future renders
-		if m, ok := ctx.Data.(map[string]interface{}); ok {
-			m[varName] = value
+		var endTagLen = len(common.WrapBraces(" endif "))
+		relativeEndTagPos, seekErrs := SeekEndTag(raw, pos, tagName)
+		fmt.Println("seekErrs")
+		fmt.Println(seekErrs)
+		endTagPos := pos + relativeEndTagPos
+		if len(seekErrs) > 0 {
+			errs = append(errs, seekErrs...)
+			return pos + 2, errs // advance position to avoid infinite loop
+		} else if len(resolvedErrs) > 0 {
+			return endTagPos + endTagLen, errs // advance position to avoid infinite loop
 		}
 
-		return pos, errs
-	},
-}
+		// Grab tag contents
+		ifContent := raw[pos:endTagPos]
+		// TODO: handle nested tags properly
+		// TODO: handle nested else tag
 
-// CommentTemplate ignores all content between comment and end-comment.
-var CommentTemplate = models.TemplateTag{
-	Name: "comment",
-	Render: func(ctx TemplateCtx, sb *strings.Builder, tagContents, raw string, pos int) (int, []error) {
-		endTag := "{{end-comment}}"
-		endIdx := strings.Index(raw[pos:], endTag)
-		if endIdx == -1 {
-			return pos, []error{fmt.Errorf("could not find end tag for comment")}
-		}
-		return pos + endIdx + len(endTag), nil
-	},
-}
-
-// UnlessTemplate renders content only if the condition is false.
-var UnlessTemplate = models.TemplateTag{
-	Name: "unless",
-	Render: func(ctx TemplateCtx, sb *strings.Builder, tagContents, raw string, pos int) (int, []error) {
-		errs := []error{}
-		parts := strings.Fields(tagContents)
-		if len(parts) < 2 {
-			errs = append(errs, fmt.Errorf("missing condition in unless tag"))
-			return pos, errs
-		}
-		cond := parts[1]
-		endTag := "{{end-unless}}"
-		endIdx := strings.Index(raw[pos:], endTag)
-		if endIdx == -1 {
-			errs = append(errs, fmt.Errorf("could not find end tag for unless"))
-			return pos, errs
-		}
-		content := raw[pos : pos+endIdx]
-		m, _ := ctx.Data.(map[string]interface{})
-		if m != nil && !IsTruthy(m[cond]) {
-			sb.WriteString(content)
-		}
-		return pos + endIdx + len(endTag), errs
-	},
-}
-
-// CaseTemplate implements a simple switch/case logic.
-var CaseTemplate = models.TemplateTag{
-	Name: "case",
-	Render: func(ctx TemplateCtx, sb *strings.Builder, tagContents, raw string, pos int) (int, []error) {
-		errs := []error{}
-		parts := strings.Fields(tagContents)
-		if len(parts) < 2 {
-			errs = append(errs, fmt.Errorf("missing variable in case tag"))
-			return pos, errs
-		}
-		varName := parts[1]
-		endTag := "{{end-case}}"
-		whenTag := "{{when "
-		endIdx := strings.Index(raw[pos:], endTag)
-		if endIdx == -1 {
-			errs = append(errs, fmt.Errorf("could not find end tag for case"))
-			return pos, errs
-		}
-
-		// Get the case value
-		m, _ := ctx.Data.(map[string]interface{})
-		var val interface{}
-		if m != nil {
-			val = m[varName]
-		}
-		valStr := fmt.Sprint(val)
-
-		// Parse and process the case block
-		caseBlock := raw[pos : pos+endIdx]
-
-		// Find and extract each when tag and its content
-		position := 0
-
-		for position < len(caseBlock) {
-			whenStart := strings.Index(caseBlock[position:], whenTag)
-			if whenStart == -1 {
-				break // No more when tags
-			}
-			whenStart += position
-
-			// Find the end of this when tag
-			whenTagEnd := strings.Index(caseBlock[whenStart:], "}}")
-			if whenTagEnd == -1 {
-				break // Invalid format
-			}
-			whenTagEnd += whenStart
-
-			// Get the when value
-			whenValue := strings.TrimSpace(caseBlock[whenStart+len(whenTag) : whenTagEnd])
-
-			// Find the next when tag or end of case
-			nextWhenStart := strings.Index(caseBlock[whenTagEnd+2:], whenTag)
-			var contentEnd int
-			if nextWhenStart == -1 {
-				contentEnd = len(caseBlock) // No more when tags
-			} else {
-				contentEnd = whenTagEnd + 2 + nextWhenStart // Content ends where next when starts
-			}
-
-			// If the value matches, add the content and stop processing
-			if whenValue == valStr {
-				sb.WriteString(caseBlock[whenTagEnd+2 : contentEnd])
-				break
-			}
-
-			// Move to next when block
-			if nextWhenStart == -1 {
-				break // No more when tags
-			}
-			position = whenTagEnd + 2 + nextWhenStart
-		}
-		return pos + endIdx + len(endTag), errs
-	},
-}
-
-// DefineTemplate allows defining a named block: {{define "name"}}...{{end-define}}
-var DefineTemplate = models.TemplateTag{
-	Name: "define",
-	Render: func(ctx TemplateCtx, sb *strings.Builder, tagContents, raw string, pos int) (int, []error) {
-		errs := []error{}
-		parts := strings.Fields(tagContents)
-		if len(parts) < 2 {
-			errs = append(errs, fmt.Errorf("define tag requires a block name"))
-			return pos, errs
-		}
-		name := strings.Trim(parts[1], "\"'")
-		endTag := ctx.Engine.StartTag + "end-define" + ctx.Engine.EndTag
-		endIdx := strings.Index(raw[pos:], endTag)
-		if endIdx == -1 {
-			errs = append(errs, fmt.Errorf("could not find end tag for define: %s", name))
-			return pos, errs
-		}
-		content := raw[pos : pos+endIdx]
-		// Store block in InternalContext (as map[string]string)
-		var blockMap map[string]string
-		if ctx.InternalContext == nil {
-			blockMap = map[string]string{}
-			ctx.InternalContext = blockMap
-		} else if bm, ok := ctx.InternalContext.(map[string]string); ok {
-			blockMap = bm
+		if resolvedValueType == nil {
+			errs = append(errs, fmt.Errorf("resolved value type is nil for %s tag", tagName))
 		} else {
-			blockMap = map[string]string{}
-			ctx.InternalContext = blockMap
+			switch resolvedValueType.Kind() {
+			case reflect.Bool:
+				if resolvedValue.(bool) {
+					// If the condition is true, render the content
+					sb.WriteString(ifContent)
+				}
+			case reflect.String:
+				if resolvedValue.(string) != "" {
+					// If the string is not empty, render the content
+					sb.WriteString(ifContent)
+				}
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				if resolvedValue.(int) != 0 {
+					// If the integer is not zero, render the content
+					sb.WriteString(ifContent)
+				}
+			case reflect.Float32, reflect.Float64:
+				if resolvedValue.(float64) != 0.0 {
+					// If the float is not zero, render the content
+					sb.WriteString(ifContent)
+				}
+			case reflect.Slice, reflect.Array, reflect.Map:
+				if reflect.ValueOf(resolvedValue).Len() > 0 {
+					// If the slice or array is not empty, render the content
+					sb.WriteString(ifContent)
+				}
+			case reflect.Interface:
+				if resolvedValue != nil {
+					// If the interface is not nil, render the content
+					sb.WriteString(ifContent)
+				}
+			default:
+				errs = append(errs, fmt.Errorf("unsupported type %s for %s tag", resolvedValueType.Kind(), tagName))
+			}
 		}
-		blockMap[name] = content
-		return pos + endIdx + len(endTag), errs
+
+		return endTagPos + endTagLen, errs // advance position to avoid infinite loop
 	},
 }
 
-// RenderTemplate renders a previously defined block: {{render "name"}}
-var RenderTemplate = models.TemplateTag{
-	Name: "render",
-	Render: func(ctx TemplateCtx, sb *strings.Builder, tagContents, raw string, pos int) (int, []error) {
-		errs := []error{}
-		parts := strings.Fields(tagContents)
+var DefineTag = models.TemplateTag{
+	Name: "define",
+	Render: func(ctx TemplateCtx, sb *strings.Builder, parts []string, raw string, pos int) (newPos int, errs []error) {
+		var tagName = "define"
 		if len(parts) < 2 {
-			errs = append(errs, fmt.Errorf("render tag requires a block name"))
-			return pos, errs
+			errs = append(errs, fmt.Errorf("define tag requires at least one argument"))
+			return pos + 2, errs // advance position to avoid infinite loop
 		}
-		name := strings.Trim(parts[1], "\"'")
-		var blockMap map[string]string
-		if ctx.InternalContext != nil {
-			if bm, ok := ctx.InternalContext.(map[string]string); ok {
-				blockMap = bm
+		blockName := parts[1]
+		if blockName == "" {
+			errs = append(errs, fmt.Errorf("block name cannot be empty in %s tag", tagName))
+			return pos + 2, errs // advance position to avoid infinite loop
+		}
+
+		var endTagLen = len(common.WrapBraces(" enddefine "))
+		relativeEndTagPos, seekErrs := SeekEndTag(raw, pos, tagName)
+		endTagPos := pos + relativeEndTagPos
+		if len(seekErrs) > 0 {
+			errs = append(errs, seekErrs...)
+			return pos + 2, errs // advance position to avoid infinite loop
+		}
+
+		blockContent := raw[pos:endTagPos]
+		ctx.InternalContext.Blocks[blockName] = blockContent
+
+		return endTagPos + endTagLen, errs // advance position to avoid infinite loop
+	},
+}
+
+var RenderTag = models.TemplateTag{
+	Name: "render",
+	Render: func(ctx TemplateCtx, sb *strings.Builder, parts []string, raw string, pos int) (newPos int, errs []error) {
+		var tagName = "render"
+		if len(parts) < 2 {
+			errs = append(errs, fmt.Errorf("render tag requires at least one argument"))
+			return pos + 2, errs // advance position to avoid infinite loop
+		}
+		blockName := parts[1]
+		if blockName == "" {
+			errs = append(errs, fmt.Errorf("block name cannot be empty in %s tag", tagName))
+			return pos + 2, errs // advance position to avoid infinite loop
+		}
+
+		var endTagLen = len(common.WrapBraces(" endrender "))
+		blockContent, exists := ctx.InternalContext.Blocks[blockName]
+		// If the block does not exist, we try to find an end tag for the block
+		if !exists {
+			relativeEndTagPos, seekErrs := SeekEndTag(raw, pos, tagName)
+			endTagPos := pos + relativeEndTagPos
+			if len(seekErrs) > 0 {
+				errs = append(errs, seekErrs...)
+				return pos + 2, errs // advance position to avoid infinite loop
 			}
+
+			fallbackContent := raw[pos:endTagPos]
+			renderedContent, renderErrs := ctx.Engine.Render(fallbackContent, ctx)
+			if len(renderErrs) > 0 {
+				errs = append(errs, renderErrs...)
+			}
+			sb.WriteString(renderedContent)
+			return endTagPos + endTagLen, errs // advance position to avoid infinite loop
 		}
-		if blockMap == nil {
-			errs = append(errs, fmt.Errorf("no blocks defined for render: %s", name))
-			return pos, errs
+
+		// Render the block content
+		// TODO: add support for passing arguments to the block
+		// For now, we just render the block content with the current context
+		renderedContent, renderErrs := ctx.Engine.Render(blockContent, ctx)
+		if len(renderErrs) > 0 {
+			errs = append(errs, renderErrs...)
 		}
-		block, ok := blockMap[name]
-		if !ok {
-			errs = append(errs, fmt.Errorf("block not found for render: %s", name))
-			return pos, errs
+		sb.WriteString(renderedContent)
+		return pos + endTagLen, errs // advance position to avoid infinite loop
+	},
+}
+
+var ForTag = models.TemplateTag{
+	Name: "for",
+	Render: func(ctx TemplateCtx, sb *strings.Builder, parts []string, raw string, pos int) (newPos int, errs []error) {
+		var tagName = "for"
+		var endTagLen = len(common.WrapBraces(" endfor "))
+		if len(parts) < 3 {
+			errs = append(errs, fmt.Errorf("for tag requires at least two arguments \"foo in .bars\""))
+			return pos + 2, errs // advance position to avoid infinite loop
 		}
-		// Render the block content with the current context
-		engine := NewTemplateEngine(ctx.Engine.FuncMap)
-		res, _ := Render(block, engine, ctx)
-		sb.WriteString(res)
-		return pos, errs
+		itemName := parts[1]
+		if itemName == "" {
+			errs = append(errs, fmt.Errorf("collection name cannot be empty in %s tag", tagName))
+			return pos + 2, errs // advance position to avoid infinite loop
+		}
+		if parts[2] != "in" {
+			errs = append(errs, fmt.Errorf("expected 'in' after item name in %s tag, got '%s'", tagName, parts[2]))
+			return pos + 2, errs // advance position to avoid infinite loop
+		}
+		collectionName := parts[3]
+		if collectionName == "" {
+			errs = append(errs, fmt.Errorf("collection name cannot be empty in %s tag", tagName))
+			return pos + 2, errs // advance position to avoid infinite loop
+		}
+
+		relativeEndTagPos, seekErrs := SeekEndTag(raw, pos, tagName)
+		endTagPos := pos + relativeEndTagPos
+		if len(seekErrs) > 0 {
+			errs = append(errs, seekErrs...)
+			return pos + 2, errs // advance position to avoid infinite loop
+		}
+
+		// Grab tag contents
+		forContent := raw[pos:endTagPos]
+		// Resolve the collection
+		resolvedValue, resolvedValueType, resolvedErrs := ResolveFilterChain(collectionName, ctx, DefaultFilters())
+		if len(resolvedErrs) > 0 {
+			errs = append(errs, resolvedErrs...)
+		}
+
+		switch resolvedValueType.Kind() {
+		case reflect.Slice, reflect.Array:
+			// If the resolved value is a slice or array, iterate over it
+			val := reflect.ValueOf(resolvedValue)
+			for i := 0; i < val.Len(); i++ {
+				itemValue := val.Index(i).Interface()
+				// Create a new context for each item
+				var newData = map[string]interface{}{}
+				newData[itemName] = itemValue
+				// Render the content with the new context
+				itemContent, itemErrs := ctx.Engine.Render(forContent, ctx.Engine.CloneCtx(ctx, newData))
+				if len(itemErrs) > 0 {
+					errs = append(errs, itemErrs...)
+					continue // skip this iteration if there are errors
+				}
+				sb.WriteString(itemContent)
+			}
+		case reflect.Map:
+			// If the resolved value is a map, iterate over it
+			val := reflect.ValueOf(resolvedValue)
+			for _, key := range val.MapKeys() {
+				itemValue := val.MapIndex(key).Interface()
+				// Create a new context for each item
+				var newData = map[string]interface{}{}
+				newData[itemName] = itemValue
+				// Render the content with the new context
+				itemContent, itemErrs := ctx.Engine.Render(forContent, ctx.Engine.CloneCtx(ctx, newData))
+				if len(itemErrs) > 0 {
+					errs = append(errs, itemErrs...)
+					continue // skip this iteration if there are errors
+				}
+				sb.WriteString(itemContent)
+			}
+		case reflect.String:
+			// If the resolved value is a string, treat it as a slice of runes
+			val := reflect.ValueOf(resolvedValue)
+			for i := 0; i < val.Len(); i++ {
+				itemValue := string(val.Index(i).Interface().(rune))
+				// Create a new context for each item
+				var newData = map[string]interface{}{}
+				newData[itemName] = itemValue
+				// Render the content with the new context
+				itemContent, itemErrs := ctx.Engine.Render(forContent, ctx.Engine.CloneCtx(ctx, newData))
+				if len(itemErrs) > 0 {
+					errs = append(errs, itemErrs...)
+					continue // skip this iteration if there are errors
+				}
+				sb.WriteString(itemContent)
+			}
+
+		}
+
+		return endTagPos + endTagLen, errs // advance position to avoid infinite loop
 	},
 }
 
 // DefaultFunctionMap provides all built-in tags.
-var DefaultFunctionMap = models.FunctionMap{
-	"if":      IfTemplate,
-	"for":     ForTemplate,
-	"assign":  AssignTemplate,
-	"comment": CommentTemplate,
-	"unless":  UnlessTemplate,
-	"case":    CaseTemplate,
-	"define":  DefineTemplate,
-	"render":  RenderTemplate,
+func DefaultFunctionMap() models.FunctionMap {
+	return models.FunctionMap{
+		"if":     IfTemplate,
+		"for":    ForTag,
+		"define": DefineTag,
+		"render": RenderTag,
+	}
 }

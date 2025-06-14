@@ -1,4 +1,4 @@
-package models
+package auth
 
 // SQL queries for authentication operations
 

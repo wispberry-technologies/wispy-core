@@ -1,4 +1,7 @@
 {
+  // 
+  // 
+  // =--- ---= General Settings =--- ---=
   "files.watcherExclude": {
     "**/.git": true,
     "**/.DS_Store": true,
@@ -13,9 +16,9 @@
       "file": "./.vscode/project-guide.md"
     },
   ],
-  "go-template.languages": [
-    "html",
-  ],
+  // 
+  // 
+  // =--- ---= Editor Settings =--- ---=
   "editor.fontFamily": "'Fira Code Nerd Font', 'Jetbrains Mono Nerd Font', 'Hack Nerd Font', 'monospace'",
   "editor.lineHeight": 1.5,
   "editor.smoothScrolling": true,
@@ -25,9 +28,18 @@
   "terminal.integrated.fontFamily": "'Fira Code Nerd Font', 'Jetbrains Mono Nerd Font', 'Hack Nerd Font', 'monospace'",
   "terminal.integrated.lineHeight": 1.5,
   "workbench.iconTheme": "catppuccin-latte",
+  // 
+  // 
+  // =--- ---= Extensions Settings =--- ---=
+  "files.associations": {
+    "*.html": "twig"
+  },
+  "emmet.includeLanguages": {
+    "twig": "html"
+  },
   "highlight.regexes": {
     "(\\@\\w+)": {
-      "filterFileRegex": ".*\\.{|html|tmpl|go-template}",
+      "filterFileRegex": ".*\\.{|html|tmpl}",
       "decorations": [
         {
           "name": "keyword",

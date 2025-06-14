@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
-
-	"wispy-core/models"
 )
 
 // UserRepository handles database operations for users
@@ -19,10 +17,10 @@ func NewUserSqlDriver(db *sql.DB) *UserSqlDriver {
 }
 
 // CreateUser creates a new user in the database
-func (this *UserSqlDriver) CreateUser(user *models.User) error {
+func (this *UserSqlDriver) CreateUser(user *User) error {
 	var database = this.db
 
-	_, err := database.Exec(models.InsertUserSQL,
+	_, err := database.Exec(InsertUserSQL,
 		user.ID, user.Email, user.EmailVerified, user.PasswordHash,
 		user.FirstName, user.LastName, user.DisplayName, user.Avatar,
 		user.Roles, user.IsActive, user.IsLocked, user.FailedLoginCount,
@@ -35,16 +33,16 @@ func (this *UserSqlDriver) CreateUser(user *models.User) error {
 }
 
 // GetUserByEmail retrieves a user by email address
-func (this *UserSqlDriver) GetUserByEmail(email string) (*models.User, error) {
+func (this *UserSqlDriver) GetUserByEmail(email string) (*User, error) {
 	var database = this.db
 
-	var user models.User
+	var user User
 	var emailVerifiedAt sql.NullTime
 	var lockedUntil sql.NullTime
 	var lastLoginAt sql.NullTime
 	var twoFactorSecret sql.NullString
 
-	err := database.QueryRow(models.GetUserByEmailSQL, email).Scan(
+	err := database.QueryRow(GetUserByEmailSQL, email).Scan(
 		&user.ID, &user.Email, &user.EmailVerified, &emailVerifiedAt,
 		&user.PasswordHash, &user.FirstName, &user.LastName, &user.DisplayName,
 		&user.Avatar, &user.Roles, &user.IsActive, &user.IsLocked,
@@ -76,15 +74,15 @@ func (this *UserSqlDriver) GetUserByEmail(email string) (*models.User, error) {
 }
 
 // GetUserByID retrieves a user by ID
-func (this *UserSqlDriver) GetUserByID(id string) (*models.User, error) {
+func (this *UserSqlDriver) GetUserByID(id string) (*User, error) {
 	var database = this.db
-	var user models.User
+	var user User
 	var emailVerifiedAt sql.NullTime
 	var lockedUntil sql.NullTime
 	var lastLoginAt sql.NullTime
 	var twoFactorSecret sql.NullString
 
-	err := database.QueryRow(models.GetUserByIDSQL, id).Scan(
+	err := database.QueryRow(GetUserByIDSQL, id).Scan(
 		&user.ID, &user.Email, &user.EmailVerified, &emailVerifiedAt,
 		&user.PasswordHash, &user.FirstName, &user.LastName, &user.DisplayName,
 		&user.Avatar, &user.Roles, &user.IsActive, &user.IsLocked,
@@ -116,11 +114,11 @@ func (this *UserSqlDriver) GetUserByID(id string) (*models.User, error) {
 }
 
 // UpdateUser updates a user in the database
-func (this *UserSqlDriver) UpdateUser(user *models.User) error {
+func (this *UserSqlDriver) UpdateUser(user *User) error {
 	var database = this.db
 	user.UpdatedAt = time.Now()
 
-	_, err := database.Exec(models.UpdateUserSQL,
+	_, err := database.Exec(UpdateUserSQL,
 		user.Email, user.EmailVerified, user.EmailVerifiedAt, user.PasswordHash,
 		user.FirstName, user.LastName, user.DisplayName, user.Avatar,
 		user.Roles, user.IsActive, user.IsLocked, user.LockedUntil,
@@ -147,7 +145,7 @@ func (this *UserSqlDriver) UpdatePassword(userID, passwordHash string) error {
 // UpdateUserLoginAttempt updates user login attempt information
 func (this *UserSqlDriver) UpdateUserLoginAttempt(userID string, failedCount int, lockedUntil *time.Time, lastLoginAt *time.Time) error {
 	var database = this.db
-	_, err := database.Exec(models.UpdateUserLoginAttemptSQL,
+	_, err := database.Exec(UpdateUserLoginAttemptSQL,
 		failedCount, lockedUntil, lastLoginAt, time.Now(), userID,
 	)
 	if err != nil {
@@ -160,7 +158,7 @@ func (this *UserSqlDriver) UpdateUserLoginAttempt(userID string, failedCount int
 func (this *UserSqlDriver) DeleteUser(id string) error {
 	var database = this.db
 
-	_, err := database.Exec(models.DeleteUserSQL, id)
+	_, err := database.Exec(DeleteUserSQL, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
@@ -168,18 +166,18 @@ func (this *UserSqlDriver) DeleteUser(id string) error {
 }
 
 // ListUsers retrieves a list of users with pagination
-func (this *UserSqlDriver) ListUsers(limit, offset int) ([]*models.User, error) {
+func (this *UserSqlDriver) ListUsers(limit, offset int) ([]*User, error) {
 	var database = this.db
 
-	rows, err := database.Query(models.ListUsersSQL, limit, offset)
+	rows, err := database.Query(ListUsersSQL, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list users: %w", err)
 	}
 	defer rows.Close()
 
-	var users []*models.User
+	var users []*User
 	for rows.Next() {
-		var user models.User
+		var user User
 		err := rows.Scan(
 			&user.ID, &user.Email, &user.EmailVerified, &user.EmailVerifiedAt,
 			&user.FirstName, &user.LastName, &user.DisplayName, &user.Avatar,
@@ -213,7 +211,7 @@ func (this *UserSqlDriver) EmailExists(email string) (bool, error) {
 }
 
 // IsUserLocked checks if a user account is currently locked
-func (this *UserSqlDriver) IsUserLocked(user *models.User) bool {
+func (this *UserSqlDriver) IsUserLocked(user *User) bool {
 	if !user.IsLocked {
 		return false
 	}

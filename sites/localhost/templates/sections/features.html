@@ -1,26 +1,26 @@
 <section class="py-16 bg-base-100">
     <div class="container mx-auto px-4">
         <div class="text-center mb-12">
-            <h2 class="text-3xl font-bold mb-4">{{Data.features_title}}</h2>
-            <p class="text-xl text-base-content/70">{{Data.features_description}}</p>
+            <h2 class="text-3xl font-bold mb-4">{%Data.features_title%}</h2>
+            <p class="text-xl text-base-content/70">{%Data.features_description%}</p>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {{for feature in Data.features}}
+            {%for feature in Data.features%}
             <div class="card bg-base-200 shadow-xl">
                 <div class="card-body">
-                    {{if feature.icon}}
-                    <div class="text-4xl mb-4">{{feature.icon}}</div>
-                    {{end-if}}
-                    <h3 class="card-title">{{feature.title}}</h3>
-                    <p>{{feature.description}}</p>
-                    {{if feature.link}}
+                    {%if feature.icon%}
+                    <div class="text-4xl mb-4">{%feature.icon%}</div>
+                    {%endif%}
+                    <h3 class="card-title">{%feature.title%}</h3>
+                    <p>{%feature.description%}</p>
+                    {%if feature.link%}
                     <div class="card-actions justify-end">
-                        <a href="{{feature.link}}" class="btn btn-primary btn-sm">Learn More</a>
+                        <a href="{%feature.link%}" class="btn btn-primary btn-sm">Learn More</a>
                     </div>
-                    {{end-if}}
+                    {%endif%}
                 </div>
             </div>
-            {{end-for}}
+            {%endfor%}
         </div>
     </div>
 </section>

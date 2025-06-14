@@ -8,7 +8,7 @@ import (
 
 // TestTemplateEngine runs a suite of tests for the TemplateEngine with various templates and data structures.
 func TestTemplateEngine(t *testing.T) {
-	tmpl := NewTemplateEngine(DefaultFunctionMap)
+	tmpl := NewTemplateEngine(DefaultFunctionMap())
 
 	template_engine_tests := []struct {
 		name       string
@@ -19,62 +19,62 @@ func TestTemplateEngine(t *testing.T) {
 	}{
 		{
 			name:   "simple variable",
-			tmpl:   "Hello, {{name}}!",
-			ctx:    &models.TemplateContext{Data: map[string]interface{}{"name": "Alice"}, Engine: tmpl},
+			tmpl:   "Hello, {%name%}!",
+			ctx:    NewTemplateContext(map[string]interface{}{"name": "Alice"}, tmpl),
 			expect: "Hello, Alice!",
 		},
 		{
 			name:   "dot notation",
-			tmpl:   "User: {{user.name}}",
-			ctx:    &models.TemplateContext{Data: map[string]interface{}{"user": map[string]interface{}{"name": "Bob"}}, Engine: tmpl},
+			tmpl:   "User: {%user.name%}",
+			ctx:    NewTemplateContext(map[string]interface{}{"user": map[string]interface{}{"name": "Bob"}}, tmpl),
 			expect: "User: Bob",
 		},
 		{
 			name:   "if tag true",
-			tmpl:   "{{if show}}Visible{{end-if}}",
-			ctx:    &models.TemplateContext{Data: map[string]interface{}{"show": true}, Engine: tmpl},
+			tmpl:   "{%if show%}Visible{%endif%}",
+			ctx:    NewTemplateContext(map[string]interface{}{"show": true}, tmpl),
 			expect: "Visible",
 		},
 		{
 			name:   "if tag false",
-			tmpl:   "{{if show}}Visible{{end-if}}",
-			ctx:    &models.TemplateContext{Data: map[string]interface{}{"show": false}, Engine: tmpl},
+			tmpl:   "{%if show%}Visible{%endif%}",
+			ctx:    NewTemplateContext(map[string]interface{}{"show": false}, tmpl),
 			expect: "",
 		},
 		{
 			name:   "unless tag",
-			tmpl:   "{{unless show}}Hidden{{end-unless}}",
-			ctx:    &models.TemplateContext{Data: map[string]interface{}{"show": false}, Engine: tmpl},
+			tmpl:   "{%unless show%}Hidden{%endunless%}",
+			ctx:    NewTemplateContext(map[string]interface{}{"show": false}, tmpl),
 			expect: "Hidden",
 		},
 		{
 			name:   "for tag",
-			tmpl:   "{{for item in items}}-{{item}}-{{end-for}}",
-			ctx:    &models.TemplateContext{Data: map[string]interface{}{"items": []string{"a", "b"}}, Engine: tmpl},
+			tmpl:   "{%for item in items%}-{%item%}-{%endfor%}",
+			ctx:    NewTemplateContext(map[string]interface{}{"items": []string{"a", "b"}}, tmpl),
 			expect: "-a--b-",
 		},
 		{
 			name:   "assign tag",
-			tmpl:   "{{assign foo bar}}{{foo}}",
-			ctx:    &models.TemplateContext{Data: map[string]interface{}{}, Engine: tmpl},
+			tmpl:   "{%assign foo bar%}{%foo%}",
+			ctx:    NewTemplateContext(map[string]interface{}{}, tmpl),
 			expect: "bar",
 		},
 		{
 			name:   "case tag",
-			tmpl:   `{{case x}}{{when a}}A{{when b}}B{{when c}}C{{end-case}}`,
-			ctx:    &models.TemplateContext{Data: map[string]interface{}{"x": "b"}, Engine: tmpl},
+			tmpl:   `{%case x%}{%when a%}A{%when b%}B{%when c%}C{%endcase%}`,
+			ctx:    NewTemplateContext(map[string]interface{}{"x": "b"}, tmpl),
 			expect: "B",
 		},
 		{
 			name:   "define/render",
-			tmpl:   `{{define "block"}}Block: {{msg}}{{end-define}}{{render "block"}}`,
-			ctx:    &models.TemplateContext{Data: map[string]interface{}{"msg": "Hello"}, Engine: tmpl},
+			tmpl:   `{%define "block"%}Block: {%msg%}{%enddefine%}{%render "block"%}`,
+			ctx:    NewTemplateContext(map[string]interface{}{"msg": "Hello"}, tmpl),
 			expect: "Block: Hello",
 		},
 		{
 			name:   "comment tag",
-			tmpl:   "A{{comment}}hidden{{end-comment}}B",
-			ctx:    &models.TemplateContext{Data: map[string]interface{}{}, Engine: tmpl},
+			tmpl:   "A{%comment%}hidden{%endcomment%}B",
+			ctx:    NewTemplateContext(map[string]interface{}{}, tmpl),
 			expect: "AB",
 		},
 	}

@@ -16,17 +16,17 @@ func CreateAuthTables(instance *models.SiteInstance) error {
 	}
 
 	// Create users table
-	if _, err := db.Exec(models.CreateUserTableSQL); err != nil {
+	if _, err := db.Exec(CreateUserTableSQL); err != nil {
 		return fmt.Errorf("failed to create users table: %w", err)
 	}
 
 	// Create sessions table
-	if _, err := db.Exec(models.CreateSessionTableSQL); err != nil {
+	if _, err := db.Exec(CreateSessionTableSQL); err != nil {
 		return fmt.Errorf("failed to create sessions table: %w", err)
 	}
 
 	// Create OAuth accounts table
-	if _, err := db.Exec(models.CreateOAuthAccountTableSQL); err != nil {
+	if _, err := db.Exec(CreateOAuthAccountTableSQL); err != nil {
 		return fmt.Errorf("failed to create oauth accounts table: %w", err)
 	}
 

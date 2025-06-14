@@ -6,12 +6,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
 
 	"wispy-core/common"
 	"wispy-core/core"
-	"wispy-core/models"
 )
 
 // Define colors for logging
@@ -39,56 +37,7 @@ func init() {
 	os.Setenv("WISPY_CORE_ROOT", currentDir)
 }
 
-// RegisterPageRoutes registers a handler for each page in all sites, using the correct layout.
-func RegisterPageRoutes(r chi.Router, sites map[string]*models.SiteInstance) {
-	startTime := time.Now()
-	log.Printf("[INFO] Registering page routes...")
-	pageCount := 0
-	for _, site := range sites {
-		for url, page := range site.Pages {
-			pageCount++
-			// Capture variables for closure
-			pageCopy := page
-			siteCopy := site
-			urlCopy := url
-			r.Get(urlCopy, func(w http.ResponseWriter, req *http.Request) {
-				start := time.Now()
-				ctx := &models.TemplateContext{Data: map[string]interface{}{"Page": pageCopy, "Site": siteCopy.Site}, Request: req}
-
-				// Determine layout to use
-				layoutName := pageCopy.Layout
-				if layoutName == "" {
-					layoutName = "default"
-				}
-
-				layoutPath := common.RootSitesPath(siteCopy.Domain, "layouts", layoutName+".html")
-				layoutContent := ""
-				if f, err := os.ReadFile(layoutPath); err == nil {
-					layoutContent = string(f)
-				}
-
-				var result string
-				var errors = []error{}
-				engine := core.NewTemplateEngine(core.DefaultFunctionMap)
-				if layoutContent != "" {
-					result, errors = core.Render(pageCopy.Content+layoutContent, engine, ctx)
-					if len(errors) > 0 {
-						log.Printf("[ERROR] Failed to render page %s: %v", urlCopy, errors)
-						http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-						return
-					}
-				} else {
-					result, _ = core.Render(pageCopy.Content, engine, ctx)
-				}
-				w.Header().Set("Content-Type", "text/html; charset=utf-8")
-				w.Write([]byte(result))
-				dur := time.Since(start)
-				log.Printf("[INFO] Rendered %s in %s", urlCopy, dur)
-			})
-		}
-	}
-	log.Printf("[INFO] Registered %d page routes in %s", pageCount, time.Since(startTime))
-}
+// NOTE: Page route registration is now handled by the RouteWrapper in core/route_wrapper.go
 
 func main() {
 	// Get configuration from environment
@@ -114,15 +63,28 @@ func main() {
 		log.Fatalf("Failed to load sites: %v", err)
 	}
 
-	// Set up the chi router and register routes for each page
-	r := chi.NewRouter()
-	RegisterPageRoutes(r, sites)
+	// Set up the route wrapper
+	routeWrapper := core.NewRouteWrapper()
+
+	// Register all sites with the route wrapper
+	startTime := time.Now()
+	pageCount := 0
+	log.Printf("[INFO] Registering page routes...")
+
+	for _, site := range sites {
+		for range site.Pages {
+			pageCount++
+		}
+		routeWrapper.RegisterSite(site)
+	}
+
+	log.Printf("[INFO] Registered %d page routes in %s", pageCount, time.Since(startTime))
 
 	// Start the HTTP server
 	addr := host + ":" + port
 	server := &http.Server{
 		Addr:    addr,
-		Handler: r,
+		Handler: routeWrapper,
 	}
 	log.Printf("%s✅ Server starting on http://%s%s", colorGreen, addr, colorReset)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {

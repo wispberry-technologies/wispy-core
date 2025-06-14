@@ -1,31 +1,31 @@
 <div class="container mx-auto max-w-4xl">
-    {{if Page}}
+    {%if Page%}
     <article class="prose max-w-none">
         <header class="mb-8">
-            <h1 class="text-4xl font-bold mb-4">{{Page.Meta.Title}}</h1>
-            {{if Page.Meta.Description}}
-            <p class="text-xl text-base-content/70 mb-4">{{Page.Meta.Description}}</p>
-            {{end-if}}
-            {{if Page.Meta.Author}}
+            <h1 class="text-4xl font-bold mb-4">{%Page.Meta.Title%}</h1>
+            {%if Page.Meta.Description%}
+            <p class="text-xl text-base-content/70 mb-4">{%Page.Meta.Description%}</p>
+            {%endif%}
+            {%if Page.Meta.Author%}
             <div class="text-sm text-base-content/60">
-                By {{Page.Meta.Author}}
-                {{if Page.Meta.PublishedAt}}
-                on {{Page.Meta.PublishedAt}}
-                {{end-if}}
+                By {%Page.Meta.Author%}
+                {%if Page.Meta.PublishedAt%}
+                on {%Page.Meta.PublishedAt%}
+                {%endif%}
             </div>
-            {{end-if}}
+            {%endif%}
         </header>
         <div class="content">
-            {{if Page.Markdown}}
+            {%if Page.Markdown%}
                 <div class="markdown-body">
-                    {{Page.Markdown}}
+                    {%Page.Markdown%}
                 </div>
-            {{else}}
+            {%else%}
             <p class="text-base-content/70">No content available for this post.</p>
-            {{end-if}}
+            {%endif%}
         </div>
     </article>
-    {{else}}
+    {%else%}
         <div class="hero min-h-[50vh]">
             <div class="hero-content text-center">
                 <div class="max-w-md">
@@ -35,5 +35,5 @@
                 </div>
             </div>
         </div>
-    {{end-if}}
+    {%endif%}
 </div>

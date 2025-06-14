@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"time"
-
-	"wispy-core/models"
 )
 
 // OAuthConfig holds OAuth provider configuration
@@ -18,7 +16,7 @@ type OAuthConfig struct {
 }
 
 // Register creates a new user account for a site
-func Register(db *sql.DB, domain, email, password, firstName, lastName, displayName string) (*models.User, error) {
+func Register(db *sql.DB, domain, email, password, firstName, lastName, displayName string) (*User, error) {
 	usersDriver := NewUserSqlDriver(db)
 
 	// Check if email already exists
@@ -42,7 +40,7 @@ func Register(db *sql.DB, domain, email, password, firstName, lastName, displayN
 	}
 
 	// Create user
-	user := models.NewUser(email, firstName, lastName, displayName)
+	user := NewUser(email, firstName, lastName, displayName)
 	if displayName != "" {
 		user.DisplayName = displayName
 	}
@@ -56,7 +54,7 @@ func Register(db *sql.DB, domain, email, password, firstName, lastName, displayN
 }
 
 // Login authenticates a user and creates a session for a site
-func Login(db *sql.DB, domain, email, password, ipAddress, userAgent string, maxAttempts int, lockDuration time.Duration) (*models.User, *models.Session, error) {
+func Login(db *sql.DB, domain, email, password, ipAddress, userAgent string, maxAttempts int, lockDuration time.Duration) (*User, *Session, error) {
 	usersDriver := NewUserSqlDriver(db)
 
 	// Get user by email
@@ -108,7 +106,7 @@ func Login(db *sql.DB, domain, email, password, ipAddress, userAgent string, max
 }
 
 // ValidateSession checks if a session is valid and returns the user for a site
-func ValidateSession(db *sql.DB, sessionToken string) (*models.User, *models.Session, error) {
+func ValidateSession(db *sql.DB, sessionToken string) (*User, *Session, error) {
 	sessionDriver := NewSessionSqlDriver(db)
 	userDriver := NewUserSqlDriver(db)
 
@@ -135,7 +133,7 @@ func ValidateSession(db *sql.DB, sessionToken string) (*models.User, *models.Ses
 }
 
 // GetSessionFromRequest extracts session from request for a site
-func GetSessionFromRequest(db *sql.DB, r *http.Request) (*models.Session, error) {
+func GetSessionFromRequest(db *sql.DB, r *http.Request) (*Session, error) {
 	sessionDriver := NewSessionSqlDriver(db)
 
 	return sessionDriver.GetSessionFromRequest(r)

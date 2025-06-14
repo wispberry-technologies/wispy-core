@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"time"
-
-	"wispy-core/models"
 )
 
 type SqlSessionDriver struct {
@@ -27,9 +25,9 @@ func NewSessionSqlDriver(db *sql.DB) *SqlSessionDriver {
 }
 
 // CreateSession creates a new session for a user
-func (s *SqlSessionDriver) CreateSession(userID, ipAddress, userAgent string) (*models.Session, error) {
-	session := models.NewSession(userID, s.Config.SessionTimeout, ipAddress, userAgent)
-	_, err := s.db.Exec(models.InsertSessionSQL,
+func (s *SqlSessionDriver) CreateSession(userID, ipAddress, userAgent string) (*Session, error) {
+	session := NewSession(userID, s.Config.SessionTimeout, ipAddress, userAgent)
+	_, err := s.db.Exec(InsertSessionSQL,
 		session.ID, session.UserID, session.Token, session.ExpiresAt,
 		session.CreatedAt, session.UpdatedAt, session.IPAddress, session.UserAgent,
 	)
@@ -40,9 +38,9 @@ func (s *SqlSessionDriver) CreateSession(userID, ipAddress, userAgent string) (*
 }
 
 // GetSession retrieves a session by token
-func (s *SqlSessionDriver) GetSession(token string) (*models.Session, error) {
-	var session models.Session
-	err := s.db.QueryRow(models.GetSessionByTokenSQL, token).Scan(
+func (s *SqlSessionDriver) GetSession(token string) (*Session, error) {
+	var session Session
+	err := s.db.QueryRow(GetSessionByTokenSQL, token).Scan(
 		&session.ID, &session.UserID, &session.Token, &session.ExpiresAt,
 		&session.CreatedAt, &session.UpdatedAt, &session.IPAddress, &session.UserAgent,
 	)
@@ -58,7 +56,7 @@ func (s *SqlSessionDriver) GetSession(token string) (*models.Session, error) {
 // RefreshSession extends the session expiration time
 func (s *SqlSessionDriver) RefreshSession(sessionID string) error {
 	newExpiry := time.Now().Add(s.Config.SessionTimeout)
-	_, err := s.db.Exec(models.UpdateSessionSQL, newExpiry, time.Now(), sessionID)
+	_, err := s.db.Exec(UpdateSessionSQL, newExpiry, time.Now(), sessionID)
 	if err != nil {
 		return fmt.Errorf("failed to refresh session: %w", err)
 	}
@@ -67,7 +65,7 @@ func (s *SqlSessionDriver) RefreshSession(sessionID string) error {
 
 // DeleteSession removes a session
 func (s *SqlSessionDriver) DeleteSession(sessionID string) error {
-	_, err := s.db.Exec(models.DeleteSessionSQL, sessionID)
+	_, err := s.db.Exec(DeleteSessionSQL, sessionID)
 	if err != nil {
 		return fmt.Errorf("failed to delete session: %w", err)
 	}
@@ -76,7 +74,7 @@ func (s *SqlSessionDriver) DeleteSession(sessionID string) error {
 
 // DeleteSessionByToken removes a session by token
 func (s *SqlSessionDriver) DeleteSessionByToken(token string) error {
-	_, err := s.db.Exec(models.DeleteSessionByTokenSQL, token)
+	_, err := s.db.Exec(DeleteSessionByTokenSQL, token)
 	if err != nil {
 		return fmt.Errorf("failed to delete session: %w", err)
 	}
@@ -85,7 +83,7 @@ func (s *SqlSessionDriver) DeleteSessionByToken(token string) error {
 
 // DeleteUserSessions removes all sessions for a user
 func (s *SqlSessionDriver) DeleteUserSessions(userID string) error {
-	_, err := s.db.Exec(models.DeleteUserSessionsSQL, userID)
+	_, err := s.db.Exec(DeleteUserSessionsSQL, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete user sessions: %w", err)
 	}
@@ -104,7 +102,7 @@ func (s *SqlSessionDriver) DeleteAllUserSessions(userID string) error {
 
 // CleanupExpiredSessions removes expired sessions
 func (s *SqlSessionDriver) CleanupExpiredSessions() error {
-	_, err := s.db.Exec(models.DeleteExpiredSessionsSQL)
+	_, err := s.db.Exec(DeleteExpiredSessionsSQL)
 	if err != nil {
 		return fmt.Errorf("failed to cleanup expired sessions: %w", err)
 	}
@@ -112,7 +110,7 @@ func (s *SqlSessionDriver) CleanupExpiredSessions() error {
 }
 
 // GetSessionFromRequest extracts session token from request cookie
-func (s *SqlSessionDriver) GetSessionFromRequest(r *http.Request) (*models.Session, error) {
+func (s *SqlSessionDriver) GetSessionFromRequest(r *http.Request) (*Session, error) {
 	cookie, err := r.Cookie(s.Config.SessionCookieName)
 	if err != nil {
 		return nil, fmt.Errorf("no session cookie found")
@@ -181,23 +179,23 @@ const (
 )
 
 // GetSessionFromContext retrieves session from context
-func GetSessionFromContext(ctx context.Context) (*models.Session, bool) {
-	session, ok := ctx.Value(SessionContextKey).(*models.Session)
+func GetSessionFromContext(ctx context.Context) (*Session, bool) {
+	session, ok := ctx.Value(SessionContextKey).(*Session)
 	return session, ok
 }
 
 // GetUserFromContext retrieves user from context
-func GetUserFromContext(ctx context.Context) (*models.User, bool) {
-	user, ok := ctx.Value(UserContextKey).(*models.User)
+func GetUserFromContext(ctx context.Context) (*User, bool) {
+	user, ok := ctx.Value(UserContextKey).(*User)
 	return user, ok
 }
 
 // SetSessionInContext stores session in context
-func SetSessionInContext(ctx context.Context, session *models.Session) context.Context {
+func SetSessionInContext(ctx context.Context, session *Session) context.Context {
 	return context.WithValue(ctx, SessionContextKey, session)
 }
 
 // SetUserInContext stores user in context
-func SetUserInContext(ctx context.Context, user *models.User) context.Context {
+func SetUserInContext(ctx context.Context, user *User) context.Context {
 	return context.WithValue(ctx, UserContextKey, user)
 }

@@ -1,7 +1,11 @@
 package core
 
 import (
+	"fmt"
+	"reflect"
 	"strings"
+	"wispy-core/common"
+	"wispy-core/models"
 
 	"github.com/microcosm-cc/bluemonday"
 )
@@ -13,70 +17,68 @@ func init() {
 	policy = bluemonday.UGCPolicy()
 }
 
-// SeekEndTag returns the index and length of the end tag after pos in raw, or -1, 0 if not found.
-func SeekEndTag(raw, endTag string, pos int) (int, int) {
-	idx := strings.Index(raw[pos:], endTag)
-	if idx == -1 {
-		return -1, 0
+// ResolveFilterChain resolves a filter we assume the chain is a list of parts
+// which have been split using common.FieldsRespectQuotes resulting in a slice of strings.
+func ResolveFilterChain(filterChainString string, ctx TemplateCtx, filters models.FilterMap) (value interface{}, valueType reflect.Type, errors []error) {
+	if len(filterChainString) == 0 {
+		errors = append(errors, fmt.Errorf("empty filter chain provided"))
+		return nil, nil, errors
 	}
-	return pos + idx, len(endTag)
-}
-
-// ResolveDotNotation resolves dot notation (e.g., "user.name") in a map[string]interface{} context.
-func UnsafeResolveDotNotation(ctx interface{}, key string) interface{} {
-	m, ok := ctx.(map[string]interface{})
-	if !ok {
-		return nil
-	}
-	parts := strings.Split(key, ".")
-	var val interface{} = m
-	for _, part := range parts {
-		if mm, ok := val.(map[string]interface{}); ok {
-			val = mm[part]
-		} else {
-			return nil
+	splitFilters := strings.Split(filterChainString, "|")
+	if len(splitFilters) == 1 {
+		// No filters, just a single value
+		value = resolveValue(splitFilters[0], ctx)
+		if value == nil {
+			errors = append(errors, fmt.Errorf("could not resolve value: %s", splitFilters[0]))
+			return nil, nil, errors
+		}
+		return value, reflect.TypeOf(value), errors
+	} else {
+		// Multiple filters found, process them
+		value = splitFilters[0]
+		valueType = reflect.TypeOf(value)
+		for _, filterExpr := range splitFilters[1:] {
+			filterName, args := ParseFilterExpression(filterExpr)
+			if filter, ok := filters[filterName]; ok {
+				value = filter(value, valueType, args)
+				valueType = reflect.TypeOf(value)
+			} else {
+				errors = append(errors, fmt.Errorf("unknown filter: %s", filterName))
+			}
 		}
 	}
-	return val
+	return value, valueType, errors
 }
 
-func ResolveDotNotation(ctx interface{}, key string) interface{} {
-	if key == "" {
+func ParseFilterExpression(filterExpr string) (string, []string) {
+	// Split the filter expression into name and arguments
+	parts := strings.SplitN(filterExpr, ":", 2)
+	if len(parts) == 1 {
+		return parts[0], nil // No arguments
+	}
+	name := parts[0]
+	args := common.FieldsRespectQuotes(parts[1])
+	return name, args
+}
+
+// resolveValue resolves a value identifier to its actual value
+// Supports literal strings (quoted) and context variables (with dot notation)
+func resolveValue(valueIdentifier string, ctx TemplateCtx) interface{} {
+	// Handle empty identifier
+	if len(valueIdentifier) == 0 {
 		return nil
 	}
-	var val interface{}
-	if strings.Contains(key, ".") {
-		val = UnsafeResolveDotNotation(ctx, key)
-	} else if m, ok := ctx.(map[string]interface{}); ok {
-		val = m[key]
-	} else {
-		return nil
-	}
-	if s, ok := val.(string); ok {
-		return policy.Sanitize(s)
-	}
-	return val
-}
 
-// SetContextValue sets a value in a map[string]interface{} context.
-func SetContextValue(ctx interface{}, key string, value interface{}) {
-	if m, ok := ctx.(map[string]interface{}); ok {
-		m[key] = value
+	// Check for literal string values (surrounded by quotes)
+	if common.IsQuotedString(valueIdentifier) {
+		// Remove the surrounding quotes to get the literal value
+		return valueIdentifier[1 : len(valueIdentifier)-1]
 	}
-}
 
-// IsTruthy returns true if a value is considered 'true' for template logic.
-func IsTruthy(val interface{}) bool {
-	switch v := val.(type) {
-	case bool:
-		return v
-	case string:
-		return v != "" && v != "0" && v != "-1" && v != "false"
-	case int, int64, float64:
-		return v != 0
-	case nil:
-		return false
-	default:
-		return v != nil
+	// Try to resolve from context data (handles dot notation for nested access)
+	if ctx != nil && ctx.Data != nil {
+		return ResolveDotNotation(ctx.Data, valueIdentifier)
 	}
+
+	return nil
 }

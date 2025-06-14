@@ -84,9 +84,9 @@
 <div class="hero min-h-screen bg-base-200">
     <div class="hero-content text-center">
         <div class="max-w-4xl">
-            <h1 class="text-5xl font-bold mb-8">{{ .Page.Meta.CustomData.hero_title }}</h1>
-            <p class="text-xl mb-8">{{ .Page.Meta.CustomData.hero_description }}</p>
-            <a href="{{ .Page.Meta.CustomData.hero_button_link }}" class="btn btn-primary btn-lg">{{ .Page.Meta.CustomData.hero_button_text }}</a>
+            <h1 class="text-5xl font-bold mb-8">{% .Page.Meta.CustomData.hero_title %}</h1>
+            <p class="text-xl mb-8">{% .Page.Meta.CustomData.hero_description %}</p>
+            <a href="{% .Page.Meta.CustomData.hero_button_link %}" class="btn btn-primary btn-lg">{% .Page.Meta.CustomData.hero_button_text %}</a>
         </div>
     </div>
 </div>

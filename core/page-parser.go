@@ -58,17 +58,16 @@ func ParsePageHTML(instance *models.SiteInstance, content string) (*models.Page,
 					break
 				}
 			}
-			openD := common.GetEnv("TEMPLATE_DELIMITER_OPEN", "{{")
-			closeD := common.GetEnv("TEMPLATE_DELIMITER_CLOSE", "}}")
-			page.Content = fmt.Sprintf("%s define \"page-content\"%s %s %s end-define %s", openD, closeD, remainingContent, openD, closeD)
+			page.Content = remainingContent
 		} else {
 			// Malformed comment, treat entire content as body
 			page.Content = "Malformed HTML comment metadata!"
-			log.Fatal("Error: Malformed HTML comment metadata, treating entire content as body.")
+			log.Printf("Error: Malformed HTML comment metadata, treating entire content as body.")
+			return nil, fmt.Errorf("malformed HTML comment metadata")
 		}
 	} else {
 		// No metadata comment, treat entire content as body
-		log.Fatal("Warning: HTML comment metadata not found in content!")
+		log.Printf("Warning: HTML comment metadata not found in content!")
 		page.Content = content
 	}
 
@@ -130,14 +129,19 @@ func ParseHTMLCommentMetadata(commentContent string, meta *models.Page) error {
 					meta.RequireAuth = val
 				}
 			case "required_roles":
-				// Parse array format like []
+				// Parse array format like ["admin", "editor"]
 				value = strings.Trim(value, "[]")
 				if value != "" {
 					roles := strings.Split(value, ",")
 					for i, role := range roles {
-						roles[i] = strings.TrimSpace(strings.Trim(role, `"`))
+						// Remove extra quotes and spaces
+						role = strings.TrimSpace(role)
+						role = strings.Trim(role, `"'`)
+						roles[i] = role
 					}
 					meta.RequiredRoles = roles
+				} else {
+					meta.RequiredRoles = []string{}
 				}
 			default:
 				// Store as custom data
@@ -166,7 +170,7 @@ func LoadAllSites(sitesPath string) (map[string]*models.SiteInstance, error) {
 		siteInstance := &models.SiteInstance{
 			Domain: domain,
 			Site:   &models.Site{Domain: domain, Name: domain, IsActive: true},
-			Pages:  make(map[string]models.Page),
+			Pages:  make(map[string]*models.Page),
 		}
 		if err := LoadPagesForSite(siteInstance, sitesPathAbs); err != nil {
 			log.Printf("[WARN] Failed to load pages for site %s: %v", domain, err)
@@ -207,7 +211,7 @@ func LoadPagesForSite(siteInstance *models.SiteInstance, sitesPathAbs string) er
 			return nil
 		}
 		// Store the page in the SiteInstance's Pages map, keyed by URL
-		siteInstance.Pages[page.URL] = *page
+		siteInstance.Pages[page.URL] = page
 		return nil
 	})
 	return err

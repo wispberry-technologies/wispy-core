@@ -328,9 +328,9 @@ func TestParsePageHTML(t *testing.T) {
 		}
 
 		// Check that content was processed and contains define tags
-		if !strings.Contains(page.Content, "define \"page-content\"") {
+		if !strings.Contains(page.Content, "define \"page-body\"") {
 			fieldsMatch = false
-			t.Log(tests.LogWarn("Content: missing 'define \"page-content\"' tag"))
+			t.Log(tests.LogWarn("Content: missing 'define \"page-body\"' tag"))
 		}
 
 		if fieldsMatch {
