@@ -70,6 +70,16 @@ func writeHtmlDocumentTags(w http.ResponseWriter, tags []models.HtmlDocumentTags
 	for _, tag := range tags {
 		WriteString(w, "<")
 		WriteString(w, tag.TagName)
+
+		// Add attributes
+		for attrName, attrValue := range tag.Attributes {
+			WriteString(w, " ")
+			WriteString(w, attrName)
+			WriteString(w, "=\"")
+			WriteString(w, attrValue)
+			WriteString(w, "\"")
+		}
+
 		if tag.SelfClosing {
 			WriteString(w, " />\n")
 		} else {

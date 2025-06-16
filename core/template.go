@@ -47,11 +47,12 @@ func NewTemplateContext(data map[string]interface{}, engine *models.TemplateEngi
 	}
 	// Always ensure InternalContext is a non-nil map[string]string
 	var internal = &models.InternalContext{
-		Flags:            make(map[string]interface{}),
-		Blocks:           make(map[string]string),
-		TemplatesCache:   make(map[string]string),
-		HtmlDocumentTags: []models.HtmlDocumentTags{},
-		MetaTags:         []models.HtmlMetaTag{},
+		Flags:             make(map[string]interface{}),
+		Blocks:            make(map[string]string),
+		TemplatesCache:    make(map[string]string),
+		HtmlDocumentTags:  []models.HtmlDocumentTags{},
+		MetaTags:          []models.HtmlMetaTag{},
+		ImportedResources: make(map[string]string),
 	}
 	ctx := &models.TemplateContext{
 		Data:            data,

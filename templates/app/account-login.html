@@ -1,0 +1,19 @@
+<section class="flex flex-col items-center justify-center h-screen">
+  <h1 class="text-4xl font-bold mb-4">Login</h1>
+  <p class="text-sm text-gray-600">Please enter your credentials to access your account.</p>
+  <form action="/api/v1/auth/login" method="post">
+    <fieldset class="fieldset bg-base-200 border-base-300 rounded-box w-xs border p-4 pb-8">
+      <legend class="fieldset-legend">Login</legend>
+      <label class="label">Email</label>
+      <input type="email" class="input validator" placeholder="Email" name="email" required />
+      <label class="label">Password</label>
+      <input type="password" class="input validator" placeholder="Password" name="password" required />
+      <button class="btn btn-neutral mt-4">Login</button>
+    </fieldset>
+  </form>
+  {% if .ShowRegisterLink %}
+    <footer class="mt-4 text-sm text-gray-500">
+      <p>Don't have an account? <a href="/register" class="text-blue-500 hover:underline">Register here</a>.</p>
+    </footer>
+  {% endif %}
+</section>

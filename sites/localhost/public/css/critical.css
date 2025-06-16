@@ -1,0 +1,14 @@
+/* Critical CSS - should be inlined */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.critical-layout {
+    display: grid;
+    min-height: 100vh;
+}
+
+.above-fold {
+    background: #ffffff;
+    padding: 2rem 0;
+}

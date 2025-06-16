@@ -1,0 +1,35 @@
+{
+  "fetch-projects":{
+    "method": "GET",
+    "url": "/api/v1/projects",
+    "description": "Fetch all projects for the authenticated user.",
+    "handler": "dynamicQueryApiHandler",
+    "protected": {
+      "type": "user",
+      "roles": [],
+      "sql_column_match": "user_id"
+    },
+    "queryParams": {
+      "status": {
+        "type": "string",
+        "description": "Filter projects by status (e.g., active, archived).",
+        "required": false
+      },
+      "sortBy": {
+        "type": "string",
+        "description": "Sort projects by a specific field (e.g., name, createdAt).",
+        "required": false
+      },
+      "limit": {
+        "type": "integer",
+        "description": "Limit the number of projects returned.",
+        "required": false
+      },
+      "offset": {
+        "type": "integer",
+        "description": "Offset for pagination.",
+        "required": false
+      }
+    }
+  }
+}

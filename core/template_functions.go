@@ -2,8 +2,11 @@ package core
 
 import (
 	"fmt"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
+	"wispy-core/common"
 	"wispy-core/models"
 )
 
@@ -170,49 +173,28 @@ var RenderTag = models.TemplateTag{
 			return pos, []error{fmt.Errorf("render tag requires a template name")}
 		}
 
-		templateName := parts[1]
-
-		// Remove quotes if present
-		if len(templateName) >= 2 && templateName[0] == '"' && templateName[len(templateName)-1] == '"' {
-			templateName = templateName[1 : len(templateName)-1]
-		} else if len(templateName) >= 2 && templateName[0] == '\'' && templateName[len(templateName)-1] == '\'' {
-			templateName = templateName[1 : len(templateName)-1]
-		}
-
-		// Check cache first
-		var templateContent string
-		if cached, exists := ctx.InternalContext.TemplatesCache[templateName]; exists {
-			templateContent = cached
+		templateName := strings.Trim(parts[1], `"'`)
+		if newName, ok := strings.CutPrefix(templateName, "@app/"); ok {
+			templateName = "app/" + newName
+		} else if newName, ok := strings.CutPrefix(templateName, "@marketing/"); ok {
+			templateName = "marketing/" + newName
 		} else {
-			// Load template from file system
-			// Assume we can extract domain from context or it's stored somewhere accessible
-			if ctx.Request != nil {
-				domain := ctx.Request.Host
-				// Try different template locations
-				templatePaths := []string{
-					"templates/sections/" + templateName + ".html",
-					"templates/partials/" + templateName + ".html",
-					"templates/" + templateName + ".html",
-				}
-
-				for _, path := range templatePaths {
-					fullPath := "/Users/theo/Desktop/wispy-core/sites/" + domain + "/" + path
-					if content, err := os.ReadFile(fullPath); err == nil {
-						templateContent = string(content)
-						// Cache for future use
-						ctx.InternalContext.TemplatesCache[templateName] = templateContent
-						break
-					}
-				}
-			}
+			errs = append(errs, fmt.Errorf("render tag requires a valid template name starting with @app/ or @marketing/"))
+			return pos, errs
 		}
 
-		if templateContent == "" {
-			return pos, []error{fmt.Errorf("template not found: %s", templateName)}
+		absolutePath, _ := filepath.Abs("./templates")
+		if !strings.HasSuffix(templateName, ".html") {
+			templateName += ".html" // Ensure it has .html extension
+		}
+		templateContent, err := os.ReadFile(filepath.Join(absolutePath, templateName))
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to read template file: %w", err))
+			return pos, errs
 		}
 
 		// Render the included template with current context
-		rendered, renderErrs := ctx.Engine.Render(templateContent, ctx)
+		rendered, renderErrs := ctx.Engine.Render(string(templateContent), ctx)
 		if len(renderErrs) > 0 {
 			errs = append(errs, renderErrs...)
 		}
@@ -282,13 +264,315 @@ var BlockTag = models.TemplateTag{
 	},
 }
 
+var VerbatimTag = models.TemplateTag{
+	Name: "verbatim",
+	Render: func(ctx TemplateCtx, sb *strings.Builder, parts []string, raw string, pos int) (newPos int, errs []error) {
+		// Find the matching endverbatim
+		endPos, seekErrs := SeekEndTag(raw, pos, "verbatim")
+		if len(seekErrs) > 0 {
+			errs = append(errs, seekErrs...)
+			return pos, errs
+		}
+
+		// Extract content between verbatim and endverbatim - need to find the start of content
+		// pos is currently at the end of the opening tag
+		contentStart := pos
+		contentEnd := endPos - len("{% endverbatim %}")
+		content := raw[contentStart:contentEnd]
+
+		// Output the content literally (without template processing)
+		sb.WriteString(content)
+
+		return endPos, errs
+	},
+}
+
+var AssetTag = models.TemplateTag{
+	Name: "asset",
+	Render: func(ctx TemplateCtx, sb *strings.Builder, parts []string, raw string, pos int) (newPos int, errs []error) {
+		if len(parts) < 3 {
+			errs = append(errs, fmt.Errorf("asset tag requires asset type and file path"))
+			return pos, errs
+		}
+
+		// Parse arguments: asset "css" "path/to/file.css" args...
+		args := common.FieldsRespectQuotes(strings.Join(parts[1:], " "))
+		if len(args) < 2 {
+			errs = append(errs, fmt.Errorf("asset tag requires asset type and file path"))
+			return pos, errs
+		}
+
+		assetType := strings.Trim(args[0], `"'`)
+		filePath := strings.Trim(args[1], `"'`)
+
+		// Validate asset type
+		validTypes := []string{"css", "css-inline", "js", "js-inline"}
+		isValidType := false
+		for _, validType := range validTypes {
+			if assetType == validType {
+				isValidType = true
+				break
+			}
+		}
+		if !isValidType {
+			errs = append(errs, fmt.Errorf("invalid asset type '%s', must be one of: %s", assetType, strings.Join(validTypes, ", ")))
+			return pos, errs
+		}
+
+		isInline := strings.HasSuffix(assetType, "-inline")
+		isCSS := strings.HasPrefix(assetType, "css")
+		location := "head" // Default location
+
+		// Parse additional parameters for JS
+		if !isCSS {
+			for _, arg := range args[2:] {
+				if strings.HasPrefix(arg, "location=") {
+					location = strings.Trim(strings.TrimPrefix(arg, "location="), `"'`)
+				}
+			}
+		}
+
+		// Validate asset path
+		validatedPath, pathErr := validateAssetPath(filePath, isInline)
+		if pathErr != nil {
+			// Log error but continue rendering - graceful error handling
+			errs = append(errs, fmt.Errorf("asset validation failed: %v", pathErr))
+			return pos, errs // Skip this asset but continue rendering at current position
+		}
+
+		// Create unique key for deduplication
+		importType := assetType
+		dedupeKey := validatedPath + "|" + importType
+
+		// Check for conflicts (same file with different import types)
+		for existingKey, existingType := range ctx.InternalContext.ImportedResources {
+			existingPath := strings.Split(existingKey, "|")[0]
+			if existingPath == validatedPath && existingType != importType {
+				errs = append(errs, fmt.Errorf("asset %s already imported as %s, cannot import as %s", validatedPath, existingType, importType))
+				return pos, errs // Skip this asset but continue rendering at current position
+			}
+		}
+
+		// Check for exact duplicates
+		if _, exists := ctx.InternalContext.ImportedResources[dedupeKey]; exists {
+			// Same file with same import type - skip silently
+			return pos, errs
+		}
+
+		// Mark as imported
+		ctx.InternalContext.ImportedResources[dedupeKey] = importType
+
+		if isInline {
+			// Handle inline assets
+			if isRemoteURL(validatedPath) {
+				errs = append(errs, fmt.Errorf("cannot inline remote assets"))
+				return pos, errs // Skip this asset but continue rendering
+			}
+
+			// Resolve and read file content
+			fullPath, resolveErr := resolveAssetPath(ctx, validatedPath)
+			if resolveErr != nil {
+				// Log error but continue rendering - graceful error handling
+				errs = append(errs, fmt.Errorf("failed to resolve asset path: %v", resolveErr))
+				return pos, errs // Skip this asset but continue rendering
+			}
+
+			content, readErr := os.ReadFile(fullPath)
+			if readErr != nil {
+				// Log error but continue rendering - graceful error handling
+				errs = append(errs, fmt.Errorf("failed to read asset file %s: %v", validatedPath, readErr))
+				return pos, errs // Skip this asset but continue rendering
+			}
+
+			if isCSS {
+				ctx.InternalContext.HtmlDocumentTags = append(ctx.InternalContext.HtmlDocumentTags, models.HtmlDocumentTags{
+					TagType:     "style",
+					TagName:     "style",
+					Location:    "head",
+					Contents:    string(content),
+					Priority:    20,
+					Attributes:  map[string]string{"type": "text/css"},
+					SelfClosing: false,
+				})
+			} else {
+				priority := 25
+				if location == "pre-footer" {
+					priority = 30
+				}
+
+				ctx.InternalContext.HtmlDocumentTags = append(ctx.InternalContext.HtmlDocumentTags, models.HtmlDocumentTags{
+					TagType:     "script",
+					TagName:     "script",
+					Location:    location,
+					Contents:    string(content),
+					Priority:    priority,
+					Attributes:  map[string]string{"type": "text/javascript"},
+					SelfClosing: false,
+				})
+			}
+		} else {
+			// Handle external assets
+			if isCSS {
+				// For remote URLs, use as-is; for local files, convert to web path
+				webPath := validatedPath
+				if !isRemoteURL(validatedPath) {
+					// Convert local path to web path (remove leading slash if present, then add it back)
+					webPath = "/" + strings.TrimPrefix(validatedPath, "/")
+				}
+
+				ctx.InternalContext.HtmlDocumentTags = append(ctx.InternalContext.HtmlDocumentTags, models.HtmlDocumentTags{
+					TagType:  "link",
+					TagName:  "link",
+					Location: "head",
+					Contents: "",
+					Priority: 15,
+					Attributes: map[string]string{
+						"rel":  "stylesheet",
+						"href": webPath,
+						"type": "text/css",
+					},
+					SelfClosing: true,
+				})
+			} else {
+				// For remote URLs, use as-is; for local files, convert to web path
+				webPath := validatedPath
+				if !isRemoteURL(validatedPath) {
+					// Convert local path to web path
+					webPath = "/" + strings.TrimPrefix(validatedPath, "/")
+				}
+
+				priority := 20
+				if location == "pre-footer" {
+					priority = 25
+				}
+
+				ctx.InternalContext.HtmlDocumentTags = append(ctx.InternalContext.HtmlDocumentTags, models.HtmlDocumentTags{
+					TagType:  "script",
+					TagName:  "script",
+					Location: location,
+					Contents: "",
+					Priority: priority,
+					Attributes: map[string]string{
+						"src":  webPath,
+						"type": "text/javascript",
+					},
+					SelfClosing: false,
+				})
+			}
+		}
+
+		return pos, errs
+	},
+}
+
+// getSitePath returns the root path for the current site based on the page context
+func getSitePath(ctx TemplateCtx) string {
+	// Try to get domain from Page context first
+	if pageData, exists := ctx.Data["Page"]; exists {
+		if page, ok := pageData.(*models.Page); ok {
+			// In test environment, use current working directory
+			if os.Getenv("WISPY_CORE_ROOT") == "" {
+				if wd, err := os.Getwd(); err == nil {
+					// If we're in the core directory (during tests), go up one level
+					if strings.HasSuffix(wd, "/core") {
+						wd = filepath.Dir(wd)
+					}
+					return filepath.Join(wd, "sites", page.SiteDetails.Domain)
+				}
+				return filepath.Join("sites", page.SiteDetails.Domain)
+			}
+			return common.RootSitesPath(page.SiteDetails.Domain)
+		}
+	}
+
+	// Fallback to request host if available
+	if ctx.Request != nil {
+		domain := ctx.Request.Host
+		// In test environment, use current working directory
+		if os.Getenv("WISPY_CORE_ROOT") == "" {
+			if wd, err := os.Getwd(); err == nil {
+				// If we're in the core directory (during tests), go up one level
+				if strings.HasSuffix(wd, "/core") {
+					wd = filepath.Dir(wd)
+				}
+				return filepath.Join(wd, "sites", domain)
+			}
+			return filepath.Join("sites", domain)
+		}
+		return common.RootSitesPath(domain)
+	}
+
+	return ""
+}
+
+// isRemoteURL checks if a path is a remote URL (starts with https://)
+func isRemoteURL(path string) bool {
+	return strings.HasPrefix(strings.ToLower(path), "https://")
+}
+
+// validateAssetPath validates and normalizes asset paths for security
+func validateAssetPath(path string, inline bool) (string, error) {
+	if isRemoteURL(path) {
+		if inline {
+			return "", fmt.Errorf("cannot inline remote assets, remote URLs are only allowed for external linking")
+		}
+		// Validate that it's a proper URL
+		if _, err := url.Parse(path); err != nil {
+			return "", fmt.Errorf("invalid remote URL: %v", err)
+		}
+		return path, nil
+	}
+
+	// For local files, ensure they start with allowed prefixes
+	allowedPrefixes := []string{"assets/", "public/", "/assets/", "/public/"}
+	hasValidPrefix := false
+	for _, prefix := range allowedPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			hasValidPrefix = true
+			break
+		}
+	}
+
+	if !hasValidPrefix {
+		return "", fmt.Errorf("asset path must start with 'assets/', 'public/', '/assets/', or '/public/', or be a remote HTTPS URL")
+	}
+
+	// Remove leading slash if present for consistent path handling
+	path = strings.TrimPrefix(path, "/")
+
+	return path, nil
+}
+
+// resolveAssetPath resolves the full file path for a local asset
+func resolveAssetPath(ctx TemplateCtx, path string) (string, error) {
+	if isRemoteURL(path) {
+		return path, nil // Remote URLs are returned as-is
+	}
+
+	sitePath := getSitePath(ctx)
+	if sitePath == "" {
+		return "", fmt.Errorf("unable to determine site path")
+	}
+
+	fullPath := filepath.Join(sitePath, path)
+
+	// Check if file exists
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		return "", fmt.Errorf("asset file not found: %s", path)
+	}
+
+	return fullPath, nil
+}
+
 // DefaultFunctionMap provides all built-in tags.
 func DefaultFunctionMap() models.FunctionMap {
 	return models.FunctionMap{
-		"if":     IfTemplate,
-		"for":    ForTag,
-		"define": DefineTag,
-		"render": RenderTag,
-		"block":  BlockTag,
+		"if":       IfTemplate,
+		"for":      ForTag,
+		"define":   DefineTag,
+		"render":   RenderTag,
+		"block":    BlockTag,
+		"verbatim": VerbatimTag,
+		"asset":    AssetTag,
 	}
 }

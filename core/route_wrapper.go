@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -211,12 +212,20 @@ func (rw *RouteWrapper) regenerateAllRoutes() {
 		newRouter.Use(middleware)
 	}
 
+	// Add static file serving for each site's public directory
+	for domain, site := range rw.sites {
+		rw.addStaticFileServing(newRouter, domain, site)
+	}
+
 	// Add all routes from all sites
 	for _, siteConfigs := range rw.routeConfigs {
 		for _, config := range siteConfigs {
 			rw.addRouteToRouter(newRouter, config)
 		}
 	}
+
+	// Add 404 handler
+	newRouter.NotFound(rw.handle404)
 
 	// Replace the old router with the new one
 	rw.router = newRouter
@@ -247,14 +256,28 @@ func (rw *RouteWrapper) addRouteToRouter(router chi.Router, route RouteConfig) {
 		}
 
 		fullContent := GetPage(route.Instance.Domain, route.Page.FilePath) + GetLayout(route.Instance.Domain, layoutName)
+		result, errs := engine.Render(fullContent, ctx)
+		for _, err := range errs {
+			log.Printf("[ERROR]Render: Url(%s): %v", route.URL, err.Error())
+			return
+		}
 
 		switch route.Instance.Config.CssProcessor {
 		case "wispy-tail":
 			// Compile Tailwind CSS if configured
-			css, err := tail.CompileHTMLWithDaisyUI(fullContent)
-			if err != nil {
-				log.Printf("[ERROR] CompileHTMLWithDaisyUI: Url(%s): %v", route.URL, err.Error())
-			}
+			log.Print("[WISPY-TAIL]")
+			trieStart := time.Now()
+			trie := tail.BuildFullTrie()
+			log.Print(" - Trie Built In: ", time.Since(trieStart))
+			extractTime := time.Now()
+			// Extract unique class names from the HTML.
+			classes := tail.ExtractClasses(result)
+			fmt.Println(" - Extracted Classes: ", len(classes))
+			log.Print(" - Extract In: ", time.Since(extractTime))
+			generationTime := time.Now()
+			// Generate CSS rules for the extracted classes with theme and base layers.
+			css := tail.GenerateFullCSS(classes, nil, trie)
+			log.Print(" - Generated In: ", time.Since(generationTime))
 			ctx.InternalContext.HtmlDocumentTags = append(ctx.InternalContext.HtmlDocumentTags, models.HtmlDocumentTags{
 				TagType:    "style",
 				TagName:    "style",
@@ -265,12 +288,7 @@ func (rw *RouteWrapper) addRouteToRouter(router chi.Router, route RouteConfig) {
 			})
 		default:
 			// Use default CSS processing
-		}
-
-		result, errs := engine.Render(fullContent, ctx)
-		for _, err := range errs {
-			log.Printf("[ERROR]Render: Url(%s): %v", route.URL, err.Error())
-			return
+			log.Printf("[INFO] Unknown CSS processor: %s", route.Instance.Config.CssProcessor)
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -292,6 +310,120 @@ func (rw *RouteWrapper) addRouteToRouter(router chi.Router, route RouteConfig) {
 			rw.updateRouteStats(route.URL, dur)
 		}
 	})
+}
+
+// addStaticFileServing adds static file serving for a site's public and assets directories
+func (rw *RouteWrapper) addStaticFileServing(router chi.Router, domain string, site *models.SiteInstance) {
+	// Serve files from /public/
+	publicPath := common.RootSitesPath(domain) + "/public/"
+	router.Get("/public/*", func(w http.ResponseWriter, r *http.Request) {
+		// Strip the /public prefix from the URL path
+		path := strings.TrimPrefix(r.URL.Path, "/public/")
+		filePath := publicPath + path
+
+		// Basic security check - prevent directory traversal
+		if strings.Contains(path, "..") {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		http.ServeFile(w, r, filePath)
+	})
+
+	// Serve files from /assets/
+	assetsPath := common.RootSitesPath(domain) + "/assets/"
+	router.Get("/assets/*", func(w http.ResponseWriter, r *http.Request) {
+		// Strip the /assets prefix from the URL path
+		path := strings.TrimPrefix(r.URL.Path, "/assets/")
+		filePath := assetsPath + path
+
+		// Basic security check - prevent directory traversal
+		if strings.Contains(path, "..") {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		http.ServeFile(w, r, filePath)
+	})
+}
+
+// handle404 renders the 404 page for the current site
+func (rw *RouteWrapper) handle404(w http.ResponseWriter, r *http.Request) {
+	// Determine which site this request is for based on Host header
+	domain := r.Host
+
+	// Look for a 404 page in the site
+	site, exists := rw.sites[domain]
+	if !exists {
+		// Fallback to basic 404
+		http.Error(w, "404 - Page Not Found", http.StatusNotFound)
+		return
+	}
+
+	// Look for 404.html page
+	notFoundPage, exists := site.Pages["/404"]
+	if !exists {
+		// Fallback to basic 404 if no custom 404 page exists
+		http.Error(w, "404 - Page Not Found", http.StatusNotFound)
+		return
+	}
+
+	// Render the 404 page using the same logic as regular pages
+	start := time.Now()
+
+	// Create template context
+	data := map[string]interface{}{"Page": notFoundPage}
+	engine := NewTemplateEngine(DefaultFunctionMap())
+	ctx := NewTemplateContext(data, engine)
+	ctx.Request = r
+
+	// Determine layout to use
+	layoutName := notFoundPage.LayoutName
+	if layoutName == "" {
+		layoutName = "default"
+	}
+
+	fullContent := GetPage(site.Domain, notFoundPage.FilePath) + GetLayout(site.Domain, layoutName)
+	result, errs := engine.Render(fullContent, ctx)
+	for _, err := range errs {
+		log.Printf("[ERROR] 404 Render: %v", err.Error())
+	}
+
+	switch strings.ToLower(site.Config.CssProcessor) {
+	case "wispy-tail":
+		trie := tail.BuildFullTrie()
+		classes := tail.ExtractClasses(result)
+		// Generate CSS rules for the extracted classes with theme and base layers.
+		css := tail.GenerateFullCSS(classes, nil, trie)
+		ctx.InternalContext.HtmlDocumentTags = append(ctx.InternalContext.HtmlDocumentTags, models.HtmlDocumentTags{
+			TagType:     "style",
+			TagName:     "style",
+			Location:    "head",
+			Contents:    css,
+			Priority:    10,
+			Attributes:  map[string]string{"type": "text/css"},
+			SelfClosing: false,
+		})
+	default:
+		// Use default CSS processing
+	}
+
+	// Set 404 status
+	w.WriteHeader(http.StatusNotFound)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	HtmlDocument := &models.ConstructHTMLDocument{
+		Body:         result,
+		Lang:         notFoundPage.Lang,
+		Title:        "404 - Page Not Found",
+		DocumentTags: ctx.InternalContext.HtmlDocumentTags,
+		MetaTags:     ConstructMetaTags(ctx, notFoundPage),
+	}
+
+	WriteHTMLDocument(w, HtmlDocument)
+
+	dur := time.Since(start)
+	log.Printf("[INFO] Rendered 404 page in %s", dur)
 }
 
 // updateRouteStats updates the statistics for a specific route

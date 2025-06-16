@@ -2,6 +2,7 @@ package core
 
 import (
 	"testing"
+	"wispy-core/models"
 )
 
 func TestTemplateEngine_BasicVariableInterpolation(t *testing.T) {
@@ -305,4 +306,345 @@ func TestTemplateEngine_ErrorResilience(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTemplateEngine_AssetCSS(t *testing.T) {
+	engine := NewTemplateEngine(DefaultFunctionMap())
+
+	tests := []struct {
+		name      string
+		template  string
+		wantTags  int // Number of expected HTML document tags
+		wantError bool
+	}{
+		{
+			name:      "import external CSS",
+			template:  `{% asset "css" "public/css/style.css" %}`,
+			wantTags:  1,
+			wantError: false,
+		},
+		{
+			name:      "import inline CSS",
+			template:  `{% asset "css-inline" "assets/css/test.css" %}`,
+			wantTags:  1,
+			wantError: false,
+		},
+		{
+			name:      "import remote CSS",
+			template:  `{% asset "css" "https://cdn.jsdelivr.net/npm/daisyui@5/dist/full.css" %}`,
+			wantTags:  1,
+			wantError: false,
+		},
+		{
+			name:      "import CSS without type",
+			template:  `{% asset %}`,
+			wantTags:  0,
+			wantError: true,
+		},
+		{
+			name:      "invalid asset type",
+			template:  `{% asset "invalid" "public/css/style.css" %}`,
+			wantTags:  0,
+			wantError: true,
+		},
+		{
+			name:      "invalid path prefix",
+			template:  `{% asset "css" "invalid/path/style.css" %}`,
+			wantTags:  0,
+			wantError: true,
+		},
+		{
+			name:      "inline remote asset (should error)",
+			template:  `{% asset "css-inline" "https://example.com/style.css" %}`,
+			wantTags:  0,
+			wantError: true,
+		},
+		{
+			name:      "import same CSS twice (should only create one tag)",
+			template:  `{% asset "css" "public/css/style.css" %}{% asset "css" "public/css/style.css" %}`,
+			wantTags:  1,
+			wantError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := newTestTemplateContext(map[string]interface{}{}, engine)
+
+			_, errs := engine.Render(tt.template, ctx)
+
+			if tt.wantError && len(errs) == 0 {
+				t.Errorf("Expected error but got none")
+			}
+			if !tt.wantError && len(errs) > 0 {
+				t.Errorf("Unexpected error: %v", errs)
+			}
+
+			if len(ctx.InternalContext.HtmlDocumentTags) != tt.wantTags {
+				t.Errorf("Expected %d HTML document tags, got %d", tt.wantTags, len(ctx.InternalContext.HtmlDocumentTags))
+			}
+
+			// Check that CSS tags have correct attributes
+			if tt.wantTags > 0 && !tt.wantError && len(ctx.InternalContext.HtmlDocumentTags) > 0 {
+				tag := ctx.InternalContext.HtmlDocumentTags[0]
+				if tag.Location != "head" {
+					t.Errorf("Expected CSS tag location to be 'head', got '%s'", tag.Location)
+				}
+			}
+		})
+	}
+}
+
+func TestTemplateEngine_AssetJS(t *testing.T) {
+	engine := NewTemplateEngine(DefaultFunctionMap())
+
+	tests := []struct {
+		name      string
+		template  string
+		wantTags  int
+		wantError bool
+	}{
+		{
+			name:      "import external JS",
+			template:  `{% asset "js" "public/js/script.js" %}`,
+			wantTags:  1,
+			wantError: false,
+		},
+		{
+			name:      "import inline JS",
+			template:  `{% asset "js-inline" "assets/js/test.js" %}`,
+			wantTags:  1,
+			wantError: false,
+		},
+		{
+			name:      "import JS with location",
+			template:  `{% asset "js" "public/js/script.js" location="pre-footer" %}`,
+			wantTags:  1,
+			wantError: false,
+		},
+		{
+			name:      "import remote JS",
+			template:  `{% asset "js" "https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js" %}`,
+			wantTags:  1,
+			wantError: false,
+		},
+		{
+			name:      "import JS without path",
+			template:  `{% asset "js" %}`,
+			wantTags:  0,
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := newTestTemplateContext(map[string]interface{}{}, engine)
+
+			_, errs := engine.Render(tt.template, ctx)
+
+			if tt.wantError && len(errs) == 0 {
+				t.Errorf("Expected error but got none")
+			}
+			if !tt.wantError && len(errs) > 0 {
+				t.Errorf("Unexpected error: %v", errs)
+			}
+
+			if len(ctx.InternalContext.HtmlDocumentTags) != tt.wantTags {
+				t.Errorf("Expected %d HTML document tags, got %d", tt.wantTags, len(ctx.InternalContext.HtmlDocumentTags))
+			}
+
+			// Check JS tag attributes
+			if tt.wantTags > 0 && !tt.wantError && len(ctx.InternalContext.HtmlDocumentTags) > 0 {
+				tag := ctx.InternalContext.HtmlDocumentTags[0]
+				if tag.TagName != "script" {
+					t.Errorf("Expected JS tag name to be 'script', got '%s'", tag.TagName)
+				}
+			}
+		})
+	}
+}
+
+func TestTemplateEngine_AssetResourceDeduplication(t *testing.T) {
+	engine := NewTemplateEngine(DefaultFunctionMap())
+	ctx := newTestTemplateContext(map[string]interface{}{}, engine)
+
+	// Import same CSS file twice
+	template := `{% asset "css" "public/css/style.css" %}{% asset "css" "public/css/style.css" %}`
+	_, errs := engine.Render(template, ctx)
+
+	if len(errs) > 0 {
+		t.Errorf("Unexpected error: %v", errs)
+	}
+
+	// Should only have one tag
+	if len(ctx.InternalContext.HtmlDocumentTags) != 1 {
+		t.Errorf("Expected 1 HTML document tag after deduplication, got %d", len(ctx.InternalContext.HtmlDocumentTags))
+	}
+
+	// Check ImportedResources map
+	if len(ctx.InternalContext.ImportedResources) != 1 {
+		t.Errorf("Expected 1 imported resource, got %d", len(ctx.InternalContext.ImportedResources))
+	}
+
+	expectedKey := "public/css/style.css|css"
+	if ctx.InternalContext.ImportedResources[expectedKey] != "css" {
+		t.Errorf("Expected imported resource type to be 'css', got '%s'", ctx.InternalContext.ImportedResources[expectedKey])
+	}
+}
+
+func TestTemplateEngine_AssetResourceConflictDetection(t *testing.T) {
+	engine := NewTemplateEngine(DefaultFunctionMap())
+	ctx := newTestTemplateContext(map[string]interface{}{}, engine)
+
+	// Try to import same file as external then inline (should error)
+	template := `{% asset "css" "public/css/style.css" %}{% asset "css-inline" "public/css/style.css" %}`
+	_, errs := engine.Render(template, ctx)
+
+	if len(errs) == 0 {
+		t.Errorf("Expected error when importing same file with different types")
+	}
+
+	// Should only have one tag from the first import
+	if len(ctx.InternalContext.HtmlDocumentTags) != 1 {
+		t.Errorf("Expected 1 HTML document tag after conflict, got %d", len(ctx.InternalContext.HtmlDocumentTags))
+	}
+}
+
+func TestTemplateEngine_AssetErrorHandling(t *testing.T) {
+	engine := NewTemplateEngine(DefaultFunctionMap())
+
+	// Create mock page context with localhost domain
+	mockPage := &models.Page{
+		SiteDetails: models.SiteDetails{
+			Domain: "localhost",
+		},
+	}
+
+	tests := []struct {
+		name             string
+		template         string
+		expectedContains string
+		shouldHaveErrors bool
+	}{
+		{
+			name:             "missing inline CSS file continues rendering",
+			template:         `Before asset {% asset "css-inline" "assets/css/nonexistent.css" %} After asset`,
+			expectedContains: "Before asset  After asset",
+			shouldHaveErrors: true,
+		},
+		{
+			name:             "missing inline JS file continues rendering",
+			template:         `Before asset {% asset "js-inline" "assets/js/nonexistent.js" %} After asset`,
+			expectedContains: "Before asset  After asset",
+			shouldHaveErrors: true,
+		},
+		{
+			name:             "invalid asset type continues rendering",
+			template:         `Before asset {% asset "invalid" "assets/css/test.css" %} After asset`,
+			expectedContains: "Before asset  After asset",
+			shouldHaveErrors: true,
+		},
+		{
+			name:             "invalid path continues rendering",
+			template:         `Before asset {% asset "css" "../../../etc/passwd" %} After asset`,
+			expectedContains: "Before asset  After asset",
+			shouldHaveErrors: true,
+		},
+		{
+			name:             "missing external file continues rendering",
+			template:         `Before asset {% asset "css" "public/css/nonexistent.css" %} After asset`,
+			expectedContains: "Before asset  After asset",
+			shouldHaveErrors: false, // External files don't check existence during render
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Initialize context with fresh ImportedResources map
+			ctx := NewTemplateContext(map[string]interface{}{
+				"Page": mockPage,
+			}, engine)
+			ctx.InternalContext.ImportedResources = make(map[string]string)
+
+			result, errs := engine.Render(tt.template, ctx)
+
+			// Check that the template continues rendering
+			if result != tt.expectedContains {
+				t.Errorf("expected result to contain '%s', got '%s'", tt.expectedContains, result)
+			}
+
+			// Check error expectation
+			if tt.shouldHaveErrors && len(errs) == 0 {
+				t.Error("expected errors but got none")
+			}
+			if !tt.shouldHaveErrors && len(errs) > 0 {
+				t.Errorf("expected no errors but got: %v", errs)
+			}
+
+			// Verify that errors don't prevent rendering from completing
+			if result == "" && tt.expectedContains != "" {
+				t.Error("template rendering was completely blocked by errors")
+			}
+		})
+	}
+}
+
+func TestTemplateEngine_VerbatimTag(t *testing.T) {
+	engine := NewTemplateEngine(DefaultFunctionMap())
+	ctx := NewTemplateContext(map[string]interface{}{
+		"name": "World",
+	}, engine)
+
+	tests := []struct {
+		name     string
+		template string
+		expected string
+	}{
+		{
+			name:     "verbatim preserves template syntax literally",
+			template: `Before {% verbatim %}{{ name }} and {% if true %}content{% endif %}{% endverbatim %} After`,
+			expected: `Before {{ name }} and {% if true %}content{% endif %} After`,
+		},
+		{
+			name:     "verbatim with asset tag example",
+			template: `Example: {% verbatim %}{% asset "css" "public/css/style.css" %}{% endverbatim %}`,
+			expected: `Example: {% asset "css" "public/css/style.css" %}`,
+		},
+		{
+			name:     "empty verbatim",
+			template: `Before {% verbatim %}{% endverbatim %} After`,
+			expected: `Before  After`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, errs := engine.Render(tt.template, ctx)
+			if len(errs) > 0 {
+				t.Errorf("unexpected errors: %v", errs)
+			}
+			if result != tt.expected {
+				t.Errorf("expected '%s', got '%s'", tt.expected, result)
+			}
+		})
+	}
+}
+
+// newTestTemplateContext creates a template context with a mock page for testing
+func newTestTemplateContext(data map[string]interface{}, engine *models.TemplateEngine) *models.TemplateContext {
+	// Create a mock page with site details
+	page := &models.Page{
+		SiteDetails: models.SiteDetails{
+			Domain: "localhost",
+			Name:   "Test Site",
+		},
+	}
+
+	// Merge the page into the data
+	if data == nil {
+		data = make(map[string]interface{})
+	}
+	data["Page"] = page
+
+	return NewTemplateContext(data, engine)
 }
