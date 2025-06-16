@@ -1,6 +1,11 @@
 package auth
 
-import "golang.org/x/crypto/bcrypt"
+import (
+	"crypto/rand"
+	"encoding/base64"
+
+	"golang.org/x/crypto/bcrypt"
+)
 
 // HashPassword hashes a password using bcrypt
 func HashPassword(password string) (string, error) {
@@ -21,4 +26,11 @@ func IsValidPassword(password string) bool {
 	// Basic password validation - minimum 8 characters
 	// In a real implementation, you might want more sophisticated rules
 	return len(password) >= 8
+}
+
+// generateRandomString generates a random string of specified length
+func generateRandomString(length int) string {
+	b := make([]byte, length)
+	rand.Read(b)
+	return base64.URLEncoding.EncodeToString(b)[:length]
 }

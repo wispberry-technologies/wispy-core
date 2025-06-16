@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	"wispy-core/common"
 	"wispy-core/models"
 )
@@ -173,19 +174,40 @@ func LoadAllSites(sitesPath string) (map[string]*models.SiteInstance, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Track site init timing
+	startTime := time.Now()
+	siteCount := 0
+
 	for _, dir := range dirs {
 		if !dir.IsDir() {
 			continue
 		}
 		domain := dir.Name()
+		siteStartTime := time.Now()
+
 		// Create a new SiteInstance for each domain
 		siteInstance := NewSiteInstance(domain)
+
+		// Initialize site database
+		// TODO
+
+		// Load pages
 		if err := LoadPagesForSite(siteInstance); err != nil {
 			log.Printf("[WARN] Failed to load pages for site %s: %v", domain, err)
 			continue
 		}
+
 		sites[domain] = siteInstance
+		siteCount++
+
+		siteLoadTime := time.Since(siteStartTime)
+		log.Printf("Site %s loaded in %v", domain, siteLoadTime)
 	}
+
+	totalTime := time.Since(startTime)
+	log.Printf("Loaded %d sites in %v", siteCount, totalTime)
+
 	return sites, nil
 }
 

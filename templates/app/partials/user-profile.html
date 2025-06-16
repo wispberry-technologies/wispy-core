@@ -1,0 +1,264 @@
+<!-- User Profile Component -->
+<div class="card bg-base-100 shadow-xl">
+  <div class="card-body">
+    <h2 class="card-title">Profile Information</h2>
+    <p class="text-base-content/70 mb-4">Update your personal information and preferences.</p>
+    
+    <form id="profileForm" class="space-y-4">
+      <!-- Error/Success Messages -->
+      <div id="profileMessageContainer" class="hidden"></div>
+      
+      <!-- Profile Picture -->
+      <div class="flex items-center space-x-4 mb-6">
+        <div class="avatar">
+          <div class="w-20 rounded-full">
+            <img id="profileAvatar" alt="Profile Picture" src="/api/v1/avatar/default" />
+          </div>
+        </div>
+        <div>
+          <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('avatarInput').click()">
+            Change Photo
+          </button>
+          <input type="file" id="avatarInput" class="hidden" accept="image/*" onchange="handleAvatarChange(event)">
+          <p class="text-xs text-base-content/60 mt-1">JPG, PNG up to 2MB</p>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <label class="form-control w-full">
+          <div class="label">
+            <span class="label-text">First Name</span>
+          </div>
+          <input type="text" class="input input-bordered w-full" 
+                 placeholder="First Name" name="first_name" required />
+        </label>
+        
+        <label class="form-control w-full">
+          <div class="label">
+            <span class="label-text">Last Name</span>
+          </div>
+          <input type="text" class="input input-bordered w-full" 
+                 placeholder="Last Name" name="last_name" required />
+        </label>
+      </div>
+      
+      <label class="form-control w-full">
+        <div class="label">
+          <span class="label-text">Display Name</span>
+        </div>
+        <input type="text" class="input input-bordered w-full" 
+               placeholder="Display Name" name="display_name" />
+      </label>
+      
+      <label class="form-control w-full">
+        <div class="label">
+          <span class="label-text">Email</span>
+          <span class="label-text-alt">Contact support to change</span>
+        </div>
+        <input type="email" class="input input-bordered w-full" 
+               placeholder="Email" name="email" required readonly />
+      </label>
+      
+      <!-- Account Status -->
+      <div class="stats shadow">
+        <div class="stat">
+          <div class="stat-title">Email Status</div>
+          <div class="stat-value text-sm">
+            <div id="emailVerifiedBadge" class="badge badge-success">Verified</div>
+          </div>
+        </div>
+        <div class="stat">
+          <div class="stat-title">Account Status</div>
+          <div class="stat-value text-sm">
+            <div id="accountStatusBadge" class="badge badge-success">Active</div>
+          </div>
+        </div>
+        <div class="stat">
+          <div class="stat-title">Two-Factor Auth</div>
+          <div class="stat-value text-sm">
+            <div id="twoFactorBadge" class="badge badge-warning">Disabled</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card-actions">
+        <button type="submit" class="btn btn-primary">
+          <span class="loading loading-spinner loading-sm hidden" id="profileSpinner"></span>
+          <span id="profileButtonText">Update Profile</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// Load user profile data on page load
+document.addEventListener('DOMContentLoaded', function() {
+  loadUserProfile();
+});
+
+async function loadUserProfile() {
+  try {
+    const response = await fetch('/api/v1/me', {
+      credentials: 'include'
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.data.user) {
+        populateProfileForm(data.data.user);
+      }
+    }
+  } catch (error) {
+    console.error('Error loading profile:', error);
+  }
+}
+
+function populateProfileForm(user) {
+  const form = document.getElementById('profileForm');
+  
+  // Populate form fields
+  form.first_name.value = user.first_name || '';
+  form.last_name.value = user.last_name || '';
+  form.display_name.value = user.display_name || '';
+  form.email.value = user.email || '';
+  
+  // Update avatar
+  if (user.avatar) {
+    document.getElementById('profileAvatar').src = user.avatar;
+  }
+  
+  // Update status badges
+  const emailBadge = document.getElementById('emailVerifiedBadge');
+  if (user.email_verified) {
+    emailBadge.textContent = 'Verified';
+    emailBadge.className = 'badge badge-success badge-sm';
+  } else {
+    emailBadge.textContent = 'Unverified';
+    emailBadge.className = 'badge badge-warning badge-sm';
+  }
+  
+  const accountBadge = document.getElementById('accountStatusBadge');
+  if (user.is_active) {
+    accountBadge.textContent = 'Active';
+    accountBadge.className = 'badge badge-success badge-sm';
+  } else {
+    accountBadge.textContent = 'Inactive';
+    accountBadge.className = 'badge badge-error badge-sm';
+  }
+  
+  const twoFactorBadge = document.getElementById('twoFactorBadge');
+  if (user.two_factor_enabled) {
+    twoFactorBadge.textContent = 'Enabled';
+    twoFactorBadge.className = 'badge badge-success badge-sm';
+  } else {
+    twoFactorBadge.textContent = 'Disabled';
+    twoFactorBadge.className = 'badge badge-warning badge-sm';
+  }
+}
+
+document.getElementById('profileForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const form = e.target;
+  const formData = new FormData(form);
+  const button = document.getElementById('profileButtonText');
+  const spinner = document.getElementById('profileSpinner');
+  const messageContainer = document.getElementById('profileMessageContainer');
+  
+  // Show loading state
+  button.textContent = 'Updating...';
+  spinner.classList.remove('hidden');
+  form.querySelector('button[type="submit"]').disabled = true;
+  
+  try {
+    const response = await fetch('/api/v1/profile', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        first_name: formData.get('first_name'),
+        last_name: formData.get('last_name'),
+        display_name: formData.get('display_name')
+      }),
+      credentials: 'include'
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showProfileMessage('Profile updated successfully!', 'success');
+      
+      // Update navigation if present
+      if (window.checkAuthStatus) {
+        window.checkAuthStatus();
+      }
+    } else {
+      showProfileMessage(data.error?.message || 'Failed to update profile', 'error');
+    }
+  } catch (error) {
+    console.error('Profile update error:', error);
+    showProfileMessage('An error occurred while updating profile', 'error');
+  } finally {
+    // Reset button state
+    button.textContent = 'Update Profile';
+    spinner.classList.add('hidden');
+    form.querySelector('button[type="submit"]').disabled = false;
+  }
+});
+
+function handleAvatarChange(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  // Validate file size (2MB)
+  if (file.size > 2 * 1024 * 1024) {
+    showProfileMessage('Avatar file size must be less than 2MB', 'error');
+    return;
+  }
+  
+  // Validate file type
+  if (!file.type.startsWith('image/')) {
+    showProfileMessage('Avatar must be an image file', 'error');
+    return;
+  }
+  
+  // Preview the image
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('profileAvatar').src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  
+  // TODO: Upload avatar to server
+  // This would require a separate endpoint for avatar upload
+  showProfileMessage('Avatar preview updated. Full upload feature coming soon!', 'info');
+}
+
+function showProfileMessage(message, type) {
+  const container = document.getElementById('profileMessageContainer');
+  let alertClass = 'alert-info';
+  
+  switch(type) {
+    case 'success': alertClass = 'alert-success'; break;
+    case 'error': alertClass = 'alert-error'; break;
+    case 'warning': alertClass = 'alert-warning'; break;
+    default: alertClass = 'alert-info';
+  }
+  
+  container.innerHTML = `
+    <div class="alert ${alertClass}">
+      <span>${message}</span>
+    </div>
+  `;
+  container.classList.remove('hidden');
+  
+  // Auto-hide success/info messages
+  if (type === 'success' || type === 'info') {
+    setTimeout(() => {
+      container.classList.add('hidden');
+    }, 5000);
+  }
+}
+</script>

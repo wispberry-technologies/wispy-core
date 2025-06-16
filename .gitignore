@@ -2,10 +2,11 @@
 build
 tmp
 
-# Ignore example directory this is currenlty used for testing
+# Ignore example directory this is currently used for testing
 # Will update to contain well documented minimal example at some point.
 example
 wispy-core
+
 # Logs
 logs
 *.log
@@ -18,8 +19,11 @@ logs
 __debug_*.exe
 
 # Debugging
+*.debug.log
+*.trace.log
 
-
+# Databases
+*.db
 
 # Other
 # .vscode

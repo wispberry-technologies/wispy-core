@@ -8,6 +8,14 @@
 @required_roles []
 -->
 {% define "page-body" %}
+<!-- Message Alert for OAuth messages -->
+<div id="messageAlert" class="hidden alert alert-info shadow-lg max-w-3xl mx-auto mt-4">
+  <div>
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current flex-shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span id="messageContent"></span>
+  </div>
+</div>
+
 <section>
 <div class="relative grid min-h-screen grid-cols-[1fr_2.5rem_auto_2.5rem_1fr] grid-rows-[1fr_1px_auto_1px_1fr] bg-white [--pattern-fg:var(--color-gray-950)]/5 dark:bg-gray-950 dark:[--pattern-fg:var(--color-white)]/10">
   <div class="col-start-3 row-start-3 flex max-w-lg flex-col bg-gray-100 p-2 dark:bg-white/10">
@@ -134,3 +142,31 @@
     </div>
 </section>
 {% enddefine %}
+
+<!-- Custom script for message handling -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Check for message parameter in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const message = urlParams.get('message');
+    
+    if (message) {
+      // Display the message
+      const messageAlert = document.getElementById('messageAlert');
+      const messageContent = document.getElementById('messageContent');
+      
+      if (messageAlert && messageContent) {
+        messageContent.textContent = message;
+        messageAlert.classList.remove('hidden');
+        
+        // Remove the message parameter from URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Hide the message after 5 seconds
+        setTimeout(() => {
+          messageAlert.classList.add('hidden');
+        }, 5000);
+      }
+    }
+  });
+</script>

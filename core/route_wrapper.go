@@ -288,7 +288,7 @@ func (rw *RouteWrapper) addRouteToRouter(router chi.Router, route RouteConfig) {
 			})
 		default:
 			// Use default CSS processing
-			log.Printf("[INFO] Unknown CSS processor: %s", route.Instance.Config.CssProcessor)
+			log.Printf("Unknown CSS processor: %s", route.Instance.Config.CssProcessor)
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -303,7 +303,7 @@ func (rw *RouteWrapper) addRouteToRouter(router chi.Router, route RouteConfig) {
 		WriteHTMLDocument(w, HtmlDocument)
 
 		dur := time.Since(start)
-		log.Printf("[INFO] Rendered %s in %s", route.URL, dur)
+		log.Printf("Rendered %s in %s", route.URL, dur)
 
 		// Update route statistics
 		if rw.enableStats {
@@ -423,7 +423,7 @@ func (rw *RouteWrapper) handle404(w http.ResponseWriter, r *http.Request) {
 	WriteHTMLDocument(w, HtmlDocument)
 
 	dur := time.Since(start)
-	log.Printf("[INFO] Rendered 404 page in %s", dur)
+	log.Printf("Rendered 404 page in %s", dur)
 }
 
 // updateRouteStats updates the statistics for a specific route

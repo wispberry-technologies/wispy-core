@@ -36,6 +36,7 @@ func NewSiteInstance(domain string) *models.SiteInstance {
 		Templates:      make(map[string]string),
 		Pages:          make(map[string]*models.Page), // routes for this site
 		Mu:             sync.RWMutex{},                // mutex for thread-safe route access
+		DBManager:      nil,                           // Will be initialized separately
 	}
 	return siteInstance
 }

@@ -42,7 +42,15 @@ type SiteSchema struct {
 }
 
 type SiteConfig struct {
-	CssProcessor string `json:"css_processor"` // e.g. "wispy-tail"
+	CssProcessor   string           `json:"css_processor"` // e.g. "wispy-tail"
+	OAuthProviders map[string]OAuth `json:"oauth_providers,omitempty"`
+}
+
+type OAuth struct {
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+	RedirectURI  string `json:"redirect_uri"`
+	Enabled      bool   `json:"enabled"`
 }
 
 type SiteSecurityConfig struct {
@@ -68,6 +76,7 @@ type SiteInstance struct {
 	Templates      map[string]string
 	Pages          map[string]*Page // routes for this site
 	Mu             sync.RWMutex     // mutex for thread-safe route access
+	DBManager      interface{}      // Will be *db.SiteDatabaseManager at runtime
 }
 
 // Page represents a single page
