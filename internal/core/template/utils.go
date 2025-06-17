@@ -1,0 +1,324 @@
+package template
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
+
+	"wispy-core/internal/core/parser"
+	"wispy-core/pkg/common"
+	"wispy-core/pkg/models"
+
+	"github.com/microcosm-cc/bluemonday"
+)
+
+var policy *bluemonday.Policy
+
+func init() {
+	// Initialize the HTML sanitizer
+	policy = bluemonday.UGCPolicy()
+}
+
+// ResolveFilterChain resolves a filter chain string and applies filters
+// Returns the resolved value, its type, and any errors encountered
+func ResolveFilterChain(filterChainString string, ctx TemplateCtx, filters models.FilterMap) (value interface{}, valueType reflect.Type, errors []error) {
+	if len(filterChainString) == 0 {
+		// Empty filter chain is not an error, just return nil
+		return nil, nil, nil
+	}
+
+	// Trim whitespace from the entire string first
+	filterChainString = strings.TrimSpace(filterChainString)
+
+	splitFilters := strings.Split(filterChainString, "|")
+	if len(splitFilters) == 1 {
+		// No filters, just a single value
+		value = resolveValue(strings.TrimSpace(splitFilters[0]), ctx)
+		// Don't treat nil values as errors - they should just render as empty
+		if value == nil {
+			return nil, nil, nil // No error, just nil value
+		}
+		return value, reflect.TypeOf(value), errors
+	} else {
+		// Multiple filters found, process them
+		value = resolveValue(strings.TrimSpace(splitFilters[0]), ctx)
+		if value == nil {
+			// If initial value is nil, don't apply filters, just return nil
+			return nil, nil, nil
+		}
+		valueType = reflect.TypeOf(value)
+		for _, filterExpr := range splitFilters[1:] {
+			filterName, args := ParseFilterExpression(strings.TrimSpace(filterExpr))
+			if filter, ok := filters[filterName]; ok {
+				value = filter(value, valueType, args)
+				valueType = reflect.TypeOf(value)
+			} else {
+				errors = append(errors, fmt.Errorf("unknown filter: %s", filterName))
+			}
+		}
+	}
+	return value, valueType, errors
+}
+
+// ParseFilterExpression parses a filter expression into name and arguments
+func ParseFilterExpression(filterExpr string) (string, []string) {
+	// Split the filter expression into name and arguments
+	parts := strings.SplitN(filterExpr, ":", 2)
+	if len(parts) == 1 {
+		return parts[0], nil // No arguments
+	}
+	name := parts[0]
+	args := common.FieldsRespectQuotes(parts[1])
+	return name, args
+}
+
+// resolveValue resolves a value identifier to its actual value
+// Supports literal strings (quoted) and context variables (with dot notation)
+func resolveValue(valueIdentifier string, ctx TemplateCtx) interface{} {
+	// Handle empty identifier
+	if len(valueIdentifier) == 0 {
+		return nil
+	}
+
+	// Check for literal string values (surrounded by quotes)
+	if common.IsQuotedString(valueIdentifier) {
+		// Remove the surrounding quotes to get the literal value
+		return valueIdentifier[1 : len(valueIdentifier)-1]
+	}
+
+	// Try to resolve from context data (handles dot notation for nested access)
+	if ctx != nil && ctx.Data != nil {
+		return ResolveDotNotation(ctx.Data, valueIdentifier)
+	}
+
+	return nil
+}
+
+// ResolveDotNotation resolves dot notation (e.g., "user.name") in a context map
+func ResolveDotNotation(ctx interface{}, key string) interface{} {
+	if key == "" {
+		return nil
+	}
+
+	// Handle simple keys (no dots)
+	if !strings.Contains(key, ".") {
+		if m, ok := ctx.(map[string]interface{}); ok {
+			return m[key]
+		}
+		return nil
+	}
+
+	// Handle dot notation (e.g., "user.profile.name")
+	parts := strings.Split(key, ".")
+	var current interface{} = ctx
+
+	for _, part := range parts {
+		if m, ok := current.(map[string]interface{}); ok {
+			current = m[part]
+		} else {
+			return nil
+		}
+	}
+
+	// Sanitize string values for security
+	if s, ok := current.(string); ok {
+		return policy.Sanitize(s)
+	}
+
+	return current
+}
+
+// --------------------
+// Template Functions
+// --------------------
+func SeekEndTag(raw string, pos int, tagName string) (endTagPos int, errs []error) {
+	startTagString := "{% " + tagName + " "
+	endTagString := "{% end" + tagName + " %}"
+
+	// Count nested tags to find the correct closing tag
+	depth := 1
+	searchPos := pos
+
+	for depth > 0 && searchPos < len(raw) {
+		// Find next occurrence of start tag or end tag
+		nextStart := strings.Index(raw[searchPos:], startTagString)
+		nextEnd := strings.Index(raw[searchPos:], endTagString)
+
+		// Adjust positions to be absolute
+		if nextStart != -1 {
+			nextStart += searchPos
+		}
+		if nextEnd != -1 {
+			nextEnd += searchPos
+		}
+
+		// If no end tag found, this is an error
+		if nextEnd == -1 {
+			errs = append(errs, fmt.Errorf("could not find end tag: %s", endTagString))
+			return pos, errs
+		}
+
+		// If start tag comes before end tag (or no start tag), process end tag
+		if nextStart == -1 || nextEnd < nextStart {
+			depth--
+			if depth == 0 {
+				return nextEnd + len(endTagString), nil
+			}
+			searchPos = nextEnd + len(endTagString)
+		} else {
+			// Start tag comes first, increase depth
+			depth++
+			searchPos = nextStart + len(startTagString)
+		}
+	}
+
+	return pos, nil
+}
+
+// LoadTemplate loads a template from disk
+func LoadTemplate(templatePath string) (string, error) {
+	content, err := os.ReadFile(templatePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to load template %s: %w", templatePath, err)
+	}
+	return string(content), nil
+}
+
+// IsTruthy determines if a value is considered "truthy" in template logic
+func IsTruthy(value interface{}) bool {
+	if value == nil {
+		return false
+	}
+
+	switch v := value.(type) {
+	case bool:
+		return v
+	case string:
+		return v != ""
+	case int, int8, int16, int32, int64:
+		return reflect.ValueOf(v).Int() != 0
+	case uint, uint8, uint16, uint32, uint64:
+		return reflect.ValueOf(v).Uint() != 0
+	case float32, float64:
+		return reflect.ValueOf(v).Float() != 0
+	}
+
+	// For other types (slices, maps, etc.), check if they're empty
+	rv := reflect.ValueOf(value)
+	switch rv.Kind() {
+	case reflect.Array, reflect.Slice, reflect.Map, reflect.String:
+		return rv.Len() > 0
+	case reflect.Ptr:
+		return !rv.IsNil()
+	}
+
+	// All other types are truthy
+	return true
+}
+
+func GetLayout(domain, name string) string {
+	layoutPath := common.RootSitesPath(domain, "layouts", name+".html")
+	if _, err := os.Stat(layoutPath); os.IsNotExist(err) {
+		return "<!-- Error no layout found: " + err.Error() + "-->"
+	}
+
+	bytes, err := os.ReadFile(layoutPath)
+	if err != nil {
+		return "<!-- Error reading layout file: " + err.Error() + "-->"
+	}
+
+	return parser.RemoveMetadataFromContent(string(bytes))
+}
+
+func GetPage(domain, filePath string) string {
+	pagePath := common.RootSitesPath(domain, "pages", filePath)
+	if _, err := os.Stat(pagePath); os.IsNotExist(err) {
+		return "<!-- Error no page found: " + err.Error() + "-->"
+	}
+
+	bytes, err := os.ReadFile(pagePath)
+	if err != nil {
+		return "<!-- Error reading page file: " + err.Error() + "-->"
+	}
+
+	// remove page metadata
+	return parser.RemoveMetadataFromContent(string(bytes))
+}
+
+// resolveTemplatePath resolves template paths like "@app/account-login.html"
+func resolveTemplatePath(templateName string, ctx TemplateCtx) (string, error) {
+	// Handle @namespace/template.html format
+	if strings.HasPrefix(templateName, "@") {
+		parts := strings.SplitN(templateName[1:], "/", 2)
+		if len(parts) != 2 {
+			return "", fmt.Errorf("invalid template path format: %s", templateName)
+		}
+
+		namespace := parts[0]
+		filename := parts[1]
+
+		// Map namespaces to actual directories
+		// Global templates are in data/templates/, not data/sites/templates/
+		var basePath string
+		switch namespace {
+		case "app":
+			// Use WISPY_CORE_ROOT + data/templates/app instead of sites path
+			coreRoot := common.MustGetEnv("WISPY_CORE_ROOT")
+			basePath = filepath.Join(coreRoot, "data", "templates", "app")
+		case "cms":
+			coreRoot := common.MustGetEnv("WISPY_CORE_ROOT")
+			basePath = filepath.Join(coreRoot, "data", "templates", "cms")
+		case "marketing":
+			coreRoot := common.MustGetEnv("WISPY_CORE_ROOT")
+			basePath = filepath.Join(coreRoot, "data", "templates", "marketing")
+		default:
+			return "", fmt.Errorf("unknown template namespace: @%s", namespace)
+		}
+
+		return filepath.Join(basePath, filename), nil
+	}
+
+	// For non-namespaced paths, default to current site's templates (would need site info)
+	// For now, just return error for non-namespaced templates
+	return "", fmt.Errorf("non-namespaced template paths not supported yet: %s", templateName)
+}
+
+// Asset-related utility functions
+
+// validateAssetPath validates and sanitizes an asset path
+func validateAssetPath(filePath string, isInline bool) (string, error) {
+	if filePath == "" {
+		return "", fmt.Errorf("asset path cannot be empty")
+	}
+
+	// Basic path validation
+	if strings.Contains(filePath, "..") {
+		return "", fmt.Errorf("asset path cannot contain '..'")
+	}
+
+	return strings.TrimSpace(filePath), nil
+}
+
+// isRemoteURL checks if a path is a remote URL
+func isRemoteURL(path string) bool {
+	return strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") || strings.HasPrefix(path, "//")
+}
+
+// resolveAssetPath resolves an asset path to a full file system path
+func resolveAssetPath(ctx TemplateCtx, assetPath string) (string, error) {
+	if isRemoteURL(assetPath) {
+		return assetPath, nil
+	}
+
+	// For local assets, resolve relative to the site's assets directory
+	// This is a simplified implementation
+	if strings.HasPrefix(assetPath, "/") {
+		return assetPath, nil
+	}
+
+	// For relative paths, we'd need site context to resolve properly
+	// For now, just return the path as-is
+	return assetPath, nil
+}
