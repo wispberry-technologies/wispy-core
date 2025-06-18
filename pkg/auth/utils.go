@@ -3,8 +3,8 @@ package auth
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
-	"net/http"
+	"encoding/hex"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -38,41 +38,43 @@ func GenerateRandomString(length int) string {
 	return base64.URLEncoding.EncodeToString(b)[:length]
 }
 
-// TODO: Reevaluate the need for this
-// APIResponse represents a standard API response
-type APIResponse struct {
-	Success bool        `json:"success"`
-	Data    interface{} `json:"data,omitempty"`
-	Error   *APIError   `json:"error,omitempty"`
-}
-
-// APIError represents an API error
-type APIError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-	Details string `json:"details,omitempty"`
-}
-
-func SendSuccess(w http.ResponseWriter, statusCode int, data interface{}) {
-	response := &APIResponse{
-		Success: true,
-		Data:    data,
+// ToUserInfo converts a User to UserInfo for API responses (removes sensitive data)
+func (u *User) ToUserInfo() *UserInfo {
+	return &UserInfo{
+		ID:          u.ID,
+		Email:       u.Email,
+		FirstName:   u.FirstName,
+		LastName:    u.LastName,
+		DisplayName: u.DisplayName,
+		CreatedAt:   u.CreatedAt,
+		UpdatedAt:   u.UpdatedAt,
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(response)
 }
 
-func SendError(w http.ResponseWriter, statusCode int, message, details string) {
-	response := &APIResponse{
-		Success: false,
-		Error: &APIError{
-			Code:    statusCode,
-			Message: message,
-			Details: details,
-		},
+// IsExpired checks if the session has expired
+func (s *Session) IsExpired() bool {
+	return time.Now().After(s.ExpiresAt)
+}
+
+// IsValid checks if the session is valid (not expired and not empty)
+func (s *Session) IsValid() bool {
+	return s.Token != "" && !s.IsExpired()
+}
+
+// generateID generates a random ID
+func generateID() (string, error) {
+	bytes := make([]byte, 16)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(response)
+	return hex.EncodeToString(bytes), nil
+}
+
+// generateToken generates a random token
+func generateToken() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
 }

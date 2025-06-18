@@ -40,3 +40,11 @@ func GetEnvBool(key string, defaultValue bool) bool {
 	}
 	return defaultValue
 }
+
+func IsProduction() bool {
+	isProd := GetEnv("ENN", "development")
+	if isProd == "PRODUCTION" || isProd == "PROD" || isProd == "production" || isProd == "prod" {
+		return true
+	}
+	return false
+}

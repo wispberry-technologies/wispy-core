@@ -368,7 +368,7 @@ DISCORD_REDIRECT_URI=
 ```bash
 go test ./...                    # Run all tests
 go test ./internal/core -v       # Verbose core tests
-go test ./internal/auth -v       # Authentication tests
+go test ./pkg/auth -v       # Authentication tests
 ./scripts/run-tests.sh           # Run all tests with coverage reports
 ```
 

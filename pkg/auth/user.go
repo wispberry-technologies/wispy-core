@@ -1,8 +1,6 @@
 package auth
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -113,45 +111,4 @@ func (u *User) HasRole(role string) bool {
 		}
 	}
 	return false
-}
-
-// ToUserInfo converts a User to UserInfo for API responses (removes sensitive data)
-func (u *User) ToUserInfo() *UserInfo {
-	return &UserInfo{
-		ID:          u.ID,
-		Email:       u.Email,
-		FirstName:   u.FirstName,
-		LastName:    u.LastName,
-		DisplayName: u.DisplayName,
-		CreatedAt:   u.CreatedAt,
-		UpdatedAt:   u.UpdatedAt,
-	}
-}
-
-// IsExpired checks if the session has expired
-func (s *Session) IsExpired() bool {
-	return time.Now().After(s.ExpiresAt)
-}
-
-// IsValid checks if the session is valid (not expired and not empty)
-func (s *Session) IsValid() bool {
-	return s.Token != "" && !s.IsExpired()
-}
-
-// generateID generates a random ID
-func generateID() (string, error) {
-	bytes := make([]byte, 16)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
-}
-
-// generateToken generates a random token
-func generateToken() (string, error) {
-	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
 }

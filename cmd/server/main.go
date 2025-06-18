@@ -1,12 +1,16 @@
 package main
 
 import (
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httprate"
 	"github.com/joho/godotenv"
 
-	"wispy-core/internal/server"
 	"wispy-core/pkg/common"
 )
 
@@ -69,6 +73,44 @@ func init() {
 }
 
 func main() {
+	// Get configuration from environment
+	port := common.GetEnv("PORT", "8080")
+	host := common.GetEnv("HOST", "localhost")
+	env := common.GetEnv("ENV", "development")
+	sitesPath := common.MustGetEnv("SITES_PATH") // Required for system to function
+
+	// Enable rate limiting based on config
+	requestsPerSecond := common.GetEnvInt("RATE_LIMIT_REQUESTS_PER_SECOND", 12)
+	requestsPerMinute := common.GetEnvInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 240)
+
+	// Log startup information
+	common.Startup("Starting Wispy Core CMS")
+	common.Info("Sites directory: %s", sitesPath)
+	common.Info("Environment: %s", env)
+	common.Info("Host: %s, Port: %s", host, port)
+	common.Info("Rate limiting: %d req/sec, %d req/min", requestsPerSecond, requestsPerMinute)
+
+	// Create the main router with global middleware
+	rootRouter := chi.NewRouter()
+
+	// Apply global middleware
+	rootRouter.Use(middleware.RequestID)
+	rootRouter.Use(middleware.RealIP)
+	rootRouter.Use(middleware.Logger)
+	rootRouter.Use(middleware.Recoverer)
+	rootRouter.Use(middleware.Timeout(120 * time.Second))
+
+	// Apply rate limiting middleware
+	if requestsPerSecond > 0 {
+		rootRouter.Use(httprate.Limit(
+			requestsPerSecond,
+			1*time.Second,
+			httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "Too many requests", http.StatusTooManyRequests)
+			}),
+		))
+	}
+
 	// Start the server
-	server.Start()
+	Start(host, port, env, sitesPath, rootRouter)
 }

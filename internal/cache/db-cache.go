@@ -3,17 +3,33 @@ package cache
 import (
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 	"wispy-core/pkg/common"
-	"wispy-core/pkg/models"
 
 	_ "github.com/glebarez/go-sqlite"
 )
 
+// CachedConnection represents a cached database connection with metadata
+type CachedConnection struct {
+	DB       *sql.DB
+	LastUsed time.Time
+	Domain   string
+	DBPath   string
+	DBName   string
+}
+
+// DBCache manages database connections with automatic cleanup of stale connections
+type DBCache struct {
+	Connections map[string]*CachedConnection
+	Mutex       sync.RWMutex
+	MaxAge      time.Duration
+}
+
 // NewDBCache creates a new database connection cache
-func NewDBCache() *models.DBCache {
-	cache := &models.DBCache{
-		Connections: make(map[string]*models.CachedConnection),
+func NewDBCache() *DBCache {
+	cache := &DBCache{
+		Connections: make(map[string]*CachedConnection),
 		MaxAge:      time.Hour, // Close connections older than 1 hour
 	}
 
@@ -24,7 +40,7 @@ func NewDBCache() *models.DBCache {
 }
 
 // GetConnection retrieves or creates a database connection for a site
-func GetConnection(c *models.DBCache, domain, dbName string) (*sql.DB, error) {
+func GetConnection(c *DBCache, domain, dbName string) (*sql.DB, error) {
 	cacheKey := fmt.Sprintf("%s:%s", domain, dbName)
 
 	c.Mutex.RLock()
@@ -51,13 +67,14 @@ func GetConnection(c *models.DBCache, domain, dbName string) (*sql.DB, error) {
 }
 
 // CreateConnection creates a new database connection and caches it
-func CreateConnection(c *models.DBCache, domain, dbName string) (*sql.DB, error) {
+func CreateConnection(c *DBCache, domain, dbName string) (*sql.DB, error) {
 	// Construct the database path
 	safePath := common.RootSitesPath(domain, "dbs", dbName+".db")
 
 	// Open database connection
 	db, err := sql.Open("sqlite", safePath+"?_journal_mode=WAL&_timeout=5000")
 	if err != nil {
+		common.Error("Failed to open database", "domain", domain, "dbName", dbName, "error", err)
 		return nil, fmt.Errorf("failed to open database %s for site %s: %w", dbName, domain, err)
 	}
 
@@ -74,7 +91,7 @@ func CreateConnection(c *models.DBCache, domain, dbName string) (*sql.DB, error)
 
 	// Cache the connection
 	cacheKey := fmt.Sprintf("%s:%s", domain, dbName)
-	cached := &models.CachedConnection{
+	cached := &CachedConnection{
 		DB:       db,
 		LastUsed: time.Now(),
 		Domain:   domain,
@@ -90,7 +107,7 @@ func CreateConnection(c *models.DBCache, domain, dbName string) (*sql.DB, error)
 }
 
 // RemoveConnection removes a connection from cache and closes it
-func RemoveConnection(c *models.DBCache, cacheKey string) {
+func RemoveConnection(c *DBCache, cacheKey string) {
 	c.Mutex.Lock()
 	defer c.Mutex.Unlock()
 
@@ -101,7 +118,7 @@ func RemoveConnection(c *models.DBCache, cacheKey string) {
 }
 
 // CleanupStaleConnections periodically removes stale connections
-func CleanupStaleConnections(c *models.DBCache) {
+func CleanupStaleConnections(c *DBCache) {
 	ticker := time.NewTicker(15 * time.Minute) // Check every 15 minutes
 	defer ticker.Stop()
 
@@ -121,7 +138,7 @@ func CleanupStaleConnections(c *models.DBCache) {
 }
 
 // CloseAll closes all cached connections
-func CloseAll(c *models.DBCache) {
+func CloseAll(c *DBCache) {
 	c.Mutex.Lock()
 	defer c.Mutex.Unlock()
 
@@ -129,11 +146,11 @@ func CloseAll(c *models.DBCache) {
 		cached.DB.Close()
 	}
 
-	c.Connections = make(map[string]*models.CachedConnection)
+	c.Connections = make(map[string]*CachedConnection)
 }
 
 // GetCacheStats returns statistics about the cache
-func GetCacheStats(c *models.DBCache) map[string]interface{} {
+func GetCacheStats(c *DBCache) map[string]interface{} {
 	c.Mutex.RLock()
 	defer c.Mutex.RUnlock()
 

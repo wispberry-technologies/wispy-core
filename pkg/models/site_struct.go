@@ -1,9 +1,11 @@
 package models
 
 import (
-	"net/http"
 	"sync"
 	"time"
+	"wispy-core/internal/cache"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type HtmlDocumentTags struct {
@@ -42,8 +44,8 @@ type SiteSchema struct {
 }
 
 type SiteConfig struct {
-	CssProcessor   string           `json:"css_processor"` // e.g. "wispy-tail"
-	OAuthProviders map[string]OAuth `json:"oauth_providers,omitempty"`
+	CssProcessor   string   `json:"css_processor"`             // e.g. "wispy-tail"
+	OAuthProviders []string `json:"oauth_providers,omitempty"` // allowed providers for this site
 }
 
 type OAuth struct {
@@ -56,11 +58,11 @@ type OAuth struct {
 type SiteSecurityConfig struct {
 	MaxFailedLoginAttempts         int
 	FailedLoginAttemptLockDuration time.Duration
-	SessionCookieSameSite          http.SameSite
-	SessionCookieName              string
-	SectionCookieMaxAge            time.Duration
-	SessionTimeout                 time.Duration
-	IsCookieSecure                 bool
+	// SessionCookieSameSite          http.SameSite
+	// SessionCookieName              string
+	// SectionCookieMaxAge            time.Duration
+	// SessionTimeout                 time.Duration
+	// IsCookieSecure                 bool
 }
 
 // SiteInstance handles requests & data for individual sites
@@ -71,12 +73,12 @@ type SiteInstance struct {
 	IsActive       bool
 	Theme          string
 	Config         SiteConfig
-	DBCache        *DBCache
+	DBCache        *cache.DBCache
+	Router         *chi.Mux
 	SecurityConfig *SiteSecurityConfig
 	Templates      map[string]string
 	Pages          map[string]*Page // routes for this site
 	Mu             sync.RWMutex     // mutex for thread-safe route access
-	DBManager      interface{}      // Will be *db.SiteDatabaseManager at runtime
 }
 
 // Page represents a single page

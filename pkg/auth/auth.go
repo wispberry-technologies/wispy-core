@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	"wispy-core/pkg/common"
 )
 
 // OAuthConfig holds OAuth provider configuration
@@ -110,6 +111,7 @@ func ValidateSession(db *sql.DB, sessionToken string) (*User, *Session, error) {
 	sessionDriver := NewSessionSqlDriver(db)
 	userDriver := NewUserSqlDriver(db)
 
+	common.Debug("Validating session: %s", sessionToken)
 	session, err := sessionDriver.GetSession(sessionToken)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid session: %w", err)

@@ -1,27 +1,38 @@
 package auth
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
 	"time"
+	"wispy-core/pkg/common"
 )
 
 type SqlSessionDriver struct {
 	db     *sql.DB
-	Config struct {
-		SessionCookieName     string
-		SessionCookieSameSite http.SameSite
-		SessionTimeout        time.Duration
-		SectionCookieMaxAge   int
-		IsCookieSecure        bool
-	}
+	Config SqlSessionDriverConfig
 }
 
-// NewSqlSessionRepository creates a new session repository
+type SqlSessionDriverConfig struct {
+	SessionCookieSameSite http.SameSite
+	SessionCookieName     string
+	SectionCookieMaxAge   time.Duration
+	SessionTimeout        time.Duration
+	IsCookieSecure        bool
+}
+
+// NewSqlSessionRepository creates a new SqlSessionDriver with the provided database connection
 func NewSessionSqlDriver(db *sql.DB) *SqlSessionDriver {
-	return &SqlSessionDriver{db: db}
+	return &SqlSessionDriver{
+		db: db,
+		Config: SqlSessionDriverConfig{
+			SessionCookieSameSite: http.SameSiteLaxMode,
+			SessionCookieName:     "session",
+			SectionCookieMaxAge:   7 * time.Hour * 24, // 7 days
+			SessionTimeout:        7 * time.Hour * 24,
+			IsCookieSecure:        false,
+		},
+	}
 }
 
 // CreateSession creates a new session for a user
@@ -115,6 +126,7 @@ func (s *SqlSessionDriver) GetSessionFromRequest(r *http.Request) (*Session, err
 	if err != nil {
 		return nil, fmt.Errorf("no session cookie found")
 	}
+	common.Debug("Session cookie found: %s", cookie)
 	session, err := s.GetSession(cookie.Value)
 	if err != nil {
 		return nil, fmt.Errorf("invalid session: %w", err)
@@ -129,37 +141,22 @@ func (s *SqlSessionDriver) GetSessionFromRequest(r *http.Request) (*Session, err
 
 // SetSessionCookie sets a secure session cookie
 func (s *SqlSessionDriver) SetSessionCookie(w http.ResponseWriter, token string) {
-	var sameSite = http.SameSiteLaxMode
-	if s.Config.SessionCookieSameSite != http.SameSiteDefaultMode {
-		sameSite = s.Config.SessionCookieSameSite
-	}
-
-	cookieName := s.Config.SessionCookieName
-	if cookieName == "" {
-		cookieName = "wispy_auth_session"
-	}
-
 	cookie := &http.Cookie{
-		Name:     cookieName,
+		Name:     s.Config.SessionCookieName,
 		Value:    token,
 		Path:     "/",
-		MaxAge:   int(s.Config.SectionCookieMaxAge),
+		MaxAge:   int(s.Config.SessionTimeout.Seconds()),
 		HttpOnly: true,
 		Secure:   s.Config.IsCookieSecure,
-		SameSite: sameSite,
+		SameSite: s.Config.SessionCookieSameSite,
 	}
 	http.SetCookie(w, cookie)
 }
 
 // ClearSessionCookie clears the session cookie
 func (s *SqlSessionDriver) ClearSessionCookie(w http.ResponseWriter, r *http.Request) {
-	cookieName := s.Config.SessionCookieName
-	if cookieName == "" {
-		cookieName = "wispy_auth_session"
-	}
-
 	cookie := &http.Cookie{
-		Name:     cookieName,
+		Name:     s.Config.SessionCookieName,
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
@@ -168,34 +165,4 @@ func (s *SqlSessionDriver) ClearSessionCookie(w http.ResponseWriter, r *http.Req
 		SameSite: s.Config.SessionCookieSameSite,
 	}
 	http.SetCookie(w, cookie)
-}
-
-// SessionContext keys for storing session data in request context
-type contextKey string
-
-const (
-	SessionContextKey contextKey = "session"
-	UserContextKey    contextKey = "user"
-)
-
-// GetSessionFromContext retrieves session from context
-func GetSessionFromContext(ctx context.Context) (*Session, bool) {
-	session, ok := ctx.Value(SessionContextKey).(*Session)
-	return session, ok
-}
-
-// GetUserFromContext retrieves user from context
-func GetUserFromContext(ctx context.Context) (*User, bool) {
-	user, ok := ctx.Value(UserContextKey).(*User)
-	return user, ok
-}
-
-// SetSessionInContext stores session in context
-func SetSessionInContext(ctx context.Context, session *Session) context.Context {
-	return context.WithValue(ctx, SessionContextKey, session)
-}
-
-// SetUserInContext stores user in context
-func SetUserInContext(ctx context.Context, user *User) context.Context {
-	return context.WithValue(ctx, UserContextKey, user)
 }

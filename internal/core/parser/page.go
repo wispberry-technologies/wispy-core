@@ -2,13 +2,9 @@ package parser
 
 import (
 	"bufio"
-	"io"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"wispy-core/pkg/common"
 	"wispy-core/pkg/models"
 )
 
@@ -143,59 +139,6 @@ func parseMetadataField(page *models.Page, key, value string) {
 		// Store unknown metadata as custom page data
 		page.PageData[key] = value
 	}
-}
-
-// LoadPagesForSite loads all pages for a given site instance
-// Takes explicit site instance and returns a map of pages
-func LoadPagesForSite(siteInstance *models.SiteInstance) error {
-	pagesDir := common.RootSitesPath(siteInstance.Domain, "pages")
-	err := filepath.WalkDir(pagesDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil // skip errored files/dirs
-		}
-		if d.IsDir() {
-			return nil
-		}
-		if filepath.Ext(d.Name()) != ".html" {
-			return nil
-		}
-		f, err := os.Open(path)
-		if err != nil {
-			return nil
-		}
-		defer f.Close()
-		content, err := io.ReadAll(f)
-		if err != nil {
-			return nil
-		}
-		page, err := ParsePageHTML(siteInstance, string(content))
-		// should be safe since we are using filepath.WalkDir on a path that is guaranteed to be within the site instance's pages directory
-		pathParts := strings.SplitN(path, "pages", 2)
-		page.FilePath = strings.Trim(pathParts[1], "/\\") // Store the file path in the Page struct
-		if err != nil {
-			return nil
-		}
-		if page.Slug == "" {
-			// Use the file path as the slug if no slug is specified
-			relativePath := strings.TrimSuffix(strings.Trim(pathParts[1], "/\\"), ".html")
-			if relativePath == "index" {
-				page.Slug = "home"
-			} else if relativePath == "404" {
-				page.Slug = "404"
-			} else {
-				page.Slug = relativePath
-			}
-		} else {
-			// Trim leading and trailing slashes from the slug
-			page.Slug = strings.Trim(page.Slug, "/\\")
-		}
-
-		// Store the page in the SiteInstance's Pages map, keyed by Slug
-		common.Info("Storing page with slug: %s", page.Slug)
-		siteInstance.Pages[page.Slug] = page
-		return nil
-	})
-	return err
 }
 
 // RemoveMetadataFromContent removes metadata comments from page content

@@ -10,7 +10,7 @@ import (
 // Authentication methods for SiteInstanceManager
 // createAuthTables creates all necessary authentication tables for a site
 func CreateAuthTables(instance *models.SiteInstance) error {
-	db, err := cache.GetDB(instance, "users")
+	db, err := cache.GetConnection(instance.DBCache, instance.Domain, "users")
 	if err != nil {
 		return fmt.Errorf("failed to get database connection: %w", err)
 	}

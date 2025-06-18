@@ -7,7 +7,8 @@ PROJECT_ROOT=$(pwd)
 # Kill any process running on port 8080
 echo "Shutting down any running server on port 8080..."
 lsof -ti:8080 | xargs kill -9 2>/dev/null || echo "No server was running"
-
+echo "Tidying up Go modules..."
+go mod tidy
 
 # Create .env file if it doesn't exist
 if [ ! -f .env ]; then
