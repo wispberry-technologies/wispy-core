@@ -7,15 +7,15 @@ import (
 	"os"
 	"time"
 
-	"wispy-core/internal/core/template"
 	"wispy-core/pkg/models"
+	"wispy-core/pkg/template"
 	"wispy-core/pkg/wispytail"
 )
 
 // RenderPageWithLayout renders a page using a layout template
 func RenderPageWithLayout(w http.ResponseWriter, r *http.Request, page *models.Page, siteInstance *models.SiteInstance, data map[string]interface{}) {
 	// Create template context
-	engine, ctx := template.NewTemplateEngine(data, r, siteInstance, page)
+	engine, ctx := template.NewSiteTemplateEngine(data, r, siteInstance, page)
 
 	// Merge data into context
 	for k, v := range data {
@@ -52,22 +52,24 @@ func RenderPageWithLayout(w http.ResponseWriter, r *http.Request, page *models.P
 		for _, err := range pageErrs {
 			log.Printf("[ERROR] Processing page %s: %v", page.FilePath, err)
 		}
-		http.Error(w, "Error processing page", http.StatusInternalServerError)
-		return
+		// Handle errors gracefully & silently
+		// http.Error(w, "Error processing page", http.StatusInternalServerError)
+		// return
 	}
 
 	// Now render the layout with the blocks from the page available
 	result, layoutErrs := engine.Render(string(layoutContent), ctx)
 	if len(layoutErrs) > 0 {
 		for _, err := range layoutErrs {
-			log.Printf("[ERROR] Render: Url(%s): %v", page.FilePath, err)
+			log.Printf("[ERROR] Render: Slug(%s): %v", page.Slug, err)
 		}
-		http.Error(w, "Error rendering template", http.StatusInternalServerError)
-		return
+		// Handle errors gracefully & silently
+		// http.Error(w, "Error rendering template", http.StatusInternalServerError)
+		// return
 	}
 
 	// Process CSS if needed (wispy-tail)
-	if siteInstance.Config.CssProcessor == "wispy-tail" {
+	if siteInstance.CssProcessor == "wispy-tail" {
 		// Compile Tailwind CSS if configured
 		log.Print("[WISPY-TAIL]")
 		trieStart := time.Now()

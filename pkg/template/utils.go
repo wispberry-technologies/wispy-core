@@ -285,40 +285,65 @@ func resolveTemplatePath(templateName string, ctx TemplateCtx) (string, error) {
 	return "", fmt.Errorf("non-namespaced template paths not supported yet: %s", templateName)
 }
 
-// Asset-related utility functions
-
-// validateAssetPath validates and sanitizes an asset path
-func validateAssetPath(filePath string, isInline bool) (string, error) {
-	if filePath == "" {
-		return "", fmt.Errorf("asset path cannot be empty")
-	}
-
-	// Basic path validation
-	if strings.Contains(filePath, "..") {
-		return "", fmt.Errorf("asset path cannot contain '..'")
-	}
-
-	return strings.TrimSpace(filePath), nil
-}
-
 // isRemoteURL checks if a path is a remote URL
 func isRemoteURL(path string) bool {
 	return strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") || strings.HasPrefix(path, "//")
 }
 
-// resolveAssetPath resolves an asset path to a full file system path
-func resolveAssetPath(ctx TemplateCtx, assetPath string) (string, error) {
+// validateAssetPath validates and sanitizes an asset path
+func validateAssetPath(assetPath string, isInline bool) (string, error) {
+	if assetPath == "" {
+		return "", fmt.Errorf("asset path cannot be empty")
+	}
+	if strings.Contains(assetPath, "..") {
+		return "", fmt.Errorf("asset path cannot contain '..'")
+	}
+	return strings.TrimSpace(assetPath), nil
+}
+
+// resolveAssetPath resolves asset paths like @app/style.css, @cms/foo.js, or site-relative assets
+// Uses TemplateCtx.Instance (SiteInstance) for site context, matching resolveTemplatePath logic
+func resolveAssetPath(assetPath string, ctx TemplateCtx) (string, error) {
 	if isRemoteURL(assetPath) {
 		return assetPath, nil
 	}
 
-	// For local assets, resolve relative to the site's assets directory
-	// This is a simplified implementation
-	if strings.HasPrefix(assetPath, "/") {
-		return assetPath, nil
+	// Handle @namespace/asset.ext format
+	if strings.HasPrefix(assetPath, "@") {
+		parts := strings.SplitN(assetPath[1:], "/", 2)
+		if len(parts) != 2 {
+			return "", fmt.Errorf("invalid asset path format: %s", assetPath)
+		}
+		namespace := parts[0]
+		filename := parts[1]
+		var basePath string
+		switch namespace {
+		case "app":
+			coreRoot := common.MustGetEnv("WISPY_CORE_ROOT")
+			basePath = filepath.Join(coreRoot, "data", "templates", "app")
+		case "cms":
+			coreRoot := common.MustGetEnv("WISPY_CORE_ROOT")
+			basePath = filepath.Join(coreRoot, "data", "templates", "cms")
+		case "marketing":
+			coreRoot := common.MustGetEnv("WISPY_CORE_ROOT")
+			basePath = filepath.Join(coreRoot, "data", "templates", "marketing")
+		case "assets":
+			// Assets are typically site-specific, so use the instance's base path
+			if ctx.Instance == nil {
+				return "", fmt.Errorf("no site instance available for resolving assets")
+			}
+			basePath = filepath.Join(ctx.Instance.BasePath, "assets")
+		case "public":
+			// Public assets are also site-specific, use the instance's base path
+			if ctx.Instance == nil {
+				return "", fmt.Errorf("no site instance available for resolving public assets")
+			}
+			basePath = filepath.Join(ctx.Instance.BasePath, "public")
+		default:
+			return "", fmt.Errorf("unknown asset namespace: @%s", namespace)
+		}
+		return filepath.Join(basePath, filename), nil
 	}
 
-	// For relative paths, we'd need site context to resolve properly
-	// For now, just return the path as-is
-	return assetPath, nil
+	return "", fmt.Errorf("non-namespaced asset paths not supported yet: %s", assetPath)
 }

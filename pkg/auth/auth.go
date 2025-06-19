@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 	"wispy-core/pkg/common"
+	"wispy-core/pkg/models"
 )
 
 // OAuthConfig holds OAuth provider configuration
@@ -139,4 +140,49 @@ func GetSessionFromRequest(db *sql.DB, r *http.Request) (*Session, error) {
 	sessionDriver := NewSessionSqlDriver(db)
 
 	return sessionDriver.GetSessionFromRequest(r)
+}
+
+// validateAuthAndRoles checks if the user is authenticated and has required roles
+func ValidateAuthAndRoles(w http.ResponseWriter, r *http.Request, page *models.Page, instance *models.SiteInstance) (*http.Request, bool) {
+	// If no authentication required, proceed
+	if !page.RequireAuth {
+		return r, true
+	}
+
+	// Get user from context (added by SiteContextMiddleware)
+	user, ok := r.Context().Value(UserContextKey).(*User)
+	if !ok {
+		common.Debug("Authentication required for %s but no valid user in context", page.Slug)
+		// Redirect to login page with return URL
+		common.Redirect404(w, r, "")
+		return r, false
+	}
+
+	// Check if user is active
+	if !user.IsActive {
+		common.Debug("User %s is not active", user.Email)
+		http.Error(w, "Account is inactive", http.StatusForbidden)
+		return r, false
+	}
+
+	// Role validation if required
+	if len(page.RequiredRoles) > 0 {
+		hasRequiredRole := false
+		for _, requiredRole := range page.RequiredRoles {
+			if user.HasRole(requiredRole) {
+				hasRequiredRole = true
+			} else {
+				hasRequiredRole = false
+				break // No need to check further if one role is missing
+			}
+		}
+
+		if !hasRequiredRole {
+			common.Debug("User %s lacks required role(s) [%v] for %s", user.DisplayName, page.RequiredRoles, page.Slug)
+			http.Error(w, "Insufficient permissions", http.StatusForbidden)
+			return r, false
+		}
+	}
+
+	return r, true
 }

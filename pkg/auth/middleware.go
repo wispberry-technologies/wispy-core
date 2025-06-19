@@ -99,7 +99,7 @@ func SiteContextMiddleware(siteInstances map[string]*models.SiteInstance) func(h
 				return
 			}
 
-			common.Debug("[%s] authenticated with session %s", user.ID, session.ID)
+			common.Debug("[%s] authenticated with session %s", user.DisplayName, session.ID)
 
 			ctx = context.WithValue(ctx, UserContextKey, user)
 			ctx = context.WithValue(ctx, SessionContextKey, session)

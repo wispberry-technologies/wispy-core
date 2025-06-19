@@ -35,3 +35,19 @@ func GetDefaultFunctions() models.FunctionMap {
 		// Add more built-in functions here
 	}
 }
+
+// GetDefaultFunctions returns the default set of template functions
+func GetDefaultSiteFunctions() models.FunctionMap {
+	return models.FunctionMap{
+		"if":      IfTemplate,
+		"for":     ForTag,
+		"define":  DefineTag,
+		"include": IncludeTag,
+		"render":  RenderTag,
+		"block":   BlockTag,
+		"extend":  ExtendTag,
+		"asset":   AssetTag,
+	}
+}
+
+// AssetTag

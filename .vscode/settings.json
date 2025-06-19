@@ -32,7 +32,7 @@
   // 
   // =--- ---= Extensions Settings =--- ---=
   "files.associations": {
-    "*.html": "twig"
+    "*.html": "html"
   },
   "emmet.includeLanguages": {
     "twig": "html"

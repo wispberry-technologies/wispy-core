@@ -3,11 +3,27 @@ package wispytail
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"wispy-core/pkg/common"
 )
+
+var daisyUIComponentMap = map[string]string{
+	"alert":       "alert.css",
+	"avatar":      "avatar.css",
+	"badge":       "badge.css",
+	"breadcrumbs": "breadcrumbs.css",
+	"btn":         "button.css",
+	"cally":       "calendar.css",
+	"card":        "card.css",
+	"carousel":    "carousel.css",
+	"chat":        "chat.css",
+	// Add more as you add more component CSS files
+}
+var daisyUIComponentDir = "pkg/wispytail/daisyui-components"
 
 // Tailwind v4 cascade layers
 const (
@@ -411,6 +427,26 @@ func GenerateFullCSS(classes []string, config *ThemeConfig, trie *Trie) string {
 	// Add base CSS first
 	buffer.WriteString(GenerateThemeLayer(config))
 	buffer.WriteString(GenerateCssBaseLayer())
+
+	// --- daisyUI component CSS auto-inclusion ---
+	// Track which component CSS files have been included
+	included := make(map[string]bool)
+	for _, className := range classes {
+		// Only check the root/base part (before any colon/variant)
+		base := className
+		if idx := strings.Index(base, ":"); idx > 0 {
+			base = base[:idx]
+		}
+		if cssFile, ok := daisyUIComponentMap[base]; ok && !included[cssFile] {
+			cssPath := filepath.Join(daisyUIComponentDir, cssFile)
+			if cssContent, err := os.ReadFile(cssPath); err == nil {
+				buffer.WriteString("\n/* daisyUI component: " + base + " */\n")
+				buffer.Write(cssContent)
+				buffer.WriteString("\n")
+				included[cssFile] = true
+			}
+		}
+	}
 
 	// Add utility classes
 	buffer.WriteString(ResolveClasses(classes, trie))

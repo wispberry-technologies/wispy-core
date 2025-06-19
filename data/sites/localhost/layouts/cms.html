@@ -1,3 +1,6 @@
+<!-- daisyUI CSS -->
+{% asset "css-inline" "@assets/css/daisyui@5.css" %}
+{% asset "css-inline" "@assets/themes/midnight-wisp.css" %}
 <style>
     html,
     body {
@@ -17,14 +20,14 @@
             var(--dot-color);
     }
 </style>
-<body class="min-h-screen text-base-content">
+<body class="min-h-screen text-base-content flex flex-col dots-background">
     <!-- Main Content -->
     <main class="p-6">
         {% block "page-body" %} <p> Could not load page body.</p> {% endblock %}
     </main>
     <!-- Footer -->
     {% block "footer" %}
-        <footer class="footer footer-center p-4 text-base-content">
+        <footer class="footer footer-center p-4 text-base-content opacity-60">
             <div>
                 <p>&copy; 2025 {{ Site.Name }}. Powered by Wispy-CMS.</p>
             </div>

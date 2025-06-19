@@ -572,7 +572,7 @@ func addTypography(trie *Trie) {
 	trie.Insert("text-black", "color: var(--color-black);")
 	for _, color := range colorNames {
 		class := "text-" + color
-		trie.Insert(class, "color: var(--color-"+color+"-500);")
+		trie.Insert(class, "color: var(--color-"+color+");")
 		for _, shade := range shades {
 			class := class + "-" + shade
 			trie.Insert(class, "color: "+toColorVar(color+"-"+shade, "")+";")
@@ -656,7 +656,7 @@ func addRingUtils(trie *Trie) {
 	trie.Insert("ring-white", "--ring-color: var(--color-white);")
 	trie.Insert("ring-black", "--ring-color: var(--color-black);")
 	for _, color := range colorNames {
-		trie.Insert("ring-"+color, "--ring-color: var(--color-"+color+"-500);")
+		trie.Insert("ring-"+color, "--ring-color: var(--color-"+color+");")
 		for _, shade := range shades {
 			trie.Insert("ring-"+color+"-"+shade, "--ring-color: var(--color-"+color+"-"+shade+");")
 		}
@@ -839,7 +839,7 @@ func addTables(trie *Trie) {
 		trie.Insert("table-border-"+width, "border-width: "+width+"px;")
 	}
 	for _, color := range colorNames {
-		trie.Insert("table-border-"+color, "border-color: var(--color-"+color+"-500);")
+		trie.Insert("table-border-"+color, "border-color: var(--color-"+color+");")
 		for _, shade := range shades {
 			trie.Insert("table-border-"+color+"-"+shade, "border-color: var(--color-"+color+"-"+shade+");")
 		}
@@ -853,14 +853,14 @@ func addTables(trie *Trie) {
 	}
 	// Table row and cell background colors
 	for _, color := range colorNames {
-		trie.Insert("table-bg-"+color, "background-color: var(--color-"+color+"-500);")
+		trie.Insert("table-bg-"+color, "background-color: var(--color-"+color+");")
 		for _, shade := range shades {
 			trie.Insert("table-bg-"+color+"-"+shade, "background-color: var(--color-"+color+"-"+shade+");")
 		}
 	}
 	// Table row and cell text colors
 	for _, color := range colorNames {
-		trie.Insert("table-text-"+color, "color: var(--color-"+color+"-500);")
+		trie.Insert("table-text-"+color, "color: var(--color-"+color+");")
 		for _, shade := range shades {
 			trie.Insert("table-text-"+color+"-"+shade, "color: var(--color-"+color+"-"+shade+");")
 		}

@@ -34,20 +34,6 @@ type ConstructHTMLDocument struct {
 }
 
 // Site represents a single site in the multisite system
-type SiteSchema struct {
-	Domain         string             `json:"domain"`
-	Name           string             `json:"name"`
-	IsActive       bool               `json:"is_active"`
-	Theme          string             `json:"theme"`
-	Config         SiteConfig         `json:"config"`
-	SecurityConfig SiteSecurityConfig `json:"security_config"`
-}
-
-type SiteConfig struct {
-	CssProcessor   string   `json:"css_processor"`             // e.g. "wispy-tail"
-	OAuthProviders []string `json:"oauth_providers,omitempty"` // allowed providers for this site
-}
-
 type OAuth struct {
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
@@ -67,12 +53,17 @@ type SiteSecurityConfig struct {
 
 // SiteInstance handles requests & data for individual sites
 type SiteInstance struct {
-	Domain         string
-	Name           string
-	BasePath       string
-	IsActive       bool
-	Theme          string
-	Config         SiteConfig
+	Domain   string
+	Name     string
+	BasePath string
+	IsActive bool
+	Theme    string
+	//
+	CssProcessor   string   `json:"css_processor"`
+	OAuthProviders []string `json:"oauth_providers,omitempty"`
+	// RouteProxies maps route prefixes to proxy targets (e.g. "/api": "http://localhost:3000")
+	RouteProxies map[string]string `json:"route_proxies" toml:"route_proxies"`
+	//
 	DBCache        *cache.DBCache
 	Router         *chi.Mux
 	SecurityConfig *SiteSecurityConfig
@@ -80,12 +71,15 @@ type SiteInstance struct {
 	Pages          map[string]*Page // routes for this site
 	Mu             sync.RWMutex     // mutex for thread-safe route access
 }
+type SiteSchema struct {
+	Domain         string             `json:"domain"`
+	Name           string             `json:"name"`
+	IsActive       bool               `json:"is_active"`
+	Theme          string             `json:"theme"`
+	SecurityConfig SiteSecurityConfig `json:"security_config"`
+}
 
 // Page represents a single page
-type SiteDetails struct {
-	Domain string `json:"domain"`
-	Name   string `json:"name"`
-}
 
 type Page struct {
 	Title         string            `json:"title"`
@@ -108,4 +102,56 @@ type Page struct {
 	MetaTags      []HtmlMetaTag     `json:"meta_tags"`
 	// SiteDetails contains information about the site this page belongs to
 	SiteDetails SiteDetails `json:"site_details"`
+}
+
+// PageContent represents language-specific and content data for a page
+// content_json is stored as a string (JSON) in SQLite
+// meta_tags and keywords are comma-separated or JSON
+// lang is required
+type PageContent struct {
+	ID        string            `json:"id"`
+	PageID    string            `json:"page_id"`
+	Lang      string            `json:"lang"`
+	Keywords  []string          `json:"keywords"`
+	MetaTags  []HtmlMetaTag     `json:"meta_tags"`
+	Content   map[string]string `json:"content_json"` // JSON fields for template population
+	CreatedAt time.Time         `json:"created_at"`
+	UpdatedAt time.Time         `json:"updated_at"`
+}
+
+type SiteDetails struct {
+	Domain string `json:"domain"`
+	Name   string `json:"name"`
+}
+
+// Blog represents a blog post
+type Blog struct {
+	ID          string     `json:"id"`
+	Title       string     `json:"title"`
+	Slug        string     `json:"slug"`
+	Author      string     `json:"author"`
+	Body        string     `json:"body"`
+	Tags        []string   `json:"tags"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	PublishedAt *time.Time `json:"published_at,omitempty"`
+}
+
+// Media represents a media asset
+type Media struct {
+	ID         string    `json:"id"`
+	FileName   string    `json:"file_name"`
+	FileType   string    `json:"file_type"`
+	URL        string    `json:"url"`
+	Size       int64     `json:"size"`
+	UploadedAt time.Time `json:"uploaded_at"`
+}
+
+// Statistic represents a statistics record
+type Statistic struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Value     float64   `json:"value"`
+	Unit      string    `json:"unit"`
+	CreatedAt time.Time `json:"created_at"`
 }

@@ -38,7 +38,7 @@ func WriteHTMLDocument(w http.ResponseWriter, doc *models.ConstructHTMLDocument)
 	WriteString(w, "<!-- Document Tags -->")
 	writeHtmlDocumentTags(w, doc.DocumentTags)
 	//
-	WriteString(w, "</head>\n<body>\n")
+	WriteString(w, "</head>\n<body style=\"min-height: 80vh;\">\n")
 	WriteString(w, doc.Body)
 	WriteString(w, "\n</body>\n")
 	// Close HTML

@@ -155,7 +155,7 @@ func GetDiscordOAuthConfig(r *http.Request) (conf models.OAuth, siteInstance *mo
 	}
 	// Check if provider is allowed for this site
 	allowed := false
-	allowed = slices.Contains(siteInstance.Config.OAuthProviders, provider)
+	allowed = slices.Contains(siteInstance.OAuthProviders, provider)
 	if !allowed {
 		return conf, siteInstance, fmt.Errorf(provider + " OAuth not allowed for this site")
 	}

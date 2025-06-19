@@ -26,3 +26,17 @@ func NormalizeHost(host string) string {
 
 	return h
 }
+
+func Redirect404(w http.ResponseWriter, r *http.Request, url string) {
+	// If the URL is empty, redirect to the root
+	if url == "" {
+		url = "/404?original_url=" + r.URL.Path
+	}
+
+	// Set the Location header and status code
+	w.Header().Set("Location", url)
+	w.WriteHeader(http.StatusFound)
+
+	// Log the redirect
+	Debug("Redirecting %s to %s", r.URL.Path, url)
+}

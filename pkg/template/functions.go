@@ -511,10 +511,10 @@ var AssetTag = models.TemplateTag{
 			}
 
 			// Resolve and read file content
-			fullPath, resolveErr := resolveAssetPath(ctx, validatedPath)
+			fullPath, resolveErr := resolveAssetPath(validatedPath, ctx)
 			if resolveErr != nil {
 				// Log error but continue rendering - graceful error handling
-				errs = append(errs, fmt.Errorf("failed to resolve asset path: %v", resolveErr))
+				errs = append(errs, fmt.Errorf("%v", resolveErr))
 				return pos, errs // Skip this asset but continue rendering
 			}
 

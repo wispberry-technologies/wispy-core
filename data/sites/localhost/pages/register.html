@@ -1,0 +1,13 @@
+<!--
+@name register.html
+@slug /register
+@layout cms
+@require_auth false
+@required_roles []
+-->
+{% define "page-body" %}
+  <!-- Insert registration form or section here, or use a partial include if supported by the new engine -->
+  {% render "@app/account-register.html" %}
+  <!-- -->
+{% enddefine %}
+

@@ -12,22 +12,25 @@ type ClassRecipe struct {
 
 // ProcessRecipe handles dynamic class generation with Tailwind v4 enhancements
 func ProcessRecipe(input string) (string, bool) {
-	// Handle CSS custom property definitions with opacity like [--pattern-fg:var(--color-gray-950)]/5
+	// --- Robust arbitrary value utility support (Tailwind v4) ---
+
+	// Ensure input is long enough to contain a valid class
+	if len(input) < 3 {
+		return "", false
+	}
+
+	// 1. CSS custom property definitions with opacity like [--pattern-fg:var(--color-gray-950)]/5
 	if strings.Contains(input, "/") && strings.Contains(input, "[--") && strings.Contains(input, ":") {
 		parts := strings.Split(input, "/")
 		if len(parts) == 2 {
 			customPropPart := parts[0]
 			opacity := parts[1]
-
-			// Extract the custom property definition
 			if strings.HasPrefix(customPropPart, "[") && strings.HasSuffix(customPropPart, "]") {
 				propDef := customPropPart[1 : len(customPropPart)-1]
 				propParts := strings.SplitN(propDef, ":", 2)
 				if len(propParts) == 2 {
 					propName := propParts[0]
 					propValue := propParts[1]
-
-					// Handle color-mix for opacity
 					if strings.Contains(propValue, "var(--color-") {
 						return fmt.Sprintf("%s: color-mix(in oklab, %s %s%%, transparent)", propName, propValue, opacity), true
 					}
@@ -37,13 +40,12 @@ func ProcessRecipe(input string) (string, bool) {
 		}
 	}
 
-	// Handle color/opacity patterns first (e.g., bg-primary/50, text-red-500/75)
+	// 2. Color/opacity patterns (e.g., bg-primary/50, text-red-500/75)
 	if strings.Contains(input, "/") && !strings.HasPrefix(input, "w-") && !strings.HasPrefix(input, "h-") && !strings.Contains(input, "[--") {
 		parts := strings.Split(input, "/")
 		if len(parts) == 2 {
 			baseClass := parts[0]
 			opacity := parts[1]
-
 			if strings.HasPrefix(baseClass, "text-") {
 				colorName := strings.TrimPrefix(baseClass, "text-")
 				return fmt.Sprintf("color: color-mix(in oklab, var(--color-%s) %s%%, transparent)", colorName, opacity), true
@@ -63,10 +65,91 @@ func ProcessRecipe(input string) (string, bool) {
 		}
 	}
 
-	// Handle arbitrary values with brackets [value] or parentheses (value)
+	// 3. Arbitrary value utilities: e.g. min-h-[80vh], max-w-[50vw], text-[2rem], rounded-[12px], etc.
+	// Match: <prefix>-['[']value[']'] (e.g. min-h-[80vh])
+	if idx := strings.Index(input, "-["); idx > 0 && strings.HasSuffix(input, "]") {
+		prefix := input[:idx+1] // include the dash
+		value := input[idx+2 : len(input)-1]
+
+		// Map Tailwind utility prefixes to CSS properties
+		switch prefix {
+		case "min-h-[":
+			return fmt.Sprintf("min-height: %s", value), true
+		case "max-h-[":
+			return fmt.Sprintf("max-height: %s", value), true
+		case "h-[":
+			return fmt.Sprintf("height: %s", value), true
+		case "min-w-[":
+			return fmt.Sprintf("min-width: %s", value), true
+		case "max-w-[":
+			return fmt.Sprintf("max-width: %s", value), true
+		case "w-[":
+			return fmt.Sprintf("width: %s", value), true
+		case "text-[":
+			return fmt.Sprintf("font-size: %s", value), true
+		case "rounded-[":
+			return fmt.Sprintf("border-radius: %s", value), true
+		case "p-[":
+			return fmt.Sprintf("padding: %s", value), true
+		case "m-[":
+			return fmt.Sprintf("margin: %s", value), true
+		case "gap-[":
+			return fmt.Sprintf("gap: %s", value), true
+		case "leading-[":
+			return fmt.Sprintf("line-height: %s", value), true
+		case "tracking-[":
+			return fmt.Sprintf("letter-spacing: %s", value), true
+		case "z-[":
+			return fmt.Sprintf("z-index: %s", value), true
+		case "top-[":
+			return fmt.Sprintf("top: %s", value), true
+		case "bottom-[":
+			return fmt.Sprintf("bottom: %s", value), true
+		case "left-[":
+			return fmt.Sprintf("left: %s", value), true
+		case "right-[":
+			return fmt.Sprintf("right: %s", value), true
+		case "inset-[":
+			return fmt.Sprintf("inset: %s", value), true
+		case "border-[":
+			return fmt.Sprintf("border-width: %s", value), true
+		case "border-t-[":
+			return fmt.Sprintf("border-top-width: %s", value), true
+		case "border-b-[":
+			return fmt.Sprintf("border-bottom-width: %s", value), true
+		case "border-l-[":
+			return fmt.Sprintf("border-left-width: %s", value), true
+		case "border-r-[":
+			return fmt.Sprintf("border-right-width: %s", value), true
+		case "opacity-[":
+			return fmt.Sprintf("opacity: %s", value), true
+		case "shadow-[":
+			return fmt.Sprintf("box-shadow: %s", value), true
+		case "duration-[":
+			return fmt.Sprintf("animation-duration: %s", value), true
+		case "delay-[":
+			return fmt.Sprintf("animation-delay: %s", value), true
+		case "ease-[":
+			return fmt.Sprintf("animation-timing-function: %s", value), true
+		case "content-[":
+			return fmt.Sprintf("content: %s", value), true
+		// Add more as needed for other arbitrary value utilities
+		default:
+			// Fallback: try to parse as a custom property
+			return fmt.Sprintf("%s: %s", strings.TrimSuffix(prefix, "-["), value), true
+		}
+	}
+
+	// 4. Handle arbitrary values with parentheses (value) for legacy/rare cases
+	if idx := strings.Index(input, "-("); idx > 0 && strings.HasSuffix(input, ")") {
+		prefix := input[:idx+1]
+		value := input[idx+2 : len(input)-1]
+		return fmt.Sprintf("%s: %s", strings.TrimSuffix(prefix, "-("), value), true
+	}
+
+	// 5. Fallback to original logic for bracket/parenthesis or standard recipes
 	if (strings.Contains(input, "[") && strings.Contains(input, "]")) || (strings.Contains(input, "(") && strings.Contains(input, ")")) {
 		var startBracket, endBracket int
-
 		if strings.Contains(input, "[") && strings.Contains(input, "]") {
 			startBracket = strings.Index(input, "[")
 			endBracket = strings.Index(input, "]")
@@ -74,43 +157,34 @@ func ProcessRecipe(input string) (string, bool) {
 			startBracket = strings.Index(input, "(")
 			endBracket = strings.Index(input, ")")
 		}
-
 		if startBracket != -1 && endBracket != -1 && endBracket > startBracket {
 			prefix := input[:startBracket]
 			value := input[startBracket+1 : endBracket]
-
-			// Handle specific arbitrary value patterns
 			switch prefix {
 			case "h-":
 				return fmt.Sprintf("height: %s", value), true
 			case "w-":
 				return fmt.Sprintf("width: %s", value), true
 			case "grid-cols-":
-				// Convert underscores to spaces for grid values
 				gridValue := strings.ReplaceAll(value, "_", " ")
 				return fmt.Sprintf("grid-template-columns: %s", gridValue), true
 			case "grid-rows-":
-				// Convert underscores to spaces for grid values
 				gridValue := strings.ReplaceAll(value, "_", " ")
 				return fmt.Sprintf("grid-template-rows: %s", gridValue), true
 			case "border-":
-				// Handle CSS custom property references like border-(--pattern-fg)
 				if strings.HasPrefix(value, "--") {
 					return fmt.Sprintf("border-color: var(%s)", value), true
 				}
 				return fmt.Sprintf("border-color: %s", value), true
 			case "border-x-":
-				// Handle border-x with CSS custom properties
 				if strings.HasPrefix(value, "--") {
 					return fmt.Sprintf("border-left-color: var(%s); border-right-color: var(%s)", value, value), true
 				}
 				return fmt.Sprintf("border-left-color: %s; border-right-color: %s", value, value), true
 			case "bg-":
-				// Handle background with CSS custom properties
 				if strings.HasPrefix(value, "--") {
 					return fmt.Sprintf("background-color: var(%s)", value), true
 				}
-				// Handle complex background patterns
 				if strings.HasPrefix(value, "size:") {
 					sizeValue := strings.TrimPrefix(value, "size:")
 					sizeValue = strings.ReplaceAll(sizeValue, "_", " ")
@@ -121,7 +195,6 @@ func ProcessRecipe(input string) (string, bool) {
 					imageValue = strings.ReplaceAll(imageValue, "_", " ")
 					return fmt.Sprintf("background-image: %s", imageValue), true
 				}
-				return fmt.Sprintf("background-color: %s", value), true
 				return fmt.Sprintf("background-color: %s", value), true
 			}
 		}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"time"
-	"wispy-core/pkg/common"
 )
 
 type SqlSessionDriver struct {
@@ -126,7 +125,6 @@ func (s *SqlSessionDriver) GetSessionFromRequest(r *http.Request) (*Session, err
 	if err != nil {
 		return nil, fmt.Errorf("no session cookie found")
 	}
-	common.Debug("Session cookie found: %s", cookie)
 	session, err := s.GetSession(cookie.Value)
 	if err != nil {
 		return nil, fmt.Errorf("invalid session: %w", err)

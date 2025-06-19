@@ -1,12 +1,12 @@
 <!--
-@name login.html
-@slug /login
+@name index
+@slug /
 @layout cms
-@require_auth false
-@required_roles []
+@require_auth true
+@required_roles [cms_viewer]
 -->
 {% define "page-body" %}
   <!-- Insert login form or section here, or use a partial include if supported by the new engine -->
-  {% render "@app/account-login.html" %}
-  <!-- -->
+  <!-- Example: -->
+  {% render "@app/dashboard.html" %}
 {% enddefine %}

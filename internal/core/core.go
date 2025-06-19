@@ -19,26 +19,28 @@ import (
 )
 
 func NewSiteInstance(domain string) *models.SiteInstance {
+	basePath := common.RootSitesPath(domain)
 	siteInstance := &models.SiteInstance{
 		Domain:   domain,
 		Name:     domain,
-		BasePath: common.RootSitesPath(domain),
+		BasePath: basePath,
 		IsActive: true,
 		Theme:    "default",
-		Config: models.SiteConfig{
-			OAuthProviders: []string{"discord", "github"}, // default OAuth providers
-			CssProcessor:   "wispy-tail",
-		},
-		DBCache: cache.NewDBCache(),
-		Router:  chi.NewRouter(),
+		DBCache:  cache.NewDBCache(),
+		Router:   chi.NewRouter(),
 		SecurityConfig: &models.SiteSecurityConfig{
 			MaxFailedLoginAttempts:         5,
 			FailedLoginAttemptLockDuration: 30 * time.Minute,
 		},
-		Templates: make(map[string]string),
-		Pages:     make(map[string]*models.Page), // routes for this site
-		Mu:        sync.RWMutex{},                // mutex for thread-safe route access
+		RouteProxies:   make(map[string]string),
+		OAuthProviders: []string{},
+		CssProcessor:   "wispy-tail",
+		Templates:      make(map[string]string),
+		Pages:          make(map[string]*models.Page),
+		Mu:             sync.RWMutex{},
 	}
+	LoadSiteConfig(basePath, siteInstance)
+
 	return siteInstance
 }
 
@@ -123,6 +125,8 @@ func StaticFileServingWithoutContextHandler(sitesPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		domain := chi.URLParam(r, "domain")
 		publicPath := filepath.Join(sitesPath, domain, "public")
+
+		common.Debug("Public Request path: %s", publicPath)
 
 		// Strip the /public/{domain} prefix from the URL path
 		path := strings.TrimPrefix(r.URL.Path, "/public/"+domain+"/")

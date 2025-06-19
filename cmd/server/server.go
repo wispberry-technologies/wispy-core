@@ -10,6 +10,7 @@ import (
 	"wispy-core/internal/core/html"
 	"wispy-core/pkg/auth"
 	"wispy-core/pkg/common"
+	"wispy-core/pkg/models"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -39,18 +40,55 @@ func Start(host, port, env, sitesPath string, router *chi.Mux) {
 
 		auth.CreateAuthTables(instance)
 
-		router.Group(func(r chi.Router) {
-			for _, page := range instance.Pages {
-				r.Get(page.Slug, func(w http.ResponseWriter, r *http.Request) {
-					// Render the page using the site instance
-					data := map[string]interface{}{
-						"Site": page.SiteDetails,
-					}
-					html.RenderPageWithLayout(w, r, page, instance, data)
-				})
-			}
-		})
+		// Use a subrouter for each site
+		siteRouter := chi.NewRouter()
+
+		// setup site proxies
+		for route, target := range instance.RouteProxies {
+			siteRouter.Mount(route, core.NewReverseProxyHandler(target, route))
+		}
+
+		// Set site pages
+		for _, page := range instance.Pages {
+			siteRouter.Get(page.Slug, func(w http.ResponseWriter, r *http.Request) {
+				common.Debug("Rendering page: %s for site: %s", page.Slug, instance.Name)
+
+				// Validate authentication and roles
+				enrichedRequest, proceed := auth.ValidateAuthAndRoles(w, r, page, instance)
+				if !proceed {
+					return // Authentication failed or insufficient permissions
+				}
+				r = enrichedRequest
+
+				// Render the page using the site instance
+				data := map[string]interface{}{
+					"Site": page.SiteDetails,
+				}
+
+				// Add user to data if authenticated
+				if user, ok := r.Context().Value(auth.UserContextKey).(*auth.User); ok {
+					data["User"] = user
+				}
+
+				common.Debug("- route: %s", page.Slug)
+				html.RenderPageWithLayout(w, r, page, instance, data)
+			})
+		}
+
+		siteRouter.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			common.Debug("Not found for site: %s, path: %s", instance.Name, r.URL.Path)
+			// Handle 404 for the site
+			common.Redirect404(w, r, "")
+		}))
+
+		instance.Router = siteRouter
 	}
+
+	// Set the NotFoundHandler for the siteRouter
+	router.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		instance := r.Context().Value(auth.SiteInstanceContextKey).(*models.SiteInstance)
+		instance.Router.ServeHTTP(w, r)
+	}))
 
 	// Start the HTTP server
 	addr := host + ":" + port

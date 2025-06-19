@@ -15,9 +15,9 @@ import (
 // -------------------
 
 // NewTemplateEngine creates a new TemplateEngine instance.
-func NewTemplateEngine(data map[string]interface{}, request *http.Request, site *models.SiteInstance, page *models.Page) (engine *models.TemplateEngine, ctx TemplateCtx) {
+func NewSiteTemplateEngine(data map[string]interface{}, request *http.Request, site *models.SiteInstance, page *models.Page) (engine *models.TemplateEngine, ctx TemplateCtx) {
 	engine = &models.TemplateEngine{
-		FuncMap:   GetDefaultFunctions(),
+		FuncMap:   GetDefaultSiteFunctions(),
 		FilterMap: GetDefaultFilters(),
 	}
 
@@ -154,6 +154,7 @@ func Render(raw string, te *models.TemplateEngine, ctx TemplateCtx) (string, []e
 			} else {
 				pos = newPos
 			}
+			//
 		}
 	}
 

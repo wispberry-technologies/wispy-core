@@ -5,3 +5,8 @@ description = "A demonstration site for Wispy Core CMS"
 language = "en"
 timezone = "UTC"
 theme = "pale-wisp"
+
+# Route proxy configuration example
+[route_proxies]
+# Example: proxy /api to a backend server
+"/api/projects" = "http://localhost:8081"

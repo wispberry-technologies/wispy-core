@@ -1,17 +1,3 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - Wispy</title>
-  <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
-  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-</head>
-<body>
-  <!-- Include auth guard to protect this page -->
-  {% include "templates/app/partials/auth-guard.html" %}
-  
-  <!-- Navigation -->
   <div class="navbar bg-base-100 shadow-lg">
     <div class="navbar-start">
       <div class="dropdown">
@@ -37,8 +23,6 @@
       </ul>
     </div>
     
-    <!-- Include user navigation -->
-    {% include "templates/app/partials/user-nav.html" %}
   </div>
 
   <!-- Main Content -->
@@ -133,14 +117,6 @@
       </div>
     </div>
 
-    <!-- Settings Section (using our components) -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- User Profile Component -->
-      {% include "templates/app/partials/user-profile.html" %}
-      
-      <!-- Password Change Component -->
-      {% include "templates/app/partials/password-change.html" %}
-    </div>
   </div>
 
   <!-- New Project Modal -->
