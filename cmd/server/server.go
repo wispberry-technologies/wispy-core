@@ -1,13 +1,11 @@
 package main
 
 import (
+	"context"
 	"net/http"
-
-	// Import the core packages
 
 	api_v1 "wispy-core/internal/api/v1"
 	"wispy-core/internal/core"
-	"wispy-core/internal/core/html"
 	"wispy-core/pkg/auth"
 	"wispy-core/pkg/common"
 	"wispy-core/pkg/models"
@@ -50,29 +48,46 @@ func Start(host, port, env, sitesPath string, router *chi.Mux) {
 
 		// Set site pages
 		for _, page := range instance.Pages {
-			siteRouter.Get(page.Slug, func(w http.ResponseWriter, r *http.Request) {
-				common.Debug("Rendering page: %s for site: %s", page.Slug, instance.Name)
-
-				// Validate authentication and roles
-				enrichedRequest, proceed := auth.ValidateAuthAndRoles(w, r, page, instance)
-				if !proceed {
-					return // Authentication failed or insufficient permissions
-				}
-				r = enrichedRequest
-
-				// Render the page using the site instance
-				data := map[string]interface{}{
-					"Site": page.SiteDetails,
+			// Page handler function
+			pageHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Create the page data
+				pageData := &core.PageData{
+					Template: page.FilePath,
+					Data:    make(map[string]interface{}),
+					Title:   page.Title,
+					Path:    r.URL.Path,
 				}
 
-				// Add user to data if authenticated
-				if user, ok := r.Context().Value(auth.UserContextKey).(*auth.User); ok {
-					data["User"] = user
-				}
+				// Add instance and page to context
+				r = r.WithContext(context.WithValue(r.Context(), core.InstanceKey, instance))
+				r = r.WithContext(context.WithValue(r.Context(), core.PageKey, pageData))
 
-				common.Debug("- route: %s", page.Slug)
-				html.RenderPageWithLayout(w, r, page, instance, data)
+				// Debug logging
+				contextData := map[string]interface{}{
+					"Site":       instance,
+					"Instance":   instance,
+					"Page":       pageData,
+					"AuthConfig": instance.AuthConfig,
+				}
+				common.Debug("Template context data prepared",
+					"contextKeys", common.GetMapKeys(contextData),
+					"template", page.FilePath)
+
+				// Cast instance to core.Instance and render template
+				if coreInstance, ok := instance.(*core.Instance); ok && coreInstance.TemplateEngine != nil {
+					err := coreInstance.TemplateEngine.RenderTemplate(w, page.FilePath, contextData)
+					if err != nil {
+						common.Error("Template render failed: %v", err)
+						http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+						return
+					}
+				} else {
+					common.Error("Invalid instance type or template engine is nil for instance %s", instance.Domain)
+					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				}
 			})
+
+			siteRouter.Get(page.Slug, pageHandler)
 		}
 
 		siteRouter.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -101,4 +116,14 @@ func Start(host, port, env, sitesPath string, router *chi.Mux) {
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		common.Fatal("Server failed to start: %v", err)
 	}
+}
+
+// createInstanceContext adds instance and page data to the request context
+func createInstanceContext(r *http.Request, instance *core.Instance, page *core.PageData) *http.Request {
+	// Add instance to context
+	ctx := context.WithValue(r.Context(), core.InstanceKey, instance)
+	// Add page to context
+	ctx = context.WithValue(ctx, core.PageKey, page)
+	// Return new request with updated context
+	return r.WithContext(ctx)
 }

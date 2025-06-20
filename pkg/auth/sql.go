@@ -74,6 +74,12 @@ const (
 		WHERE id = ?
 	`
 
+	UpdateUserRolesSQL = `
+		UPDATE users
+		SET roles = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?
+	`
+
 	DeleteUserSQL = `
 		DELETE FROM users WHERE id = ?
 	`

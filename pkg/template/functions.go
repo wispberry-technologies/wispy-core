@@ -43,6 +43,19 @@ var IfTemplate = models.TemplateTag{
 		contentEnd := endPos - len("{% endif %}")
 		content := raw[contentStart:contentEnd]
 
+		// Check if there's an else tag inside the content
+		elsePos := strings.Index(content, "{% else %}")
+		var ifContent, elseContent string
+
+		if elsePos >= 0 {
+			// Split the content into if and else parts
+			ifContent = content[:elsePos]
+			elseContent = content[elsePos+len("{% else %}"):]
+		} else {
+			// No else found, all content belongs to if part
+			ifContent = content
+		}
+
 		// Resolve the condition value - be graceful with nil values
 		value, _, resolveErrs := ResolveFilterChain(condition, ctx, ctx.Engine.FilterMap)
 		if len(resolveErrs) > 0 {
@@ -50,9 +63,17 @@ var IfTemplate = models.TemplateTag{
 			errs = append(errs, resolveErrs...)
 		}
 
-		// Render content if condition is truthy (nil is falsy, so unresolved conditions are false)
+		// Render content based on condition
 		if IsTruthy(value) {
-			rendered, renderErrs := ctx.Engine.Render(content, ctx)
+			// Condition is true, render the if part
+			rendered, renderErrs := ctx.Engine.Render(ifContent, ctx)
+			if len(renderErrs) > 0 {
+				errs = append(errs, renderErrs...)
+			}
+			sb.WriteString(rendered)
+		} else if elsePos >= 0 {
+			// Condition is false and there's an else part, render the else part
+			rendered, renderErrs := ctx.Engine.Render(elseContent, ctx)
 			if len(renderErrs) > 0 {
 				errs = append(errs, renderErrs...)
 			}

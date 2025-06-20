@@ -1,6 +1,7 @@
 package api_v1
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -18,46 +19,165 @@ func AuthRouter(r chi.Router) {
 	// Auth routes
 	// ----------------------------------------------------------------
 	r.Post("/register", func(w http.ResponseWriter, r *http.Request) {
-		if err := r.ParseForm(); err != nil {
-			common.PlainTextError(w, http.StatusBadRequest, "Invalid form data", err.Error())
-			return
-		}
-		type Req struct {
-			Email       string `validate:"required,email"`
-			Password    string `validate:"required,min=8"`
-			FirstName   string `validate:"required"`
-			LastName    string `validate:"required"`
-			DisplayName string
-		}
-		req := Req{
-			Email:       r.FormValue("email"),
-			Password:    r.FormValue("password"),
-			FirstName:   r.FormValue("first_name"),
-			LastName:    r.FormValue("last_name"),
-			DisplayName: r.FormValue("display_name"),
-		}
-		validate := validator.New()
-		if err := validate.Struct(req); err != nil {
-			common.PlainTextError(w, http.StatusBadRequest, "Validation failed", err.Error())
-			return
-		}
+		// Check if the site has registration enabled
 		siteInstance, ok := r.Context().Value(auth.SiteInstanceContextKey).(*models.SiteInstance)
 		if !ok || siteInstance == nil {
 			common.PlainTextError(w, http.StatusInternalServerError, "Site context missing")
 			return
 		}
+
+		// Check if registration is enabled for this site
+		if siteInstance.AuthConfig != nil && !siteInstance.AuthConfig.RegistrationEnabled {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error": map[string]interface{}{
+					"message": "Registration is not enabled for this site",
+				},
+			})
+			return
+		}
+
+		// Parse request data from JSON or form
+		type Req struct {
+			Email       string `json:"email" form:"email" validate:"required,email"`
+			Password    string `json:"password" form:"password" validate:"required,min=8"`
+			FirstName   string `json:"first_name" form:"first_name" validate:"required"`
+			LastName    string `json:"last_name" form:"last_name" validate:"required"`
+			DisplayName string `json:"display_name" form:"display_name"`
+		}
+		var req Req
+
+		contentType := r.Header.Get("Content-Type")
+		if contentType == "application/json" {
+			// Parse JSON request
+			decoder := json.NewDecoder(r.Body)
+			if err := decoder.Decode(&req); err != nil {
+				common.PlainTextError(w, http.StatusBadRequest, "Invalid JSON data", err.Error())
+				return
+			}
+		} else {
+			// Parse form data
+			if err := r.ParseForm(); err != nil {
+				common.PlainTextError(w, http.StatusBadRequest, "Invalid form data", err.Error())
+				return
+			}
+
+			req = Req{
+				Email:       r.FormValue("email"),
+				Password:    r.FormValue("password"),
+				FirstName:   r.FormValue("first_name"),
+				LastName:    r.FormValue("last_name"),
+				DisplayName: r.FormValue("display_name"),
+			}
+		}
+
+		// Check required fields based on site configuration
+		if siteInstance.AuthConfig != nil && len(siteInstance.AuthConfig.RequiredFields) > 0 {
+			missingFields := []string{}
+
+			// Custom validation based on site configuration
+			for _, field := range siteInstance.AuthConfig.RequiredFields {
+				switch field {
+				case "email":
+					if req.Email == "" {
+						missingFields = append(missingFields, "email")
+					}
+				case "password":
+					if req.Password == "" {
+						missingFields = append(missingFields, "password")
+					}
+				case "first_name":
+					if req.FirstName == "" {
+						missingFields = append(missingFields, "first_name")
+					}
+				case "last_name":
+					if req.LastName == "" {
+						missingFields = append(missingFields, "last_name")
+					}
+				case "display_name":
+					if req.DisplayName == "" {
+						missingFields = append(missingFields, "display_name")
+					}
+				}
+			}
+
+			if len(missingFields) > 0 {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"error": map[string]interface{}{
+						"message": "Required fields missing: " + fmt.Sprintf("%v", missingFields),
+						"fields":  missingFields,
+					},
+				})
+				return
+			}
+		} else {
+			// Default validation if no specific fields are configured
+			validate := validator.New()
+			if err := validate.Struct(req); err != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"error": map[string]interface{}{
+						"message": "Validation failed: " + err.Error(),
+					},
+				})
+				return
+			}
+		}
+
 		db, err := cache.GetConnection(siteInstance.DBCache, siteInstance.Domain, "users")
 		if err != nil {
 			common.PlainTextError(w, http.StatusInternalServerError, "DB error", err.Error())
 			return
 		}
-		_, err = auth.Register(db, siteInstance.Domain, req.Email, req.Password, req.FirstName, req.LastName, req.DisplayName)
+
+		// Get default roles if configured
+		defaultRoles := []string{}
+		if siteInstance.AuthConfig != nil {
+			defaultRoles = siteInstance.AuthConfig.DefaultRoles
+		}
+
+		// Register the user with default roles
+		user, err := auth.Register(db, siteInstance.Domain, req.Email, req.Password, req.FirstName, req.LastName, req.DisplayName)
 		if err != nil {
-			common.PlainTextError(w, http.StatusBadRequest, err.Error())
+			// Return JSON error response
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error": map[string]interface{}{
+					"message": err.Error(),
+				},
+			})
 			return
 		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Write([]byte("Registered"))
+
+		// Add default roles if any
+		if len(defaultRoles) > 0 {
+			userDriver := auth.NewUserSqlDriver(db)
+			for _, role := range defaultRoles {
+				if err := userDriver.AddRoleToUser(user.ID, role); err != nil {
+					common.Error("Failed to add default role %s to user %s: %v", role, user.ID, err)
+				}
+			}
+		}
+
+		// Return JSON response
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"message": "Registration successful",
+			"user": map[string]interface{}{
+				"id":    user.ID,
+				"email": user.Email,
+			},
+		})
 	})
 	//  Login route
 	// ----------------------------------------------------------------
@@ -89,8 +209,8 @@ func AuthRouter(r chi.Router) {
 			common.PlainTextError(w, http.StatusInternalServerError, "DB error", err.Error())
 			return
 		}
-		maxAttempts := siteInstance.SecurityConfig.MaxFailedLoginAttempts
-		lockDuration := siteInstance.SecurityConfig.FailedLoginAttemptLockDuration
+		maxAttempts := siteInstance.AuthConfig.MaxFailedLoginAttempts
+		lockDuration := siteInstance.AuthConfig.FailedLoginAttemptLockDuration
 		var session *auth.Session
 		_, session, err = auth.Login(db, siteInstance.Domain, req.Email, req.Password, r.RemoteAddr, r.UserAgent(), maxAttempts, lockDuration)
 		if err != nil {

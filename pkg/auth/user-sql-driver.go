@@ -227,3 +227,29 @@ func (this *UserSqlDriver) IsUserLocked(user *User) bool {
 
 	return true
 }
+
+// AddRoleToUser adds a role to a user
+func (this *UserSqlDriver) AddRoleToUser(userID, role string) error {
+	user, err := this.GetUserByID(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user: %w", err)
+	}
+
+	// Check if user already has the role
+	if user.HasRole(role) {
+		return nil // User already has this role
+	}
+
+	// Add the role to user's roles
+	roles := user.GetRoles()
+	roles = append(roles, role)
+	user.SetRoles(roles)
+
+	// Update the user in the database
+	_, err = this.db.Exec(UpdateUserRolesSQL, user.Roles, user.ID)
+	if err != nil {
+		return fmt.Errorf("failed to update user roles: %w", err)
+	}
+
+	return nil
+}

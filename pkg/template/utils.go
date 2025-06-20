@@ -2,6 +2,7 @@ package template
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -21,6 +22,32 @@ func init() {
 	policy = bluemonday.UGCPolicy()
 }
 
+// getContextKeys returns a slice of keys from a context map for debugging
+func getContextKeys(data map[string]interface{}) []string {
+	if data == nil {
+		return []string{}
+	}
+	keys := make([]string, 0, len(data))
+	for k := range data {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+// getFilterNames returns a slice of filter names for debugging
+func getFilterNames(filters models.FilterMap) []string {
+	names := make([]string, 0, len(filters))
+	for name := range filters {
+		names = append(names, name)
+	}
+	return names
+}
+
+// debug prints a debug message with key-value pairs
+func debug(msg string, kvs ...interface{}) {
+	slog.Debug(msg, kvs...)
+}
+
 // ResolveFilterChain resolves a filter chain string and applies filters
 // Returns the resolved value, its type, and any errors encountered
 func ResolveFilterChain(filterChainString string, ctx TemplateCtx, filters models.FilterMap) (value interface{}, valueType reflect.Type, errors []error) {
@@ -32,10 +59,15 @@ func ResolveFilterChain(filterChainString string, ctx TemplateCtx, filters model
 	// Trim whitespace from the entire string first
 	filterChainString = strings.TrimSpace(filterChainString)
 
+	debug("Processing filter chain", "chain", filterChainString)
+
 	splitFilters := strings.Split(filterChainString, "|")
+	debug("Split filters", "splitFilters", splitFilters)
+
 	if len(splitFilters) == 1 {
 		// No filters, just a single value
 		value = resolveValue(strings.TrimSpace(splitFilters[0]), ctx)
+		debug("No filters, resolved value", "value", value)
 		// Don't treat nil values as errors - they should just render as empty
 		if value == nil {
 			return nil, nil, nil // No error, just nil value
@@ -44,17 +76,23 @@ func ResolveFilterChain(filterChainString string, ctx TemplateCtx, filters model
 	} else {
 		// Multiple filters found, process them
 		value = resolveValue(strings.TrimSpace(splitFilters[0]), ctx)
+		debug("Initial value resolved", "value", value)
 		if value == nil {
 			// If initial value is nil, don't apply filters, just return nil
 			return nil, nil, nil
 		}
 		valueType = reflect.TypeOf(value)
-		for _, filterExpr := range splitFilters[1:] {
-			filterName, args := ParseFilterExpression(strings.TrimSpace(filterExpr))
+		for i, filterExpr := range splitFilters[1:] {
+			filterExpr = strings.TrimSpace(filterExpr)
+			filterName, args := ParseFilterExpression(filterExpr)
+			debug("Processing filter", "index", i, "filterExpr", filterExpr, "filterName", filterName, "args", args)
 			if filter, ok := filters[filterName]; ok {
+				oldValue := value
 				value = filter(value, valueType, args)
 				valueType = reflect.TypeOf(value)
+				debug("Filter applied", "filterName", filterName, "oldValue", oldValue, "newValue", value)
 			} else {
+				debug("Unknown filter", "filterName", filterName, "availableFilters", getFilterNames(filters))
 				errors = append(errors, fmt.Errorf("unknown filter: %s", filterName))
 			}
 		}
@@ -79,20 +117,28 @@ func ParseFilterExpression(filterExpr string) (string, []string) {
 func resolveValue(valueIdentifier string, ctx TemplateCtx) interface{} {
 	// Handle empty identifier
 	if len(valueIdentifier) == 0 {
+		debug("Empty identifier", "valueIdentifier", valueIdentifier)
 		return nil
 	}
+
+	debug("Resolving value", "valueIdentifier", valueIdentifier)
 
 	// Check for literal string values (surrounded by quotes)
 	if common.IsQuotedString(valueIdentifier) {
 		// Remove the surrounding quotes to get the literal value
-		return valueIdentifier[1 : len(valueIdentifier)-1]
+		result := valueIdentifier[1 : len(valueIdentifier)-1]
+		debug("Literal string value", "valueIdentifier", valueIdentifier, "result", result)
+		return result
 	}
 
 	// Try to resolve from context data (handles dot notation for nested access)
 	if ctx != nil && ctx.Data != nil {
-		return ResolveDotNotation(ctx.Data, valueIdentifier)
+		result := ResolveDotNotation(ctx.Data, valueIdentifier)
+		debug("Context resolution", "valueIdentifier", valueIdentifier, "result", result, "contextKeys", getContextKeys(ctx.Data))
+		return result
 	}
 
+	debug("No context or data available", "valueIdentifier", valueIdentifier)
 	return nil
 }
 
@@ -101,6 +147,9 @@ func ResolveDotNotation(ctx interface{}, key string) interface{} {
 	if key == "" {
 		return nil
 	}
+
+	// Remove leading dot if present (e.g., ".Site" becomes "Site")
+	key = strings.TrimPrefix(key, ".")
 
 	// Handle simple keys (no dots)
 	if !strings.Contains(key, ".") {
@@ -344,6 +393,5 @@ func resolveAssetPath(assetPath string, ctx TemplateCtx) (string, error) {
 		}
 		return filepath.Join(basePath, filename), nil
 	}
-
 	return "", fmt.Errorf("non-namespaced asset paths not supported yet: %s", assetPath)
 }

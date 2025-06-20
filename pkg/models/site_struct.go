@@ -41,14 +41,23 @@ type OAuth struct {
 	Enabled      bool   `json:"enabled"`
 }
 
-type SiteSecurityConfig struct {
-	MaxFailedLoginAttempts         int
-	FailedLoginAttemptLockDuration time.Duration
-	// SessionCookieSameSite          http.SameSite
-	// SessionCookieName              string
-	// SectionCookieMaxAge            time.Duration
-	// SessionTimeout                 time.Duration
-	// IsCookieSecure                 bool
+// SiteAuthConfig holds all authentication and security configuration for a site
+type SiteAuthConfig struct {
+	// Security settings
+	MaxFailedLoginAttempts         int           `json:"max_failed_login_attempts" toml:"max_failed_login_attempts"`
+	FailedLoginAttemptLockDuration time.Duration `json:"failed_login_attempt_lock_duration" toml:"failed_login_attempt_lock_duration"`
+	// Session settings (commented out until implemented)
+	// SessionCookieSameSite          http.SameSite  `json:"session_cookie_same_site" toml:"session_cookie_same_site"`
+	// SessionCookieName              string         `json:"session_cookie_name" toml:"session_cookie_name"`
+	// SectionCookieMaxAge            time.Duration  `json:"section_cookie_max_age" toml:"section_cookie_max_age"`
+	// SessionTimeout                 time.Duration  `json:"session_timeout" toml:"session_timeout"`
+	// IsCookieSecure                 bool           `json:"is_cookie_secure" toml:"is_cookie_secure"`
+
+	// Registration settings
+	RegistrationEnabled  bool     `json:"registration_enabled" toml:"registration_enabled"`
+	RequiredFields       []string `json:"required_fields" toml:"required_fields"`
+	DefaultRoles         []string `json:"default_roles" toml:"default_roles"`
+	AllowedPasswordReset bool     `json:"allowed_password_reset" toml:"allowed_password_reset"`
 }
 
 // SiteInstance handles requests & data for individual sites
@@ -64,19 +73,19 @@ type SiteInstance struct {
 	// RouteProxies maps route prefixes to proxy targets (e.g. "/api": "http://localhost:3000")
 	RouteProxies map[string]string `json:"route_proxies" toml:"route_proxies"`
 	//
-	DBCache        *cache.DBCache
-	Router         *chi.Mux
-	SecurityConfig *SiteSecurityConfig
-	Templates      map[string]string
-	Pages          map[string]*Page // routes for this site
-	Mu             sync.RWMutex     // mutex for thread-safe route access
+	DBCache    *cache.DBCache
+	Router     *chi.Mux
+	AuthConfig *SiteAuthConfig
+	Templates  map[string]string
+	Pages      map[string]*Page // routes for this site
+	Mu         sync.RWMutex     // mutex for thread-safe route access
 }
 type SiteSchema struct {
-	Domain         string             `json:"domain"`
-	Name           string             `json:"name"`
-	IsActive       bool               `json:"is_active"`
-	Theme          string             `json:"theme"`
-	SecurityConfig SiteSecurityConfig `json:"security_config"`
+	Domain     string         `json:"domain"`
+	Name       string         `json:"name"`
+	IsActive   bool           `json:"is_active"`
+	Theme      string         `json:"theme"`
+	AuthConfig SiteAuthConfig `json:"auth_config"`
 }
 
 // Page represents a single page

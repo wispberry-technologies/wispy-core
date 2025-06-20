@@ -1,6 +1,8 @@
 package template
 
-import "wispy-core/pkg/models"
+import (
+	"wispy-core/pkg/models"
+)
 
 // GetDefaultFilters returns an empty filter map for now
 func GetDefaultFilters() models.FilterMap {
@@ -19,6 +21,8 @@ func GetDefaultFilters() models.FilterMap {
 		"join":       JoinFilter,
 		"capitalize": CapitalizeFilter,
 		"default":    DefaultValueFilter,
+		"json":       JSONFilter,
+		"contains":   ContainsFilter,
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"wispy-core/pkg/models"
 
@@ -43,6 +44,87 @@ func LoadSiteConfig(siteBasePath string, siteInstance *models.SiteInstance) erro
 					siteInstance.OAuthProviders = providers
 				}
 			}
+		}
+	}
+	// Parse [auth] section for auth configuration
+	if authTree := tree.Get("auth"); authTree != nil {
+		if m, ok := authTree.(*toml.Tree); ok {
+			// Initialize AuthConfig if not already set
+			if siteInstance.AuthConfig == nil {
+				siteInstance.AuthConfig = &models.SiteAuthConfig{
+					// Security settings
+					MaxFailedLoginAttempts:         5,
+					FailedLoginAttemptLockDuration: 30 * time.Minute,
+					// Registration settings
+					RegistrationEnabled:  true,
+					RequiredFields:       []string{"email", "password", "first_name", "last_name"},
+					DefaultRoles:         []string{},
+					AllowedPasswordReset: true,
+				}
+			}
+
+			// Security settings
+			if v := m.Get("max_failed_login_attempts"); v != nil {
+				if attempts, ok := v.(int64); ok {
+					siteInstance.AuthConfig.MaxFailedLoginAttempts = int(attempts)
+				}
+			}
+
+			if v := m.Get("failed_login_attempt_lock_duration"); v != nil {
+				if duration, ok := v.(string); ok {
+					if d, err := time.ParseDuration(duration); err == nil {
+						siteInstance.AuthConfig.FailedLoginAttemptLockDuration = d
+					}
+				}
+			}
+
+			// Registration enabled
+			if v := m.Get("registration_enabled"); v != nil {
+				if enabled, ok := v.(bool); ok {
+					siteInstance.AuthConfig.RegistrationEnabled = enabled
+				}
+			}
+
+			// Required fields
+			if v := m.Get("required_fields"); v != nil {
+				if arr, ok := v.([]interface{}); ok {
+					fields := make([]string, len(arr))
+					for i, item := range arr {
+						fields[i] = fmt.Sprint(item)
+					}
+					siteInstance.AuthConfig.RequiredFields = fields
+				}
+			}
+
+			// Default roles
+			if v := m.Get("default_roles"); v != nil {
+				if arr, ok := v.([]interface{}); ok {
+					roles := make([]string, len(arr))
+					for i, item := range arr {
+						roles[i] = fmt.Sprint(item)
+					}
+					siteInstance.AuthConfig.DefaultRoles = roles
+				}
+			}
+
+			// Password reset
+			if v := m.Get("allowed_password_reset"); v != nil {
+				if allowed, ok := v.(bool); ok {
+					siteInstance.AuthConfig.AllowedPasswordReset = allowed
+				}
+			}
+		}
+	} else {
+		// Set default auth config if not specified
+		siteInstance.AuthConfig = &models.SiteAuthConfig{
+			// Security settings
+			MaxFailedLoginAttempts:         5,
+			FailedLoginAttemptLockDuration: 30 * time.Minute,
+			// Registration settings
+			RegistrationEnabled:  true,
+			RequiredFields:       []string{"email", "password", "first_name", "last_name"},
+			DefaultRoles:         []string{},
+			AllowedPasswordReset: true,
 		}
 	}
 

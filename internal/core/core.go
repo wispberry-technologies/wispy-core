@@ -28,9 +28,15 @@ func NewSiteInstance(domain string) *models.SiteInstance {
 		Theme:    "default",
 		DBCache:  cache.NewDBCache(),
 		Router:   chi.NewRouter(),
-		SecurityConfig: &models.SiteSecurityConfig{
+		AuthConfig: &models.SiteAuthConfig{
+			// Security settings
 			MaxFailedLoginAttempts:         5,
 			FailedLoginAttemptLockDuration: 30 * time.Minute,
+			// Registration settings
+			RegistrationEnabled:  true,
+			RequiredFields:       []string{"email", "password", "first_name", "last_name"},
+			DefaultRoles:         []string{},
+			AllowedPasswordReset: true,
 		},
 		RouteProxies:   make(map[string]string),
 		OAuthProviders: []string{},

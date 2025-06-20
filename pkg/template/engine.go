@@ -2,9 +2,13 @@ package template
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"maps"
 	"net/http"
+	"reflect"
 	"strings"
+	"text/template"
 
 	"wispy-core/pkg/common"
 	"wispy-core/pkg/models"
@@ -225,4 +229,55 @@ func processTemplateTag(raw string, pos int, sb *strings.Builder, ctx TemplateCt
 
 	// Unknown tag - return error but continue processing
 	return endPos + 2, []error{fmt.Errorf("unknown template tag: %s at position %d", tagName, pos)}
+}
+
+// Engine represents the template engine with filter support
+type Engine struct {
+	templates *template.Template
+	filters   models.FilterMap
+	logger    *log.Logger
+}
+
+// New creates a new template engine
+func New() *Engine {
+	e := &Engine{
+		templates: template.New(""),
+		filters:   GetDefaultFilters(),
+		logger:    log.Default(),
+	}
+	return e
+}
+
+// RegisterFilter adds a new filter function
+func (e *Engine) RegisterFilter(name string, fn models.FilterFunc) {
+	e.filters[name] = fn
+	e.logger.Printf("[DEBUG] Registered filter: %s", name)
+}
+
+// RenderTemplate renders a template with the given data
+func (e *Engine) RenderTemplate(w io.Writer, name string, data interface{}) error {
+	e.logger.Printf("[DEBUG] Rendering template %s with data keys: %+v", name, common.GetMapKeys(data.(map[string]interface{})))
+
+	// Create FuncMap with filter support
+	funcs := template.FuncMap{}
+
+	// Add filter functions to FuncMap
+	for fname, filter := range e.filters {
+		fn := filter // Create new variable to avoid closure issues
+		funcs[fname] = func(v interface{}) interface{} {
+			e.logger.Printf("[DEBUG] Applying filter %s to value: %+v", fname, v)
+			result := fn(v, reflect.TypeOf(v), nil)
+			e.logger.Printf("[DEBUG] Filter %s result: %+v", fname, result)
+			return result
+		}
+	}
+
+	// Parse and execute template
+	tmpl, err := e.templates.Funcs(funcs).Parse(name)
+	if err != nil {
+		e.logger.Printf("[ERROR] Template parse failed: %v", err)
+		return err
+	}
+
+	return tmpl.Execute(w, data)
 }

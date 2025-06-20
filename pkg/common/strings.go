@@ -6,6 +6,15 @@ import (
 	"strings"
 )
 
+// GetMapKeys returns a slice of sorted keys from a map[string]interface{}
+func GetMapKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 // FieldsRespectQuotes splits a string by spaces while respecting quoted substrings and removing empty values.
 func FieldsRespectQuotes(s string) []string {
 	var result []string

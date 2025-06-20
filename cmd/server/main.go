@@ -98,6 +98,9 @@ func main() {
 	rootRouter.Use(middleware.RealIP)
 	rootRouter.Use(middleware.Logger)
 	rootRouter.Use(middleware.Recoverer)
+	
+	// Start the server
+	Start(host, port, env, sitesPath, rootRouter)
 	rootRouter.Use(middleware.Timeout(120 * time.Second))
 
 	// Apply rate limiting middleware

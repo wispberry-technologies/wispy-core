@@ -2,6 +2,9 @@
 package template
 
 import (
+	"encoding/json"
+	"fmt"
+	"log/slog"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -92,6 +95,20 @@ func TrimFilter(value interface{}, valueType reflect.Type, args []string) interf
 		return strings.TrimSpace(str)
 	}
 	return value
+}
+
+// JSONFilter converts a value to a JSON string
+func JSONFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+	slog.Debug("JSON filter called", "value", value, "type", valueType)
+
+	jsonBytes, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		slog.Error("JSON marshaling failed", "error", err)
+		return fmt.Sprintf("%+v", value)
+	}
+	result := string(jsonBytes)
+	slog.Debug("JSON filter result", "result", result)
+	return result
 }
 
 // AppendFilter appends a string to another string
@@ -267,4 +284,62 @@ func DefaultValueFilter(value interface{}, valueType reflect.Type, args []string
 	}
 
 	return value
+}
+
+// ContainsFunction checks if a container (string, slice, array, map) contains a target value
+func ContainsFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+	if len(args) < 1 || value == nil {
+		return false
+	}
+
+	target := args[0]
+
+	// For slices and arrays
+	if valueType.Kind() == reflect.Slice || valueType.Kind() == reflect.Array {
+		valueSlice := reflect.ValueOf(value)
+		if !valueSlice.IsValid() {
+			return false
+		}
+
+		for i := 0; i < valueSlice.Len(); i++ {
+			item := valueSlice.Index(i).Interface()
+
+			// Try direct comparison
+			if fmt.Sprintf("%v", item) == target {
+				return true
+			}
+
+			// Try string comparison
+			if itemStr, ok := item.(string); ok && itemStr == target {
+				return true
+			}
+		}
+		return false
+	}
+
+	// For strings
+	if valueType.Kind() == reflect.String {
+		valueStr, ok := value.(string)
+		if !ok {
+			return false
+		}
+		return strings.Contains(valueStr, target)
+	}
+
+	// For maps
+	if valueType.Kind() == reflect.Map {
+		valueMap := reflect.ValueOf(value)
+		if !valueMap.IsValid() {
+			return false
+		}
+
+		// Check if target is a key in the map
+		for _, key := range valueMap.MapKeys() {
+			if key.String() == target {
+				return true
+			}
+		}
+	}
+
+	return false
 }

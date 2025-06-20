@@ -3,36 +3,65 @@
     <h1 class="text-4xl font-bold mb-2 text-center">Register</h1>
     <p class="text-sm text-base-content/70 text-center mb-8">Create your account to get started.</p>
     
+    <!-- Debug information - Comment out in production -->
+    <div>
+      I am Json div
+      {{ .Site | json }}
+      <hr>
+      {{ .AuthConfig | json }}
+      <hr>
+      {{ .Instance | json }}
+      <hr>
+      {{ .Instance.AuthConfig | json }}
+      <hr>
+    </div>
+    
+    {% if .AuthConfig.RegistrationEnabled %}
+    <!-- Registration form shown only if enabled -->
     <!-- Registration Form -->
     <form id="registerForm" class="space-y-4">
-      <fieldset class="fieldset bg-base-200 border-base-300 rounded-box border p-6">
+      <fieldset class="fieldset bg-base-200 border-base-300 rounded-box border gap-y-4 p-6">
         <legend class="fieldset-legend">Create Account</legend>
         
         <!-- Error/Success Messages -->
         <div id="messageContainer" class="hidden mb-4"></div>
         
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <!-- First name field -->
           <label class="form-control w-full">
             <div class="label">
               <span class="label-text">First Name</span>
+              {% if contains(.AuthConfig.RequiredFields, "first_name") %}
+              {% else %}
+              <span class="label-text-alt">Optional</span>
+              {% endif %}
             </div>
-            <input type="text" class="input input-bordered w-full" placeholder="First Name" name="first_name" required />
+            <input type="text" class="input input-bordered w-full" placeholder="First Name" name="first_name" {% if contains(.AuthConfig.RequiredFields, "first_name") %}required{% endif %} />
           </label>
           
+          <!-- Last name field -->
           <label class="form-control w-full">
             <div class="label">
               <span class="label-text">Last Name</span>
+              {% if contains(.AuthConfig.RequiredFields, "last_name") %}
+              {% else %}
+              <span class="label-text-alt">Optional</span>
+              {% endif %}
             </div>
-            <input type="text" class="input input-bordered w-full" placeholder="Last Name" name="last_name" required />
+            <input type="text" class="input input-bordered w-full" placeholder="Last Name" name="last_name" {% if contains(.AuthConfig.RequiredFields, "last_name") %}required{% endif %} />
           </label>
         </div>
         
+        <!-- Display name field -->
         <label class="form-control w-full">
           <div class="label">
             <span class="label-text">Display Name</span>
+            {% if contains(.AuthConfig.RequiredFields, "display_name") %}
+            {% else %}
             <span class="label-text-alt">Optional</span>
+            {% endif %}
           </div>
-          <input type="text" class="input input-bordered w-full" placeholder="Display Name" name="display_name" />
+          <input type="text" class="input input-bordered w-full" placeholder="Display Name" name="display_name" {% if contains(.AuthConfig.RequiredFields, "display_name") %}required{% endif %} />
         </label>
         
         <label class="form-control w-full">
@@ -79,6 +108,7 @@
       </fieldset>
     </form>
 
+    {% if contains(.OAuthProviders, "discord") %}
     <!-- OAuth Providers -->
     <div class="divider my-6">or continue with</div>
     
@@ -90,16 +120,29 @@
         Continue with Discord
       </button>
     </div>
+    {% endif %}
+    {% else %}
+    <div class="alert alert-error shadow-lg mb-6">
+      <div>
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        <div>
+          <h3 class="font-bold">Registration Disabled</h3>
+          <div class="text-sm">Registration is currently disabled for this site. Please contact the administrator.</div>
+        </div>
+      </div>
+      <div class="flex-none">
+        <a href="/login" class="btn btn-sm">Back to Login</a>
+      </div>
+    </div>
+    {% endif %}
     
     <div class="text-center mt-6">
-      {% if .ShowLoginLink %}
       <footer class="mt-8 text-center">
         <p class="text-sm text-base-content/70">
           Already have an account? 
           <a href="/login" class="link link-primary">Login here</a>
         </p>
       </footer>
-      {% endif %}
     </div>
   </div>
 </section>
@@ -153,7 +196,7 @@ document.getElementById('registerForm').addEventListener('submit', async functio
         window.location.href = '/login';
       }, 2000);
     } else {
-      showMessage(data.error?.message || 'Registration failed', 'error');
+      showMessage(data.error ? data.error.message : 'Registration failed', 'error');
     }
   } catch (error) {
     console.error('Registration error:', error);
