@@ -7,6 +7,7 @@ require (
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/joho/godotenv v1.5.1
+	github.com/lmittmann/tint v1.1.2
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pelletier/go-toml v1.9.5
 	golang.org/x/crypto v0.39.0
@@ -29,7 +30,7 @@ require (
 	github.com/go-chi/httprate v0.15.0
 	github.com/google/uuid v1.5.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-isatty v0.0.20
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect

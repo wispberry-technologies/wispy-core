@@ -21,7 +21,7 @@ func GetDefaultFilters() models.FilterMap {
 		"join":       JoinFilter,
 		"capitalize": CapitalizeFilter,
 		"default":    DefaultValueFilter,
-		"json":       JSONFilter,
+		"toJSON":     JSONFilter,
 		"contains":   ContainsFilter,
 	}
 }

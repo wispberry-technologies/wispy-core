@@ -42,10 +42,10 @@ func AuthRouter(r chi.Router) {
 		// Parse request data from JSON or form
 		type Req struct {
 			Email       string `json:"email" form:"email" validate:"required,email"`
-			Password    string `json:"password" form:"password" validate:"required,min=8"`
-			FirstName   string `json:"first_name" form:"first_name" validate:"required"`
-			LastName    string `json:"last_name" form:"last_name" validate:"required"`
-			DisplayName string `json:"display_name" form:"display_name"`
+			Password    string `json:"password" form:"password" validate:"required,min=8,max=64"`
+			FirstName   string `json:"first_name" form:"first_name" validate:"required,max=64"`
+			LastName    string `json:"last_name" form:"last_name" validate:"required,max=64"`
+			DisplayName string `json:"display_name" form:"display_name" validate:"required,min=3,max=64"`
 		}
 		var req Req
 

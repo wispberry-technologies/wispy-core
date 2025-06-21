@@ -17,6 +17,7 @@ failed_login_attempt_lock_duration = "30m"
 # Enable or disable user registration
 registration_enabled = true
 # Required fields for registration Options: "email", "password", "first_name", "last_name", "display_name"
+enabled_fields = ["display_name", "email", "password"]
 required_fields = ["display_name", "email", "password"]
 # Default roles for new users
 default_roles = ["user", "viewer"]

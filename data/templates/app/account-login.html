@@ -25,7 +25,7 @@
           <input type="password" placeholder="password" class="input input-bordered w-full" name="password" required />
         </label>
 
-        {% if .Instance.AuthConfig.AllowedPasswordReset %}
+        {% if .AuthConfig.AllowedPasswordReset %}
         <div class="label">
           <span class="label-text-alt"></span>
           <span class="label-text-alt">
@@ -44,9 +44,9 @@
         </div>
         
         <!-- OAuth Providers -->
-        {% if .Instance.OAuthProviders %}
+        {% if .OAuthProviders %}
           <div class="divider">or continue with</div>        
-          {% if contains(.Instance.OAuthProviders, "discord") %}
+          {% if contains(.OAuthProviders, "discord") %}
             <div class="form-control">
               <button type="button" onclick="loginWithOAuth('discord')" class="btn btn-outline btn-block">
                 <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
@@ -71,7 +71,7 @@
           {% endif %}
         {% endif %}
 
-        {% if .Instance.AuthConfig.RegistrationEnabled %}
+        {% if .AuthConfig.RegistrationEnabled %}
         <div class="text-center mt-4">
           <p class="text-sm">
             Don't have an account? 

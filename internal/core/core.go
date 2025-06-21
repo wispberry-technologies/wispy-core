@@ -2,6 +2,7 @@
 package core
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -34,7 +35,7 @@ func NewSiteInstance(domain string) *models.SiteInstance {
 			FailedLoginAttemptLockDuration: 30 * time.Minute,
 			// Registration settings
 			RegistrationEnabled:  true,
-			RequiredFields:       []string{"email", "password", "first_name", "last_name"},
+			RequiredFields:       []string{"display_name", "email", "password"},
 			DefaultRoles:         []string{},
 			AllowedPasswordReset: true,
 		},
@@ -89,6 +90,7 @@ func LoadAllSitesAsInstances(sitesPath string) (map[string]*models.SiteInstance,
 // Takes explicit site instance and returns a map of pages
 func LoadPagesForSite(siteInstance *models.SiteInstance) error {
 	pagesDir := common.RootSitesPath(siteInstance.Domain, "pages")
+	common.Info("Loaded Pages")
 	err := filepath.WalkDir(pagesDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil // skip errored files/dirs
@@ -119,7 +121,7 @@ func LoadPagesForSite(siteInstance *models.SiteInstance) error {
 		page.FilePath = strings.TrimPrefix(pageFilePath, "/") // remove leading slash
 
 		// Store the page in the SiteInstance's Pages map, keyed by Slug
-		common.Info("page: %s", page.Slug)
+		fmt.Print(page.Slug)
 		siteInstance.Pages[page.Slug] = page
 		return nil
 	})

@@ -2,11 +2,11 @@ package html
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"time"
 
+	"wispy-core/pkg/common"
 	"wispy-core/pkg/models"
 	"wispy-core/pkg/template"
 	"wispy-core/pkg/wispytail"
@@ -35,13 +35,13 @@ func RenderPageWithLayout(w http.ResponseWriter, r *http.Request, page *models.P
 	// Read file content
 	layoutContent, err := os.ReadFile(layoutPath)
 	if err != nil {
-		log.Printf("Error loading layout %s: %v", layoutName, err)
+		common.Error("Error loading layout %s: %v", layoutName, err)
 		http.Error(w, "Error loading layout", http.StatusInternalServerError)
 		return
 	}
 	pageContent, err := os.ReadFile(pagePath)
 	if err != nil {
-		log.Printf("Error loading page %s: %v", page.FilePath, err)
+		common.Error("Error loading page %s: %v", page.FilePath, err)
 		http.Error(w, "Error loading page", http.StatusInternalServerError)
 		return
 	}
@@ -50,7 +50,7 @@ func RenderPageWithLayout(w http.ResponseWriter, r *http.Request, page *models.P
 	_, pageErrs := engine.Render(string(pageContent), ctx)
 	if len(pageErrs) > 0 {
 		for _, err := range pageErrs {
-			log.Printf("[ERROR] Processing page %s: %v", page.FilePath, err)
+			common.Error("Processing page %s: %v", page.FilePath, err)
 		}
 		// Handle errors gracefully & silently
 		// http.Error(w, "Error processing page", http.StatusInternalServerError)
@@ -61,7 +61,7 @@ func RenderPageWithLayout(w http.ResponseWriter, r *http.Request, page *models.P
 	result, layoutErrs := engine.Render(string(layoutContent), ctx)
 	if len(layoutErrs) > 0 {
 		for _, err := range layoutErrs {
-			log.Printf("[ERROR] Render: Slug(%s): %v", page.Slug, err)
+			common.Error("Render: Slug(%s): %v", page.Slug, err)
 		}
 		// Handle errors gracefully & silently
 		// http.Error(w, "Error rendering template", http.StatusInternalServerError)
@@ -71,20 +71,20 @@ func RenderPageWithLayout(w http.ResponseWriter, r *http.Request, page *models.P
 	// Process CSS if needed (wispy-tail)
 	if siteInstance.CssProcessor == "wispy-tail" {
 		// Compile Tailwind CSS if configured
-		log.Print("[WISPY-TAIL]")
+		common.Info("[WISPY-TAIL]")
 		trieStart := time.Now()
 		trie := wispytail.BuildFullTrie()
-		log.Print(" - Trie Built In: ", time.Since(trieStart))
+		common.Info(" - Trie Built In: %s", time.Since(trieStart))
 
 		extractTime := time.Now()
 		// Extract unique class names from the HTML.
 		classes := wispytail.ExtractClasses(result)
-		log.Print(" - Extract In: ", time.Since(extractTime))
+		common.Info(" - Extract In: %s", time.Since(extractTime))
 
 		generationTime := time.Now()
 		// Generate CSS rules for the extracted classes with theme and base layers.
 		css := wispytail.GenerateFullCSS(classes, nil, trie)
-		log.Print(" - Generated In: ", time.Since(generationTime))
+		common.Info(" - Generated In: ", time.Since(generationTime))
 
 		ctx.InternalContext.HtmlDocumentTags = append(ctx.InternalContext.HtmlDocumentTags, models.HtmlDocumentTags{
 			TagType:    "style",

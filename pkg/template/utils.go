@@ -2,7 +2,6 @@ package template
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -22,32 +21,6 @@ func init() {
 	policy = bluemonday.UGCPolicy()
 }
 
-// getContextKeys returns a slice of keys from a context map for debugging
-func getContextKeys(data map[string]interface{}) []string {
-	if data == nil {
-		return []string{}
-	}
-	keys := make([]string, 0, len(data))
-	for k := range data {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-// getFilterNames returns a slice of filter names for debugging
-func getFilterNames(filters models.FilterMap) []string {
-	names := make([]string, 0, len(filters))
-	for name := range filters {
-		names = append(names, name)
-	}
-	return names
-}
-
-// debug prints a debug message with key-value pairs
-func debug(msg string, kvs ...interface{}) {
-	slog.Debug(msg, kvs...)
-}
-
 // ResolveFilterChain resolves a filter chain string and applies filters
 // Returns the resolved value, its type, and any errors encountered
 func ResolveFilterChain(filterChainString string, ctx TemplateCtx, filters models.FilterMap) (value interface{}, valueType reflect.Type, errors []error) {
@@ -58,16 +31,14 @@ func ResolveFilterChain(filterChainString string, ctx TemplateCtx, filters model
 
 	// Trim whitespace from the entire string first
 	filterChainString = strings.TrimSpace(filterChainString)
-
-	debug("Processing filter chain", "chain", filterChainString)
-
 	splitFilters := strings.Split(filterChainString, "|")
-	debug("Split filters", "splitFilters", splitFilters)
+	common.Debug("--- Resolving filter:", "filters", splitFilters)
+
+	value = ResolveValue(strings.TrimSpace(splitFilters[0]), ctx)
+	common.Debug("--- Initial value resolved", "value", value)
 
 	if len(splitFilters) == 1 {
 		// No filters, just a single value
-		value = resolveValue(strings.TrimSpace(splitFilters[0]), ctx)
-		debug("No filters, resolved value", "value", value)
 		// Don't treat nil values as errors - they should just render as empty
 		if value == nil {
 			return nil, nil, nil // No error, just nil value
@@ -75,24 +46,21 @@ func ResolveFilterChain(filterChainString string, ctx TemplateCtx, filters model
 		return value, reflect.TypeOf(value), errors
 	} else {
 		// Multiple filters found, process them
-		value = resolveValue(strings.TrimSpace(splitFilters[0]), ctx)
-		debug("Initial value resolved", "value", value)
 		if value == nil {
 			// If initial value is nil, don't apply filters, just return nil
 			return nil, nil, nil
 		}
 		valueType = reflect.TypeOf(value)
-		for i, filterExpr := range splitFilters[1:] {
+		for _, filterExpr := range splitFilters[1:] {
 			filterExpr = strings.TrimSpace(filterExpr)
 			filterName, args := ParseFilterExpression(filterExpr)
-			debug("Processing filter", "index", i, "filterExpr", filterExpr, "filterName", filterName, "args", args)
 			if filter, ok := filters[filterName]; ok {
 				oldValue := value
-				value = filter(value, valueType, args)
+				value = filter(value, valueType, args, ctx)
 				valueType = reflect.TypeOf(value)
-				debug("Filter applied", "filterName", filterName, "oldValue", oldValue, "newValue", value)
+				common.Debug("--- Filter applied", "filterName", filterName, "oldValue", oldValue, "newValue", value)
 			} else {
-				debug("Unknown filter", "filterName", filterName, "availableFilters", getFilterNames(filters))
+				common.Debug("--- Unknown filter", "filterName", filterName)
 				errors = append(errors, fmt.Errorf("unknown filter: %s", filterName))
 			}
 		}
@@ -103,42 +71,37 @@ func ResolveFilterChain(filterChainString string, ctx TemplateCtx, filters model
 // ParseFilterExpression parses a filter expression into name and arguments
 func ParseFilterExpression(filterExpr string) (string, []string) {
 	// Split the filter expression into name and arguments
-	parts := strings.SplitN(filterExpr, ":", 2)
+	parts := strings.SplitN(filterExpr, "(", 2)
 	if len(parts) == 1 {
-		return parts[0], nil // No arguments
+		return strings.TrimPrefix(parts[0], "("), nil // No arguments
 	}
 	name := parts[0]
-	args := common.FieldsRespectQuotes(parts[1])
+	args := common.FieldsRespectQuotes(strings.TrimSuffix(parts[1], ")")) // Remove trailing parenthesis
 	return name, args
 }
 
-// resolveValue resolves a value identifier to its actual value
+// ResolveValue resolves a value identifier to its actual value
 // Supports literal strings (quoted) and context variables (with dot notation)
-func resolveValue(valueIdentifier string, ctx TemplateCtx) interface{} {
+func ResolveValue(valueIdentifier string, ctx TemplateCtx) interface{} {
 	// Handle empty identifier
 	if len(valueIdentifier) == 0 {
-		debug("Empty identifier", "valueIdentifier", valueIdentifier)
 		return nil
 	}
-
-	debug("Resolving value", "valueIdentifier", valueIdentifier)
 
 	// Check for literal string values (surrounded by quotes)
 	if common.IsQuotedString(valueIdentifier) {
 		// Remove the surrounding quotes to get the literal value
 		result := valueIdentifier[1 : len(valueIdentifier)-1]
-		debug("Literal string value", "valueIdentifier", valueIdentifier, "result", result)
 		return result
 	}
 
 	// Try to resolve from context data (handles dot notation for nested access)
 	if ctx != nil && ctx.Data != nil {
 		result := ResolveDotNotation(ctx.Data, valueIdentifier)
-		debug("Context resolution", "valueIdentifier", valueIdentifier, "result", result, "contextKeys", getContextKeys(ctx.Data))
 		return result
 	}
 
-	debug("No context or data available", "valueIdentifier", valueIdentifier)
+	common.Debug("No context or data available", "valueIdentifier", valueIdentifier)
 	return nil
 }
 
@@ -151,23 +114,42 @@ func ResolveDotNotation(ctx interface{}, key string) interface{} {
 	// Remove leading dot if present (e.g., ".Site" becomes "Site")
 	key = strings.TrimPrefix(key, ".")
 
-	// Handle simple keys (no dots)
-	if !strings.Contains(key, ".") {
-		if m, ok := ctx.(map[string]interface{}); ok {
-			return m[key]
-		}
-		return nil
-	}
-
-	// Handle dot notation (e.g., "user.profile.name")
 	parts := strings.Split(key, ".")
 	var current interface{} = ctx
 
 	for _, part := range parts {
-		if m, ok := current.(map[string]interface{}); ok {
-			current = m[part]
-		} else {
+		if current == nil {
 			return nil
+		}
+
+		switch val := current.(type) {
+		case map[string]interface{}:
+			current = val[part]
+
+		default:
+			// Handle struct and pointer types
+			v := reflect.ValueOf(current)
+
+			// Handle pointer types
+			if v.Kind() == reflect.Ptr {
+				if v.IsNil() {
+					return nil
+				}
+				v = v.Elem()
+			}
+
+			// Handle structs
+			if v.Kind() == reflect.Struct {
+				field := v.FieldByName(part)
+				if !field.IsValid() {
+					common.Debug("Field not found", "struct", v.Type().Name(), "field", part)
+					return nil
+				}
+				current = field.Interface()
+			} else {
+				common.Debug("Unsupported type", "type", v.Kind())
+				return nil
+			}
 		}
 	}
 
@@ -182,48 +164,51 @@ func ResolveDotNotation(ctx interface{}, key string) interface{} {
 // --------------------
 // Template Functions
 // --------------------
+
+// SeekClosingHandleNested finds the index of a closing tag while ensuring it corresponds to an opening tag
+func SeekClosingHandleNested(raw, closingTag, openingTag string, pos int) (newPos int, separatorLength int) {
+	openCount := 0
+	newPos = pos
+	separatorLength = len(closingTag)
+
+	for {
+		closeIndex := strings.Index(raw[newPos:], closingTag)
+		if closeIndex == -1 {
+			// No more closing tags found, return -1
+			return newPos, separatorLength
+		}
+		closeIndex += newPos
+
+		// Only search for an opening tag within the range before this closing tag
+		openIndex := strings.Index(raw[newPos:closeIndex], openingTag)
+		if openIndex != -1 {
+			openCount++
+			newPos += openIndex + len(openingTag)
+			continue
+		}
+
+		// If no unmatched opening tags remain, return this closing tag index
+		if openCount == 0 {
+			return closeIndex, separatorLength
+		}
+
+		// Otherwise, decrement open count and continue searching
+		openCount--
+		newPos = closeIndex + separatorLength
+	}
+}
+
+// SeekEndTag finds the matching end tag for a given tag, handling nesting properly
 func SeekEndTag(raw string, pos int, tagName string) (endTagPos int, errs []error) {
-	startTagString := "{% " + tagName + " "
-	endTagString := "{% end" + tagName + " %}"
+	openTag := fmt.Sprintf("{%% %s ", tagName)
+	closeTag := fmt.Sprintf("{%% end%s %%}", tagName)
 
-	// Count nested tags to find the correct closing tag
-	depth := 1
-	searchPos := pos
-
-	for depth > 0 && searchPos < len(raw) {
-		// Find next occurrence of start tag or end tag
-		nextStart := strings.Index(raw[searchPos:], startTagString)
-		nextEnd := strings.Index(raw[searchPos:], endTagString)
-
-		// Adjust positions to be absolute
-		if nextStart != -1 {
-			nextStart += searchPos
-		}
-		if nextEnd != -1 {
-			nextEnd += searchPos
-		}
-
-		// If no end tag found, this is an error
-		if nextEnd == -1 {
-			errs = append(errs, fmt.Errorf("could not find end tag: %s", endTagString))
-			return pos, errs
-		}
-
-		// If start tag comes before end tag (or no start tag), process end tag
-		if nextStart == -1 || nextEnd < nextStart {
-			depth--
-			if depth == 0 {
-				return nextEnd + len(endTagString), nil
-			}
-			searchPos = nextEnd + len(endTagString)
-		} else {
-			// Start tag comes first, increase depth
-			depth++
-			searchPos = nextStart + len(startTagString)
-		}
+	endPos, endTagLen := SeekClosingHandleNested(raw, closeTag, openTag, pos)
+	if endPos == -1 {
+		return pos, []error{fmt.Errorf("unclosed tag %q at position %d", tagName, pos)}
 	}
 
-	return pos, nil
+	return endPos + endTagLen, nil
 }
 
 // LoadTemplate loads a template from disk
@@ -237,34 +222,40 @@ func LoadTemplate(templatePath string) (string, error) {
 
 // IsTruthy determines if a value is considered "truthy" in template logic
 func IsTruthy(value interface{}) bool {
+	common.Info("value=%s", value)
 	if value == nil {
 		return false
 	}
 
-	switch v := value.(type) {
-	case bool:
-		return v
-	case string:
-		return v != ""
-	case int, int8, int16, int32, int64:
-		return reflect.ValueOf(v).Int() != 0
-	case uint, uint8, uint16, uint32, uint64:
-		return reflect.ValueOf(v).Uint() != 0
-	case float32, float64:
-		return reflect.ValueOf(v).Float() != 0
-	}
-
-	// For other types (slices, maps, etc.), check if they're empty
+	// Get reflection value first
 	rv := reflect.ValueOf(value)
+	// Handle different kinds of values
 	switch rv.Kind() {
-	case reflect.Array, reflect.Slice, reflect.Map, reflect.String:
+	case reflect.Bool:
+		return rv.Bool()
+	case reflect.String:
+		str := strings.Trim(rv.String(), " \t\n\r\"'")
+		// Handle literal "true"/"false" after getting the string value
+		if str == "true" {
+			return true
+		}
+		if str == "false" {
+			return false
+		}
+		return str != ""
+	case reflect.Array, reflect.Slice, reflect.Map:
 		return rv.Len() > 0
-	case reflect.Ptr:
-		return !rv.IsNil()
+	case reflect.Struct:
+		return true // Non-nil structs are always truthy
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return rv.Int() != 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return rv.Uint() != 0
+	case reflect.Float32, reflect.Float64:
+		return rv.Float() != 0
+	default:
+		return false // For any other type, default to false
 	}
-
-	// All other types are truthy
-	return true
 }
 
 func GetLayout(domain, name string) string {

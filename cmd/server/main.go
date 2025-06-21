@@ -46,7 +46,6 @@ func init() {
 	sitesPath := os.Getenv("SITES_PATH")
 	if sitesPath == "" {
 		sitesPath = "data/sites" // Default to data/sites directory in project root
-		os.Setenv("SITES_PATH", sitesPath)
 	}
 
 	// Log the current environment
@@ -62,13 +61,11 @@ func init() {
 		fullSitesPath = filepath.Join(projectRoot, sitesPath)
 		common.Info("Using relative SITES_PATH: %s (full path: %s)", sitesPath, fullSitesPath)
 	}
+	os.Setenv("SITES_PATH", fullSitesPath)
 
 	// Create sites directory if it doesn't exist
 	if _, err := os.Stat(fullSitesPath); os.IsNotExist(err) {
-		common.Warning("Sites directory doesn't exist, creating: %s", fullSitesPath)
-		if err := os.MkdirAll(fullSitesPath, 0755); err != nil {
-			common.Fatal("Failed to create sites directory: %v", err)
-		}
+		common.Fatal("Sites directory doesn't exist, creating: %s", fullSitesPath)
 	}
 }
 
@@ -84,7 +81,7 @@ func main() {
 	requestsPerMinute := common.GetEnvInt("RATE_LIMIT_REQUESTS_PER_MINUTE", 240)
 
 	// Log startup information
-	common.Startup("Starting Wispy Core CMS")
+	common.Info("Starting Wispy Core CMS")
 	common.Info("Sites directory: %s", sitesPath)
 	common.Info("Environment: %s", env)
 	common.Info("Host: %s, Port: %s", host, port)
@@ -96,12 +93,9 @@ func main() {
 	// Apply global middleware
 	rootRouter.Use(middleware.RequestID)
 	rootRouter.Use(middleware.RealIP)
-	rootRouter.Use(middleware.Logger)
 	rootRouter.Use(middleware.Recoverer)
-	
-	// Start the server
-	Start(host, port, env, sitesPath, rootRouter)
 	rootRouter.Use(middleware.Timeout(120 * time.Second))
+	rootRouter.Use(common.RequestLogger()) // Log all requests
 
 	// Apply rate limiting middleware
 	if requestsPerSecond > 0 {

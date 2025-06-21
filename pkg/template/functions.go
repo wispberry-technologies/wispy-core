@@ -28,7 +28,7 @@ var IfTemplate = models.TemplateTag{
 		}
 
 		// Extract condition (everything after "if")
-		condition := strings.Join(parts[1:], " ")
+		condition := strings.TrimSpace(strings.Join(parts[1:], " "))
 
 		// Find the matching endif
 		endPos, seekErrs := SeekEndTag(raw, pos, "if")
@@ -40,8 +40,8 @@ var IfTemplate = models.TemplateTag{
 		// Extract content between if and endif - need to find the start of content
 		// pos is currently at the end of the opening tag
 		contentStart := pos
-		contentEnd := endPos - len("{% endif %}")
-		content := raw[contentStart:contentEnd]
+		contentEnd := endPos
+		content := raw[contentStart : contentEnd-len("{% endif %}")]
 
 		// Check if there's an else tag inside the content
 		elsePos := strings.Index(content, "{% else %}")
@@ -50,6 +50,7 @@ var IfTemplate = models.TemplateTag{
 		if elsePos >= 0 {
 			// Split the content into if and else parts
 			ifContent = content[:elsePos]
+			// add offsets to exclude wrapping tags from rendering
 			elseContent = content[elsePos+len("{% else %}"):]
 		} else {
 			// No else found, all content belongs to if part
@@ -64,7 +65,8 @@ var IfTemplate = models.TemplateTag{
 		}
 
 		// Render content based on condition
-		if IsTruthy(value) {
+		boolCondition := IsTruthy(value)
+		if boolCondition {
 			// Condition is true, render the if part
 			rendered, renderErrs := ctx.Engine.Render(ifContent, ctx)
 			if len(renderErrs) > 0 {
@@ -224,14 +226,7 @@ var IncludeTag = models.TemplateTag{
 					valueStr := keyValue[1]
 
 					// Resolve value
-					var value interface{}
-					if common.IsQuotedString(valueStr) {
-						// Literal string
-						value = valueStr[1 : len(valueStr)-1]
-					} else {
-						// Variable
-						value = resolveValue(valueStr, ctx)
-					}
+					value := ResolveValue(valueStr, ctx)
 					withData[key] = value
 				}
 			}

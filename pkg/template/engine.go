@@ -2,11 +2,8 @@ package template
 
 import (
 	"fmt"
-	"io"
-	"log"
 	"maps"
 	"net/http"
-	"reflect"
 	"strings"
 	"text/template"
 
@@ -150,15 +147,14 @@ func Render(raw string, te *models.TemplateEngine, ctx TemplateCtx) (string, []e
 				} else {
 					// Try to find the closing %} and skip past it, or skip minimal amount
 					if closePos := strings.Index(raw[nextTag:], "%}"); closePos != -1 {
-						pos = nextTag + closePos + 2
+						pos = nextTag + closePos + len("%}")
 					} else {
-						pos = nextTag + 2 // Skip past {% to avoid infinite loop
+						pos = nextTag + len("%}")
 					}
 				}
 			} else {
 				pos = newPos
 			}
-			//
 		}
 	}
 
@@ -224,18 +220,32 @@ func processTemplateTag(raw string, pos int, sb *strings.Builder, ctx TemplateCt
 
 	// Look up the tag in the function map
 	if tag, exists := funcMap[tagName]; exists {
-		return tag.Render(ctx, sb, parts, raw, endPos+2)
+		return tag.Render(ctx, sb, parts, raw, endPos+len("%}"))
 	}
 
 	// Unknown tag - return error but continue processing
-	return endPos + 2, []error{fmt.Errorf("unknown template tag: %s at position %d", tagName, pos)}
+	errString := "unknown template tag: %s at position %d: \n--------------\n %s \n--------------\n"
+	snipPos := pos
+	snipEndPos := endPos + len("%}")
+	if (snipPos - 20) > 0 {
+		snipPos -= 20
+	}
+	if (snipEndPos + 20) < len(raw) {
+		snipEndPos += 20
+	} else if (snipEndPos + 20) <= len(raw) {
+		snipEndPos += 20
+	} else {
+		snipEndPos = len(raw)
+	}
+
+	templateSnapshot := raw[snipPos:snipEndPos]
+	return endPos + 2, []error{fmt.Errorf(errString, tagName, pos, templateSnapshot)}
 }
 
 // Engine represents the template engine with filter support
 type Engine struct {
 	templates *template.Template
 	filters   models.FilterMap
-	logger    *log.Logger
 }
 
 // New creates a new template engine
@@ -243,7 +253,6 @@ func New() *Engine {
 	e := &Engine{
 		templates: template.New(""),
 		filters:   GetDefaultFilters(),
-		logger:    log.Default(),
 	}
 	return e
 }
@@ -251,33 +260,5 @@ func New() *Engine {
 // RegisterFilter adds a new filter function
 func (e *Engine) RegisterFilter(name string, fn models.FilterFunc) {
 	e.filters[name] = fn
-	e.logger.Printf("[DEBUG] Registered filter: %s", name)
-}
-
-// RenderTemplate renders a template with the given data
-func (e *Engine) RenderTemplate(w io.Writer, name string, data interface{}) error {
-	e.logger.Printf("[DEBUG] Rendering template %s with data keys: %+v", name, common.GetMapKeys(data.(map[string]interface{})))
-
-	// Create FuncMap with filter support
-	funcs := template.FuncMap{}
-
-	// Add filter functions to FuncMap
-	for fname, filter := range e.filters {
-		fn := filter // Create new variable to avoid closure issues
-		funcs[fname] = func(v interface{}) interface{} {
-			e.logger.Printf("[DEBUG] Applying filter %s to value: %+v", fname, v)
-			result := fn(v, reflect.TypeOf(v), nil)
-			e.logger.Printf("[DEBUG] Filter %s result: %+v", fname, result)
-			return result
-		}
-	}
-
-	// Parse and execute template
-	tmpl, err := e.templates.Funcs(funcs).Parse(name)
-	if err != nil {
-		e.logger.Printf("[ERROR] Template parse failed: %v", err)
-		return err
-	}
-
-	return tmpl.Execute(w, data)
+	common.Debug("Registered filter: %s", name)
 }

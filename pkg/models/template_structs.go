@@ -11,7 +11,8 @@ type TemplateTagFunc func(ctx *TemplateContext, sb *strings.Builder, tagContents
 
 // TemplateTag represents a custom tag with a name and a render function.
 type TemplateTag struct {
-	Name   string
+	Name string
+	// func(ctx *TemplateContext, sb *strings.Builder, tagContents []string, raw string, pos int) (newPos int, errs []error)
 	Render TemplateTagFunc
 }
 
@@ -20,7 +21,7 @@ type FunctionMap map[string]TemplateTag
 
 // FilterFunc defines the signature for template filter functions.
 // It takes a value and arguments and returns a processed value.
-type FilterFunc func(value interface{}, valueType reflect.Type, args []string) interface{}
+type FilterFunc func(value interface{}, valueType reflect.Type, args []string, ctx *TemplateContext) interface{}
 
 // FilterMap stores available filter functions by name
 type FilterMap map[string]FilterFunc

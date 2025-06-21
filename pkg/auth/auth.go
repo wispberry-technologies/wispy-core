@@ -172,13 +172,17 @@ func ValidateAuthAndRoles(w http.ResponseWriter, r *http.Request, page *models.P
 			if user.HasRole(requiredRole) {
 				hasRequiredRole = true
 			} else {
+				if requiredRole == "" {
+					hasRequiredRole = true
+					continue // Skip empty roles
+				}
 				hasRequiredRole = false
 				break // No need to check further if one role is missing
 			}
 		}
 
 		if !hasRequiredRole {
-			common.Debug("User %s lacks required role(s) [%v] for %s", user.DisplayName, page.RequiredRoles, page.Slug)
+			common.Debug("User %s lacks required role(s)[%d] %v for %s", user.DisplayName, len(page.RequiredRoles), page.RequiredRoles, page.Slug)
 			http.Error(w, "Insufficient permissions", http.StatusForbidden)
 			return r, false
 		}

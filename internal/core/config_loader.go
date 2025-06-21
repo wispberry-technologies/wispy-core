@@ -57,7 +57,8 @@ func LoadSiteConfig(siteBasePath string, siteInstance *models.SiteInstance) erro
 					FailedLoginAttemptLockDuration: 30 * time.Minute,
 					// Registration settings
 					RegistrationEnabled:  true,
-					RequiredFields:       []string{"email", "password", "first_name", "last_name"},
+					RequiredFields:       []string{"display_name", "email", "password"},
+					EnabledFields:        []string{"display_name", "email", "password"},
 					DefaultRoles:         []string{},
 					AllowedPasswordReset: true,
 				}
@@ -93,6 +94,16 @@ func LoadSiteConfig(siteBasePath string, siteInstance *models.SiteInstance) erro
 						fields[i] = fmt.Sprint(item)
 					}
 					siteInstance.AuthConfig.RequiredFields = fields
+				}
+			}
+
+			if v := m.Get("enabled_fields"); v != nil {
+				if arr, ok := v.([]interface{}); ok {
+					fields := make([]string, len(arr))
+					for i, item := range arr {
+						fields[i] = fmt.Sprint(item)
+					}
+					siteInstance.AuthConfig.EnabledFields = fields
 				}
 			}
 

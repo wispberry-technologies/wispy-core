@@ -54,8 +54,9 @@ type SiteAuthConfig struct {
 	// IsCookieSecure                 bool           `json:"is_cookie_secure" toml:"is_cookie_secure"`
 
 	// Registration settings
-	RegistrationEnabled  bool     `json:"registration_enabled" toml:"registration_enabled"`
+	RegistrationEnabled  bool     `json:"registration_enabled" toml:"RegistrationEnabled"`
 	RequiredFields       []string `json:"required_fields" toml:"required_fields"`
+	EnabledFields        []string `json:"enabled_fields" toml:"enabled_fields"`
 	DefaultRoles         []string `json:"default_roles" toml:"default_roles"`
 	AllowedPasswordReset bool     `json:"allowed_password_reset" toml:"allowed_password_reset"`
 }

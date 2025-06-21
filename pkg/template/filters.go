@@ -9,10 +9,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"wispy-core/pkg/models"
 )
 
 // UpcaseFilter converts a string to uppercase
-func UpcaseFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+func UpcaseFilter(value interface{}, valueType reflect.Type, args []string, ctx *models.TemplateContext) interface{} {
 	if valueType.Kind() == reflect.String {
 		if str, ok := value.(string); ok {
 			return strings.ToUpper(str)
@@ -22,7 +23,7 @@ func UpcaseFilter(value interface{}, valueType reflect.Type, args []string) inte
 }
 
 // DowncaseFilter converts a string to lowercase
-func DowncaseFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+func DowncaseFilter(value interface{}, valueType reflect.Type, args []string, ctx *models.TemplateContext) interface{} {
 	if valueType.Kind() == reflect.String {
 		if str, ok := value.(string); ok {
 			return strings.ToLower(str)
@@ -32,7 +33,7 @@ func DowncaseFilter(value interface{}, valueType reflect.Type, args []string) in
 }
 
 // SplitFilter splits a string by a delimiter
-func SplitFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+func SplitFilter(value interface{}, valueType reflect.Type, args []string, ctx *models.TemplateContext) interface{} {
 	if valueType.Kind() == reflect.String && len(args) > 0 {
 		str := value.(string)
 
@@ -61,7 +62,7 @@ func SplitFilter(value interface{}, valueType reflect.Type, args []string) inter
 }
 
 // RemoveFilter removes all occurrences of a substring from a string
-func RemoveFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+func RemoveFilter(value interface{}, valueType reflect.Type, args []string, ctx *models.TemplateContext) interface{} {
 	if valueType.Kind() == reflect.String && len(args) > 0 {
 		str := value.(string)
 		return strings.ReplaceAll(str, args[0], "")
@@ -70,7 +71,7 @@ func RemoveFilter(value interface{}, valueType reflect.Type, args []string) inte
 }
 
 // ReplaceFilter replaces all occurrences of a substring with another substring
-func ReplaceFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+func ReplaceFilter(value interface{}, valueType reflect.Type, args []string, ctx *models.TemplateContext) interface{} {
 	if valueType.Kind() == reflect.String && len(args) > 1 {
 		str := value.(string)
 		return strings.ReplaceAll(str, args[0], args[1])
@@ -79,7 +80,7 @@ func ReplaceFilter(value interface{}, valueType reflect.Type, args []string) int
 }
 
 // StripFilter removes all HTML tags from a string
-func StripFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+func StripFilter(value interface{}, valueType reflect.Type, args []string, ctx *models.TemplateContext) interface{} {
 	if valueType.Kind() == reflect.String {
 		str := value.(string)
 		re := regexp.MustCompile("<[^>]*>")
@@ -89,7 +90,7 @@ func StripFilter(value interface{}, valueType reflect.Type, args []string) inter
 }
 
 // TrimFilter removes whitespace from both ends of a string
-func TrimFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+func TrimFilter(value interface{}, valueType reflect.Type, args []string, ctx *models.TemplateContext) interface{} {
 	if valueType.Kind() == reflect.String {
 		str := value.(string)
 		return strings.TrimSpace(str)
@@ -98,7 +99,7 @@ func TrimFilter(value interface{}, valueType reflect.Type, args []string) interf
 }
 
 // JSONFilter converts a value to a JSON string
-func JSONFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+func JSONFilter(value interface{}, valueType reflect.Type, args []string, ctx *models.TemplateContext) interface{} {
 	slog.Debug("JSON filter called", "value", value, "type", valueType)
 
 	jsonBytes, err := json.MarshalIndent(value, "", "  ")
@@ -112,7 +113,7 @@ func JSONFilter(value interface{}, valueType reflect.Type, args []string) interf
 }
 
 // AppendFilter appends a string to another string
-func AppendFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+func AppendFilter(value interface{}, valueType reflect.Type, args []string, ctx *models.TemplateContext) interface{} {
 	if valueType.Kind() == reflect.String && len(args) > 0 {
 		str := value.(string)
 		// Clean quotes from argument if present
@@ -129,7 +130,7 @@ func AppendFilter(value interface{}, valueType reflect.Type, args []string) inte
 }
 
 // PrependFilter prepends a string to another string
-func PrependFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+func PrependFilter(value interface{}, valueType reflect.Type, args []string, ctx *models.TemplateContext) interface{} {
 	if valueType.Kind() == reflect.String && len(args) > 0 {
 		str := value.(string)
 		// Clean quotes from argument if present
@@ -146,7 +147,7 @@ func PrependFilter(value interface{}, valueType reflect.Type, args []string) int
 }
 
 // TruncateFilter truncates a string to a specified length and appends an ellipsis if needed
-func TruncateFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+func TruncateFilter(value interface{}, valueType reflect.Type, args []string, ctx *models.TemplateContext) interface{} {
 	if valueType.Kind() == reflect.String && len(args) > 0 {
 		str := value.(string)
 		length, err := strconv.Atoi(args[0])
@@ -170,7 +171,7 @@ func TruncateFilter(value interface{}, valueType reflect.Type, args []string) in
 }
 
 // SliceFilter returns a substring or subarray of the input
-func SliceFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+func SliceFilter(value interface{}, valueType reflect.Type, args []string, ctx *models.TemplateContext) interface{} {
 	if len(args) < 1 {
 		return value
 	}
@@ -226,7 +227,7 @@ func SliceFilter(value interface{}, valueType reflect.Type, args []string) inter
 }
 
 // JoinFilter joins a slice of strings with a separator
-func JoinFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+func JoinFilter(value interface{}, valueType reflect.Type, args []string, ctx *models.TemplateContext) interface{} {
 	// Handle array/slice of strings
 	if valueType.Kind() == reflect.Slice || valueType.Kind() == reflect.Array {
 		slice := reflect.ValueOf(value)
@@ -257,7 +258,7 @@ func JoinFilter(value interface{}, valueType reflect.Type, args []string) interf
 }
 
 // CapitalizeFilter capitalizes the first character of a string
-func CapitalizeFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+func CapitalizeFilter(value interface{}, valueType reflect.Type, args []string, ctx *models.TemplateContext) interface{} {
 	if valueType.Kind() == reflect.String {
 		str := value.(string)
 		if str == "" {
@@ -269,7 +270,7 @@ func CapitalizeFilter(value interface{}, valueType reflect.Type, args []string) 
 }
 
 // DefaultValueFilter returns a default value if the input is nil or empty
-func DefaultValueFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+func DefaultValueFilter(value interface{}, valueType reflect.Type, args []string, ctx *models.TemplateContext) interface{} {
 	// Handle nil
 	if value == nil && len(args) > 0 {
 		return args[0]
@@ -287,12 +288,12 @@ func DefaultValueFilter(value interface{}, valueType reflect.Type, args []string
 }
 
 // ContainsFunction checks if a container (string, slice, array, map) contains a target value
-func ContainsFilter(value interface{}, valueType reflect.Type, args []string) interface{} {
+func ContainsFilter(value interface{}, valueType reflect.Type, args []string, ctx *models.TemplateContext) interface{} {
 	if len(args) < 1 || value == nil {
 		return false
 	}
 
-	target := args[0]
+	target := ResolveValue(args[0], ctx)
 
 	// For slices and arrays
 	if valueType.Kind() == reflect.Slice || valueType.Kind() == reflect.Array {
@@ -320,10 +321,11 @@ func ContainsFilter(value interface{}, valueType reflect.Type, args []string) in
 	// For strings
 	if valueType.Kind() == reflect.String {
 		valueStr, ok := value.(string)
-		if !ok {
+		targetStr, otherOk := target.(string)
+		if !ok || !otherOk {
 			return false
 		}
-		return strings.Contains(valueStr, target)
+		return strings.Contains(valueStr, targetStr)
 	}
 
 	// For maps

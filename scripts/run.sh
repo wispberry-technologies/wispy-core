@@ -3,16 +3,17 @@
 # Navigate to project root directory (parent of scripts folder)
 cd "$(dirname "$0")/.." || { echo "Failed to navigate to project root"; exit 1; }
 PROJECT_ROOT=$(pwd)
-
+RED='\033[0;31m'
+DARK_GRAY='\033[1;30m'
+RESET='\033[0m'
 # Kill any process running on port 8080
-echo "Shutting down any running server on port 8080..."
+echo "${RED}Shutting down any running server on port 8080...  ${RESET}"
 lsof -ti:8080 | xargs kill -9 2>/dev/null || echo "No server was running"
-echo "Tidying up Go modules..."
 go mod tidy
 
 # Create .env file if it doesn't exist
 if [ ! -f .env ]; then
-  echo "Creating default .env file..."
+  echo "${RED} No .env found! ${DARK _GRAY}Creating default .env file... ${RESET}"
   cat > .env << EOL
 # .env file for Wispy Core CMS
 PORT=8080
@@ -38,14 +39,14 @@ DEBUG_WISPY_TAIL=false
 
 
 EOL
-  echo ".env file created"
+  echo "${DARK_GRAY} .env file created ${RESET}"
 fi
 
 # Load environment variables from .env
-if [ -f .env ]; then
-  echo "Loading environment variables from .env file"
-  export $(grep -v '^#' .env | xargs)
-fi
+# if [ -f .env ]; then
+#   # echo "Loading environment variables from .env file"
+#   export $(grep -v '^#' .env | xargs)
+# fi
 
 # Set environment variables if not present
 export PORT=${PORT:-8080}
@@ -61,9 +62,9 @@ else
   SITES_DIR="${PROJECT_ROOT}/${SITES_PATH}"
 fi
 
-echo "Using sites directory: ${SITES_DIR}"
+# echo "Using sites directory: ${SITES_DIR}"
 if [ ! -d "$SITES_DIR" ]; then
-  echo "Creating sites directory at ${SITES_DIR}"
+  # echo "Creating sites directory at ${SITES_DIR}"
   mkdir -p "$SITES_DIR"
   
   # Create a default localhost site structure if it doesn't exist
@@ -119,18 +120,18 @@ export ENV=${ENV:-development}
 export SITES_PATH=${SITES_PATH:-${PROJECT_ROOT}/sites}
 
 # Ensure the sites directory exists
-echo "Ensuring sites directory exists at: $SITES_PATH"
+# echo "Ensuring sites directory exists at: $SITES_PATH"
 mkdir -p "$SITES_PATH"
 
 # Display startup information
-echo "Starting Wispy Core CMS with settings:"
-echo "  - Host: $HOST"
-echo "  - Port: $PORT"
-echo "  - Environment: $ENV"
-echo "  - Sites path: $SITES_PATH"
+# echo "Starting Wispy Core CMS with settings:"
+# echo "  - Host: $HOST"
+# echo "  - Port: $PORT"
+# echo "  - Environment: $ENV"
+# echo "  - Sites path: $SITES_PATH"
 
 # Run the server from the cmd/server directory
-echo "Starting server from project root: ${PROJECT_ROOT}"
+# echo "Starting server from project root: ${PROJECT_ROOT}"
 go run ./cmd/server
 
 # Exit with the same status code as the server

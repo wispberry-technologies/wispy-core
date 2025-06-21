@@ -3,6 +3,7 @@ package common
 import (
 	"net/http"
 	"strings"
+	"time"
 )
 
 // PlainTextError writes a plain text error response with status code and X-Debug header
@@ -39,4 +40,19 @@ func Redirect404(w http.ResponseWriter, r *http.Request, url string) {
 
 	// Log the redirect
 	Debug("Redirecting %s to %s", r.URL.Path, url)
+}
+
+func RequestLogger() func(http.Handler) http.Handler {
+	// Example output:
+	// Jun 21 11:02:05.195 "GET http://localhost:8080/login HTTP/1.1" from 127.0.0.1:60741 - 200 816530B in 17.427083ms
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			next.ServeHTTP(w, r)
+			duration := time.Since(start)
+			ServerLog("Request: %s %s from %s - %d %s in %v",
+				r.Method, r.URL.Path, r.RemoteAddr,
+				http.StatusOK, http.StatusText(http.StatusOK), duration)
+		})
+	}
 }
