@@ -142,8 +142,8 @@ func GetSessionFromRequest(db *sql.DB, r *http.Request) (*Session, error) {
 	return sessionDriver.GetSessionFromRequest(r)
 }
 
-// validateAuthAndRoles checks if the user is authenticated and has required roles
-func ValidateAuthAndRoles(w http.ResponseWriter, r *http.Request, page *models.Page, instance *models.SiteInstance) (*http.Request, bool) {
+// ValidatePageAuthAndRoles checks if the user is authenticated and has required roles
+func ValidatePageAuthAndRoles(w http.ResponseWriter, r *http.Request, page *models.Page, instance *models.SiteInstance) (*http.Request, bool) {
 	// If no authentication required, proceed
 	if !page.RequireAuth {
 		return r, true
@@ -183,6 +183,50 @@ func ValidateAuthAndRoles(w http.ResponseWriter, r *http.Request, page *models.P
 
 		if !hasRequiredRole {
 			common.Debug("User %s lacks required role(s)[%d] %v for %s", user.DisplayName, len(page.RequiredRoles), page.RequiredRoles, page.Slug)
+			http.Error(w, "Insufficient permissions", http.StatusForbidden)
+			return r, false
+		}
+	}
+
+	return r, true
+}
+
+// ValidateAuthAndRoles checks if the user is authenticated and has required roles
+func ValidateAuthAndRoles(w http.ResponseWriter, r *http.Request, requiredRoles []string, instance *models.SiteInstance) (*http.Request, bool) {
+	// Get user from context (added by SiteContextMiddleware)
+	user, ok := r.Context().Value(UserContextKey).(*User)
+	if !ok {
+		common.Debug("Authentication required for %s but no valid user in context", r.URL.Path)
+		// Redirect to login page with return URL
+		common.Redirect404(w, r, "")
+		return r, false
+	}
+
+	// Check if user is active
+	if !user.IsActive {
+		common.Debug("User %s is not active", user.Email)
+		http.Error(w, "Account is inactive", http.StatusForbidden)
+		return r, false
+	}
+
+	// Role validation if required
+	if len(requiredRoles) > 0 {
+		hasRequiredRole := false
+		for _, requiredRole := range requiredRoles {
+			if user.HasRole(requiredRole) {
+				hasRequiredRole = true
+			} else {
+				if requiredRole == "" {
+					hasRequiredRole = true
+					continue // Skip empty roles
+				}
+				hasRequiredRole = false
+				break // No need to check further if one role is missing
+			}
+		}
+
+		if !hasRequiredRole {
+			common.Debug("User %s lacks required role(s)[%d] %v for %s", user.DisplayName, len(requiredRoles), requiredRoles, r.URL.Path)
 			http.Error(w, "Insufficient permissions", http.StatusForbidden)
 			return r, false
 		}

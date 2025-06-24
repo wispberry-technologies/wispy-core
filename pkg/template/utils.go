@@ -97,7 +97,7 @@ func ResolveValue(valueIdentifier string, ctx TemplateCtx) interface{} {
 
 	// Try to resolve from context data (handles dot notation for nested access)
 	if ctx != nil && ctx.Data != nil {
-		result := ResolveDotNotation(ctx.Data, valueIdentifier)
+		result := ResolveDotNotation(ctx, valueIdentifier)
 		return result
 	}
 
@@ -106,7 +106,7 @@ func ResolveValue(valueIdentifier string, ctx TemplateCtx) interface{} {
 }
 
 // ResolveDotNotation resolves dot notation (e.g., "user.name") in a context map
-func ResolveDotNotation(ctx interface{}, key string) interface{} {
+func ResolveDotNotation(ctx TemplateCtx, key string) interface{} {
 	if key == "" {
 		return nil
 	}
@@ -115,7 +115,15 @@ func ResolveDotNotation(ctx interface{}, key string) interface{} {
 	key = strings.TrimPrefix(key, ".")
 
 	parts := strings.Split(key, ".")
-	var current interface{} = ctx
+	var current interface{} = map[string]interface{}{}
+	switch parts[0] {
+	case "Page":
+		current = ctx.Page.PageData
+	case "Site":
+		current = ctx.Page.SiteDetails
+	default:
+		current = ctx.Data
+	}
 
 	for _, part := range parts {
 		if current == nil {
@@ -142,12 +150,12 @@ func ResolveDotNotation(ctx interface{}, key string) interface{} {
 			if v.Kind() == reflect.Struct {
 				field := v.FieldByName(part)
 				if !field.IsValid() {
-					common.Debug("Field not found", "struct", v.Type().Name(), "field", part)
+					common.Debug("Field not found ", "struct", v.Type().Name(), "field", part)
 					return nil
 				}
 				current = field.Interface()
 			} else {
-				common.Debug("Unsupported type", "type", v.Kind())
+				common.Debug("Unsupported type ", "type", v.Kind())
 				return nil
 			}
 		}

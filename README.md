@@ -374,8 +374,30 @@ go test ./pkg/auth -v       # Authentication tests
 
 ## Running the Application
 
+### Using the CLI Tool
+
+Wispy Core includes a unified command-line tool for all operations:
+
 ```bash
-# Run the server
+# Build the CLI tool
+./scripts/build-cli.sh
+
+# Start the server
+./bin/wispy-cli server
+
+# Fetch external assets
+./bin/wispy-cli fetch
+
+# Run security tests
+./bin/wispy-cli fetch -target=http://localhost:8080
+```
+
+See detailed CLI documentation in `cmd/wispy-cli/README.md`.
+
+### Legacy Commands
+
+```bash
+# Run the server directly
 go run ./cmd/server
 
 # Run database migrations

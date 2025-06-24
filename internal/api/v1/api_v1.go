@@ -21,7 +21,7 @@ func Router() http.Handler {
 
 	// Add import and add auth router
 	AuthRouter(r)
-	ContentRouter(r)
+	PagesRouter(r)
 	UserRouter(r)
 
 	// 404 handler

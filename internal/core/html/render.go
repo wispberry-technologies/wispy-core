@@ -12,10 +12,20 @@ import (
 	"wispy-core/pkg/wispytail"
 )
 
+var TRI *wispytail.Trie
+
+func init() {
+	common.Info("[WISPY-TAIL]")
+	trieStart := time.Now()
+	TRI = wispytail.BuildFullTrie()
+	common.Info(" - Trie Built In: %s", time.Since(trieStart))
+	common.Info(" ----------- ")
+}
+
 // RenderPageWithLayout renders a page using a layout template
-func RenderPageWithLayout(w http.ResponseWriter, r *http.Request, page *models.Page, siteInstance *models.SiteInstance, data map[string]interface{}) {
+func RenderPageWithLayout(w http.ResponseWriter, r *http.Request, page *models.Page, siteInstance *models.SiteInstance, user *models.UserContext, data map[string]interface{}) {
 	// Create template context
-	engine, ctx := template.NewSiteTemplateEngine(data, r, siteInstance, page)
+	engine, ctx := template.NewSiteTemplateEngine(data, r, siteInstance, page, user)
 
 	// Merge data into context
 	for k, v := range data {
@@ -72,9 +82,6 @@ func RenderPageWithLayout(w http.ResponseWriter, r *http.Request, page *models.P
 	if siteInstance.CssProcessor == "wispy-tail" {
 		// Compile Tailwind CSS if configured
 		common.Info("[WISPY-TAIL]")
-		trieStart := time.Now()
-		trie := wispytail.BuildFullTrie()
-		common.Info(" - Trie Built In: %s", time.Since(trieStart))
 
 		extractTime := time.Now()
 		// Extract unique class names from the HTML.
@@ -83,8 +90,8 @@ func RenderPageWithLayout(w http.ResponseWriter, r *http.Request, page *models.P
 
 		generationTime := time.Now()
 		// Generate CSS rules for the extracted classes with theme and base layers.
-		css := wispytail.GenerateFullCSS(classes, nil, trie)
-		common.Info(" - Generated In: ", time.Since(generationTime))
+		css := wispytail.GenerateFullCSS(classes, nil, TRI)
+		common.Info(" - Generated In: %s", time.Since(generationTime))
 
 		ctx.InternalContext.HtmlDocumentTags = append(ctx.InternalContext.HtmlDocumentTags, models.HtmlDocumentTags{
 			TagType:    "style",

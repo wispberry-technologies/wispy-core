@@ -77,7 +77,7 @@ func SiteContextMiddleware(siteInstances map[string]*models.SiteInstance) func(h
 			dbCache := siteInstance.DBCache
 			db, err := cache.GetConnection(dbCache, siteInstance.Domain, "users")
 			if err != nil {
-				common.Debug("Failed to get db for %s: %v", siteInstance.Domain, err)
+				common.Error("Failed to get db for %s: %v", siteInstance.Domain, err)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
@@ -86,7 +86,7 @@ func SiteContextMiddleware(siteInstances map[string]*models.SiteInstance) func(h
 			SqlSessionDriver := NewSessionSqlDriver(db)
 			session, err := SqlSessionDriver.GetSessionFromRequest(r)
 			if err != nil {
-				common.Debug("Failed to get session from request: %v", err)
+				common.Info("Failed to get session from request: %v", err)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
@@ -99,7 +99,7 @@ func SiteContextMiddleware(siteInstances map[string]*models.SiteInstance) func(h
 				return
 			}
 
-			common.Debug("[%s] authenticated with session %s", user.DisplayName, session.ID)
+			common.Info("[%s] authenticated with session %s", user.DisplayName, session.ID)
 
 			ctx = context.WithValue(ctx, UserContextKey, user)
 			ctx = context.WithValue(ctx, SessionContextKey, session)

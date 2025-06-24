@@ -22,14 +22,29 @@
 </style>
 <body class="min-h-screen text-base-content flex flex-col dots-background">
     <!-- Main Content -->
-    <main class="p-6">
-        {% block "page-body" %} <p> Could not load page body.</p> {% endblock %}
+    <main class="flex">
+        <nav>
+          <ul class="menu bg-base-200 rounded-box w-56">
+            <li>
+              <a> {% icon "outline/home" class="h-5 w-5" %} Home </a>
+            </li>
+            <li>
+              <a> {% icon "outline/home" class="h-5 w-5" %} Item 1 </a>
+            </li>
+            <li>
+              <a> {% icon "outline/cog-6-tooth" class="h-5 w-5" %} Item 4 </a>
+            </li>
+          </ul>
+        </nav>  
+        <div>
+          {% block "page-body" %} <p> Could not load page body.</p> {% endblock %}
+        </div>
     </main>
     <!-- Footer -->
     {% block "footer" %}
         <footer class="footer footer-center p-4 text-base-content opacity-60">
             <div>
-                <p>&copy; 2025 {{ Site.Name }}. Powered by Wispy-CMS.</p>
+                <p>&copy; 2025 {{ .Site.Name }}. Powered by Wispy-CMS.</p>
             </div>
         </footer>
     {% endblock %}

@@ -7,7 +7,6 @@ import (
 func UserRouter(r chi.Router) {
 	// User routes
 	r.Route("/users", func(r chi.Router) {
-		// r.Use(AuthMiddleware)
 		// User management endpoints will go here
 		r.Get("/", handleAPI("ListUsers"))
 		r.Post("/", handleAPI("CreateUser"))

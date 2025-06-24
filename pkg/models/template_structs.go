@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
+	"time"
 )
 
 // TemplateTagFunc is the function signature for custom tag renderers.
@@ -31,7 +32,10 @@ type TemplateEngine struct {
 	FuncMap   FunctionMap
 	FilterMap FilterMap
 	Render    func(raw string, ctx *TemplateContext) (string, []error)
-	CloneCtx  func(ctx *TemplateContext, NewData map[string]interface{}) *TemplateContext
+	// CloneCtx creates a new TemplateContext based on the existing one, merging in NewData.
+	CloneCtx func(ctx *TemplateContext, NewData map[string]interface{}) *TemplateContext
+	// NewCtx creates a new TemplateContext with the provided data, without merging.
+	NewCtx func(ctx *TemplateContext, NewData map[string]interface{}) *TemplateContext
 }
 
 type InternalContext struct {
@@ -47,10 +51,22 @@ type InternalContext struct {
 	ImportedResources map[string]string
 }
 
+type UserContext struct {
+	Email       string    `json:"email" db:"email"`
+	FirstName   string    `json:"first_name" db:"first_name"`
+	LastName    string    `json:"last_name" db:"last_name"`
+	DisplayName string    `json:"display_name" db:"display_name"`
+	Avatar      string    `json:"avatar" db:"avatar"`
+	Roles       string    `json:"roles" db:"roles"` // JSON array stored as string
+	IsActive    bool      `json:"is_active" db:"is_active"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+}
 type TemplateContext struct {
 	InternalContext *InternalContext
 	Instance        *SiteInstance
 	Page            *Page
+	User            *UserContext
 	Data            map[string]interface{}
 	Errors          []error
 	Engine          *TemplateEngine

@@ -32,7 +32,7 @@ func init() {
 // - Debug logs a debug message
 func Debug(msg string, logArgs ...any) {
 	fmt.Print(Reset, "[DEBUG] ", DarkGray)
-	if strings.Contains(msg, "%s") {
+	if strings.Contains(msg, "%") {
 		if len(logArgs) > 0 {
 			fmt.Printf(msg, logArgs...)
 		} else {

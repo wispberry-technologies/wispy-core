@@ -77,9 +77,9 @@ type SiteInstance struct {
 	DBCache    *cache.DBCache
 	Router     *chi.Mux
 	AuthConfig *SiteAuthConfig
-	Templates  map[string]string
-	Pages      map[string]*Page // routes for this site
-	Mu         sync.RWMutex     // mutex for thread-safe route access
+	// Templates  map[string]string
+	Pages map[string]*Page // routes for this site
+	Mu    sync.RWMutex     // mutex for thread-safe route access
 }
 type SiteSchema struct {
 	Domain     string         `json:"domain"`

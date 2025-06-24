@@ -29,14 +29,12 @@ func GetDefaultFilters() models.FilterMap {
 // GetDefaultFunctions returns the default set of template functions
 func GetDefaultFunctions() models.FunctionMap {
 	return models.FunctionMap{
-		"if":      IfTemplate,
-		"for":     ForTag,
-		"define":  DefineTag,
-		"include": IncludeTag,
-		"render":  RenderTag,
-		"block":   BlockTag,
-		"extend":  ExtendTag,
-		// Add more built-in functions here
+		"if":     IfTemplate,
+		"for":    ForTag,
+		"define": DefineTag,
+		"render": RenderTag,
+		"block":  BlockTag,
+		"extend": ExtendTag,
 	}
 }
 
@@ -51,6 +49,7 @@ func GetDefaultSiteFunctions() models.FunctionMap {
 		"block":   BlockTag,
 		"extend":  ExtendTag,
 		"asset":   AssetTag,
+		"icon":    IconTag,
 	}
 }
 

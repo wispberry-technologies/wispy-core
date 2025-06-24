@@ -18,7 +18,7 @@ import (
 // NOTE: Page route registration is now handled by the RouteWrapper in core/route_wrapper.go
 
 // Start initializes and starts the HTTP server
-func Start(host, port, env, sitesPath string, router *chi.Mux) {
+func Start(host, port, env, sitesPath, staticPath string, router *chi.Mux) {
 	// Load sites
 	siteInstances, err := core.LoadAllSitesAsInstances(sitesPath)
 	if err != nil {
@@ -32,7 +32,8 @@ func Start(host, port, env, sitesPath string, router *chi.Mux) {
 	router.Mount("/api/v1", api_v1.Router())
 
 	// Mount static file serving
-	router.Handle("/public", core.StaticFileServingWithoutContextHandler(sitesPath))
+	router.Handle("/public", core.StaticAndSitePublicHandler(sitesPath, staticPath))
+	router.Handle("/static", core.StaticAndSitePublicHandler(sitesPath, staticPath))
 
 	for _, instance := range siteInstances {
 		instance.Mu.Lock()
@@ -54,26 +55,34 @@ func Start(host, port, env, sitesPath string, router *chi.Mux) {
 				common.Debug("Rendering page: %s for site: %s", page.Slug, instance.Name)
 
 				// Validate authentication and roles
-				enrichedRequest, proceed := auth.ValidateAuthAndRoles(w, r, page, instance)
+				enrichedRequest, proceed := auth.ValidatePageAuthAndRoles(w, r, page, instance)
 				if !proceed {
 					return // Authentication failed or insufficient permissions
 				}
 				r = enrichedRequest
 
 				// Render the page using the site instance
-				data := map[string]interface{}{
-					"Site":       page.SiteDetails,
-					"AuthConfig": instance.AuthConfig,
-					"Page":       page,
-				}
+				data := map[string]interface{}{}
 
 				// Add user to data if authenticated
-				if user, ok := r.Context().Value(auth.UserContextKey).(*auth.User); ok {
-					data["User"] = user
-				}
+				var authUser *auth.User
+				authUser, _ = r.Context().Value(auth.UserContextKey).(*auth.User)
 
 				common.Debug("- route: %s", page.Slug)
-				html.RenderPageWithLayout(w, r, page, instance, data)
+
+				var user = &models.UserContext{
+					Email:       authUser.Email,
+					FirstName:   authUser.FirstName,
+					LastName:    authUser.LastName,
+					DisplayName: authUser.DisplayName,
+					Avatar:      authUser.Avatar,
+					IsActive:    authUser.IsActive,
+					Roles:       authUser.Roles,
+					CreatedAt:   authUser.CreatedAt,
+					UpdatedAt:   authUser.UpdatedAt,
+				}
+
+				html.RenderPageWithLayout(w, r, page, instance, user, data)
 			})
 		}
 

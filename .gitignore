@@ -4,7 +4,8 @@ tmp
 
 # Ignore example directory this is currently used for testing
 # Will update to contain well documented minimal example at some point.
-example
+data/sites
+data/static
 wispy-core
 
 # Logs

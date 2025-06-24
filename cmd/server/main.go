@@ -43,14 +43,13 @@ func init() {
 	common.Info("WISPY_CORE_ROOT set to: %s", projectRoot)
 
 	// Ensure SITES_PATH exists
-	sitesPath := os.Getenv("SITES_PATH")
-	if sitesPath == "" {
-		sitesPath = "data/sites" // Default to data/sites directory in project root
-	}
+	sitesPath := common.GetEnv("SITES_PATH", "data/sites")
+	staticPath := common.GetEnv("STATIC_PATH", "data/static")
 
 	// Log the current environment
 	common.Info("WISPY_CORE_ROOT: %s", os.Getenv("WISPY_CORE_ROOT"))
-	common.Info("SITES_PATH: %s", os.Getenv("SITES_PATH"))
+	common.Info("SITES_PATH: %s", sitesPath)
+	common.Info("STATIC_PATH: %s", staticPath)
 
 	// Calculate the full sites path
 	var fullSitesPath string
@@ -62,6 +61,7 @@ func init() {
 		common.Info("Using relative SITES_PATH: %s (full path: %s)", sitesPath, fullSitesPath)
 	}
 	os.Setenv("SITES_PATH", fullSitesPath)
+	os.Setenv("STATIC_PATH", staticPath)
 
 	// Create sites directory if it doesn't exist
 	if _, err := os.Stat(fullSitesPath); os.IsNotExist(err) {
@@ -74,7 +74,8 @@ func main() {
 	port := common.GetEnv("PORT", "8080")
 	host := common.GetEnv("HOST", "localhost")
 	env := common.GetEnv("ENV", "development")
-	sitesPath := common.MustGetEnv("SITES_PATH") // Required for system to function
+	sitesPath := common.MustGetEnv("SITES_PATH")   // Required for system to function
+	staticPath := common.MustGetEnv("STATIC_PATH") // Required for static files
 
 	// Enable rate limiting based on config
 	requestsPerSecond := common.GetEnvInt("RATE_LIMIT_REQUESTS_PER_SECOND", 12)
@@ -83,6 +84,7 @@ func main() {
 	// Log startup information
 	common.Info("Starting Wispy Core CMS")
 	common.Info("Sites directory: %s", sitesPath)
+	common.Info("Static directory: %s", staticPath)
 	common.Info("Environment: %s", env)
 	common.Info("Host: %s, Port: %s", host, port)
 	common.Info("Rate limiting: %d req/sec, %d req/min", requestsPerSecond, requestsPerMinute)
@@ -95,6 +97,8 @@ func main() {
 	rootRouter.Use(middleware.RealIP)
 	rootRouter.Use(middleware.Recoverer)
 	rootRouter.Use(middleware.Timeout(120 * time.Second))
+	// TODO:
+	// https://github.com/unrolled/secure
 	rootRouter.Use(common.RequestLogger()) // Log all requests
 
 	// Apply rate limiting middleware
@@ -109,5 +113,5 @@ func main() {
 	}
 
 	// Start the server
-	Start(host, port, env, sitesPath, rootRouter)
+	Start(host, port, env, sitesPath, staticPath, rootRouter)
 }

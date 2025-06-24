@@ -2,6 +2,7 @@
 package core
 
 import (
+	"database/sql"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"wispy-core/internal/cache"
+	"wispy-core/internal/core/pages"
 	"wispy-core/internal/core/parser"
 	"wispy-core/pkg/common"
 	"wispy-core/pkg/models"
@@ -42,9 +44,9 @@ func NewSiteInstance(domain string) *models.SiteInstance {
 		RouteProxies:   make(map[string]string),
 		OAuthProviders: []string{},
 		CssProcessor:   "wispy-tail",
-		Templates:      make(map[string]string),
-		Pages:          make(map[string]*models.Page),
-		Mu:             sync.RWMutex{},
+		// Templates:      make(map[string]string),
+		Pages: make(map[string]*models.Page),
+		Mu:    sync.RWMutex{},
 	}
 	LoadSiteConfig(basePath, siteInstance)
 
@@ -89,8 +91,43 @@ func LoadAllSitesAsInstances(sitesPath string) (map[string]*models.SiteInstance,
 // LoadPagesForSite loads all pages for a given site instance
 // Takes explicit site instance and returns a map of pages
 func LoadPagesForSite(siteInstance *models.SiteInstance) error {
+	common.Info("Loading Pages for - " + siteInstance.Domain)
+
+	// Pull existing pages from Database
+	db, err := cache.GetConnection(siteInstance.DBCache, siteInstance.Domain, "pages")
+	if err != nil {
+		common.Error("failed to load pages db for " + siteInstance.Domain)
+	}
+
+	var hasRetried = false
+	// re-try point
+QueryPages:
+	pageRows, listErr := pages.ListPages(db, 100, 0)
+	if listErr != nil {
+		common.Warning("could not Query pages for " + siteInstance.Domain + ": " + listErr.Error())
+		if !hasRetried {
+			common.Info("attempting to scaffold pages db for " + siteInstance.Domain)
+			hasRetried = true
+			pages.ScaffoldPagesDb(db)
+			LoadPagesFromFiles(siteInstance, db)
+			goto QueryPages
+		} else {
+			return fmt.Errorf("Failed to load any pages for " + siteInstance.Domain)
+		}
+	}
+
+	common.Info("Loaded %d pages from database for %s", len(pageRows), siteInstance.Domain)
+	// Add database pages to site instance
+	for _, page := range pageRows {
+		siteInstance.Pages[page.Slug] = page
+	}
+
+	return nil
+}
+
+func LoadPagesFromFiles(siteInstance *models.SiteInstance, db *sql.DB) error {
 	pagesDir := common.RootSitesPath(siteInstance.Domain, "pages")
-	common.Info("Loaded Pages")
+
 	err := filepath.WalkDir(pagesDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil // skip errored files/dirs
@@ -121,37 +158,66 @@ func LoadPagesForSite(siteInstance *models.SiteInstance) error {
 		page.FilePath = strings.TrimPrefix(pageFilePath, "/") // remove leading slash
 
 		// Store the page in the SiteInstance's Pages map, keyed by Slug
-		fmt.Print(page.Slug)
-		siteInstance.Pages[page.Slug] = page
+		common.Info("Processing page: %s", page.Slug)
+		_, err = pages.InsertPage(db, page)
+		if err != nil {
+			common.Error("Failed to insert page %s: %v", page.Slug, err)
+			return nil
+		}
 		return nil
 	})
 	return err
 }
 
-// StaticFileServingWithoutContextHandler returns an http.HandlerFunc that serves static files from a site's public directory without site context
-func StaticFileServingWithoutContextHandler(sitesPath string) http.HandlerFunc {
+// StaticAndSitePublicHandler returns an http.HandlerFunc that serves static files from a site's public directory and a global static directory.
+// It checks for directory traversal attempts and serves files from the appropriate paths.
+func StaticAndSitePublicHandler(sitesPath, staticPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		domain := chi.URLParam(r, "domain")
-		publicPath := filepath.Join(sitesPath, domain, "public")
-
-		common.Debug("Public Request path: %s", publicPath)
-
-		// Strip the /public/{domain} prefix from the URL path
-		path := strings.TrimPrefix(r.URL.Path, "/public/"+domain+"/")
-		filePath := filepath.Join(publicPath, path)
-
+		path := r.URL.Path
 		// Basic security check - prevent directory traversal
 		if strings.Contains(path, "..") {
+			common.Warning("Forbidden access attempt to path: %s", path)
+			common.Warning("- Request from IP: %s", r.RemoteAddr)
+			common.Warning("- Request headers: %v", r.Header)
+
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
-
-		// Check if file exists
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			http.Error(w, "File not found", http.StatusNotFound)
+		//
+		domain := common.NormalizeHost(r.Host)
+		publicPath := filepath.Join(sitesPath, domain)
+		staticPath := filepath.Join(staticPath)
+		//
+		switch {
+		case strings.HasPrefix(path, "/public/"):
+			filePath := filepath.Join(publicPath, path)
+			if _, err := os.Stat(filePath); os.IsNotExist(err) {
+				common.Warning("File not found: %s", filePath)
+				http.NotFound(w, r)
+				return
+			}
+			http.ServeFile(w, r, filePath)
+		case strings.HasPrefix(path, "/static/"):
+			filePath := filepath.Join(staticPath, path)
+			if _, err := os.Stat(filePath); os.IsNotExist(err) {
+				common.Warning("File not found: %s", filePath)
+				http.NotFound(w, r)
+				return
+			}
+			http.ServeFile(w, r, filePath)
+		//
+		default:
+			common.Warning("Invalid static path: %s", path)
+			http.Error(w, "Invalid static path", http.StatusBadRequest)
 			return
 		}
-
-		http.ServeFile(w, r, filePath)
+		// 404
+		// If we reach here, it means the file was not found
+		common.Warning("File not found: %s", path)
+		http.NotFound(w, r)
+		// Log the request details
+		common.Info("- Request from IP: %s", r.RemoteAddr)
+		common.Info("- Request headers: %v", r.Header)
+		//
 	}
 }

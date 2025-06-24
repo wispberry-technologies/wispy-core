@@ -16,7 +16,7 @@ import (
 // -------------------
 
 // NewTemplateEngine creates a new TemplateEngine instance.
-func NewSiteTemplateEngine(data map[string]interface{}, request *http.Request, site *models.SiteInstance, page *models.Page) (engine *models.TemplateEngine, ctx TemplateCtx) {
+func NewSiteTemplateEngine(data map[string]interface{}, request *http.Request, site *models.SiteInstance, page *models.Page, user *models.UserContext) (engine *models.TemplateEngine, ctx TemplateCtx) {
 	engine = &models.TemplateEngine{
 		FuncMap:   GetDefaultSiteFunctions(),
 		FilterMap: GetDefaultFilters(),
@@ -39,6 +39,7 @@ func NewSiteTemplateEngine(data map[string]interface{}, request *http.Request, s
 		Data:            data,
 		Engine:          engine,
 		Page:            page,
+		User:            user,
 		Instance:        site,
 		InternalContext: internal,
 		Errors:          []error{},
@@ -49,8 +50,24 @@ func NewSiteTemplateEngine(data map[string]interface{}, request *http.Request, s
 		return Render(raw, engine, ctx)
 	}
 
+	engine.NewCtx = func(ctx *models.TemplateContext, newData map[string]interface{}) *models.TemplateContext {
+		// Create a new context with the existing internal context and new data
+		newCtx := &models.TemplateContext{
+			InternalContext: ctx.InternalContext,
+			Data:            newData,
+			Engine:          ctx.Engine,
+			Errors:          ctx.Errors,
+		}
+		// Copy the request if it exists
+		if ctx.Request != nil {
+			newCtx.Request = ctx.Request
+		}
+		// Clone the context
+		return newCtx
+	}
+
 	engine.CloneCtx = func(ctx TemplateCtx, newData map[string]interface{}) *models.TemplateContext {
-		clonedCtxData := maps.Clone[map[string]interface{}](ctx.Data)
+		clonedCtxData := maps.Clone(ctx.Data)
 		for k, v := range newData {
 			// If the key already exists, we overwrite it with the new value
 			clonedCtxData[k] = v
@@ -224,7 +241,7 @@ func processTemplateTag(raw string, pos int, sb *strings.Builder, ctx TemplateCt
 	}
 
 	// Unknown tag - return error but continue processing
-	errString := "unknown template tag: %s at position %d: \n--------------\n %s \n--------------\n"
+	errString := "unknown template tag: %s at position %d: \n--------------\n %s \n--------------\n -"
 	snipPos := pos
 	snipEndPos := endPos + len("%}")
 	if (snipPos - 20) > 0 {
