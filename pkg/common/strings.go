@@ -15,6 +15,51 @@ func GetMapKeys(m map[string]interface{}) []string {
 	return keys
 }
 
+// SplitTagParts splits contents of a template tag into the tag name and its arguments.
+// while respecting spaces, quotes round brackets
+// It assumes the first part is the tag name and the rest are arguments.
+// For example, "{{ if condition arg1 arg2 }}" would return "if" and ["condition", "arg1", "arg2"].
+func SplitTagParts(contents string) (tag string, args []string) {
+	var result []string
+	var current strings.Builder
+	inQuote := false
+	inBrackets := 0 // Track nested brackets
+
+	for _, char := range contents {
+		switch char {
+		case '(':
+			inBrackets++ // Increment bracket count
+			current.WriteRune(char)
+		case ')':
+			if inBrackets > 0 {
+				inBrackets-- // Decrement bracket count
+				current.WriteRune(char)
+			} else {
+				// If we encounter a closing bracket without an opening one, treat it as a normal character
+				current.WriteRune(char)
+			}
+		case '"':
+			inQuote = !inQuote // Toggle quote mode
+		case ' ':
+			if !inQuote {
+				if current.Len() > 0 {
+					result = append(result, current.String())
+					current.Reset()
+				}
+				continue
+			}
+		}
+		current.WriteRune(char)
+	}
+
+	if current.Len() > 0 {
+		result = append(result, current.String())
+	}
+
+	return result[0], result[1:]
+}
+
+// DEPRECATED: FieldsRespectQuotes is deprecated, use SplitTagParts instead.
 // FieldsRespectQuotes splits a string by spaces while respecting quoted substrings and removing empty values.
 func FieldsRespectQuotes(s string) []string {
 	var result []string
