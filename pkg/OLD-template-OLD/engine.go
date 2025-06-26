@@ -5,7 +5,6 @@ import (
 	"maps"
 	"net/http"
 	"strings"
-	"text/template"
 
 	"wispy-core/pkg/common"
 	"wispy-core/pkg/models"
@@ -257,25 +256,4 @@ func processTemplateTag(raw string, pos int, sb *strings.Builder, ctx TemplateCt
 
 	templateSnapshot := raw[snipPos:snipEndPos]
 	return endPos + 2, []error{fmt.Errorf(errString, tagName, pos, templateSnapshot)}
-}
-
-// Engine represents the template engine with filter support
-type Engine struct {
-	templates *template.Template
-	filters   models.FilterMap
-}
-
-// New creates a new template engine
-func New() *Engine {
-	e := &Engine{
-		templates: template.New(""),
-		filters:   GetDefaultFilters(),
-	}
-	return e
-}
-
-// RegisterFilter adds a new filter function
-func (e *Engine) RegisterFilter(name string, fn models.FilterFunc) {
-	e.filters[name] = fn
-	common.Debug("Registered filter: %s", name)
 }

@@ -2,15 +2,11 @@
 package template
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
-	"time"
 
 	"wispy-core/pkg/common"
 	"wispy-core/pkg/models"
@@ -446,78 +442,6 @@ var VerbatimTag = models.TemplateTag{
 		sb.WriteString(content)
 
 		return endPos, errs
-	},
-}
-
-var ApiGetTag = models.TemplateTag{
-	Name: "api_get",
-	Render: func(ctx TemplateCtx, sb *strings.Builder, parts []string, raw string, pos int) (newPos int, errs []error) {
-		start := time.Now()
-		if len(parts) < 4 || parts[2] != "as" {
-			errs = append(errs, fmt.Errorf("api_get tag requires format: api_get \"/endpoint\" as variable_name"))
-			return pos, errs
-		}
-
-		// Get the API endpoint from the tag
-		endpoint := parts[1]
-		if common.IsQuotedString(endpoint) {
-			endpoint = endpoint[1 : len(endpoint)-1]
-		}
-
-		variableName := parts[3]
-
-		router := ctx.Instance.Router // chi.Router from the context
-		if router == nil {
-			errs = append(errs, fmt.Errorf("api_get tag requires a router instance in the context"))
-			return pos, errs
-		}
-		originalRequest := ctx.Request // http.Request from the context
-		if originalRequest == nil {
-			errs = append(errs, fmt.Errorf("api_get tag requires an original request in the context"))
-			return pos, errs
-		}
-
-		// Create a new request for the API endpoint
-		req, err := http.NewRequest("GET", endpoint, nil)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to create request for api_get: %v", err))
-			return pos, errs
-		}
-
-		// Copy headers and cookies from the original request
-		req.Header = originalRequest.Header.Clone()
-		for _, cookie := range originalRequest.Cookies() {
-			req.AddCookie(cookie)
-		}
-
-		// Use httptest.ResponseRecorder to capture the response
-		recorder := httptest.NewRecorder()
-
-		// Serve the request using the router
-		router.ServeHTTP(recorder, req)
-
-		// Check the response
-		if recorder.Code != http.StatusOK {
-			errs = append(errs, fmt.Errorf("api_get for endpoint '%s' returned status %d: %s", endpoint, recorder.Code, recorder.Body.String()))
-			// Don't return, just log the error and continue. The variable will be nil.
-			ctx.Data[variableName] = nil
-			return pos, errs
-		}
-
-		// Unmarshal the JSON response
-		var responseData interface{}
-		if err := json.Unmarshal(recorder.Body.Bytes(), &responseData); err != nil {
-			errs = append(errs, fmt.Errorf("failed to unmarshal JSON response from '%s': %v", endpoint, err))
-			ctx.Data[variableName] = nil
-			return pos, errs
-		}
-
-		// Set the response data in the context
-		ctx.Data[variableName] = responseData
-
-		common.Info(fmt.Sprintf("api_get for endpoint '%s' took %s", endpoint, time.Since(start)))
-
-		return pos, errs
 	},
 }
 

@@ -117,9 +117,9 @@ func ResolveDotNotation(ctx TemplateCtx, key string) interface{} {
 	parts := strings.Split(key, ".")
 	var current interface{} = map[string]interface{}{}
 	switch parts[0] {
-	case "Page":
+	case "page":
 		current = ctx.Page.PageData
-	case "Site":
+	case "site":
 		current = ctx.Page.SiteDetails
 	default:
 		current = ctx.Data
