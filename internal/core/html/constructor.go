@@ -3,7 +3,7 @@ package html
 
 import (
 	"net/http"
-	"wispy-core/pkg/models"
+	"wispy-core/internal/models"
 )
 
 // WriteString writes a string to the HTTP response

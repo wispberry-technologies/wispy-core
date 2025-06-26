@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"wispy-core/pkg/models"
+	"wispy-core/internal/models"
 )
 
 // AssetType represents the type of asset

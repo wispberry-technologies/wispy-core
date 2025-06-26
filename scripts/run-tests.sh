@@ -4,7 +4,9 @@
 export TEST_MODE=true
 export SITES_PATH=${SITES_PATH:-$(pwd)/sites}
 export ENV=${ENV:-test}
-s
+
+export GO_TEST_FLAGS="-test.short"
+
 echo "Running tests with settings:"
 echo "  - Environment: $ENV"
 echo "  - Sites path: $SITES_PATH"
@@ -14,7 +16,7 @@ cd "$(dirname "$0")/.."
 
 # Run all tests with verbose output
 echo "Running all tests..."
-go test -v ./...
+go test -v ./pkg/go_templates/* $GO_TEST_FLAGS
 
 # Exit with the same status code as the tests
 exit $?

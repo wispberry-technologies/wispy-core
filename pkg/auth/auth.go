@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	"wispy-core/internal/models"
 	"wispy-core/pkg/common"
-	"wispy-core/pkg/models"
 )
 
 // OAuthConfig holds OAuth provider configuration

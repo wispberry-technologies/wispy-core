@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"wispy-core/internal/cache"
-	"wispy-core/pkg/models"
+	"wispy-core/internal/models"
 )
 
 // Authentication methods for SiteInstanceManager

@@ -11,8 +11,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"wispy-core/internal/models"
 	"wispy-core/pkg/common"
-	"wispy-core/pkg/models"
 
 	"github.com/go-chi/chi/v5"
 )

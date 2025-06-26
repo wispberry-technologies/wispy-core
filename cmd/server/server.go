@@ -8,9 +8,9 @@ import (
 	api_v1 "wispy-core/internal/api/v1"
 	"wispy-core/internal/core"
 	"wispy-core/internal/core/html"
+	"wispy-core/internal/models"
 	"wispy-core/pkg/auth"
 	"wispy-core/pkg/common"
-	"wispy-core/pkg/models"
 
 	"github.com/go-chi/chi/v5"
 )

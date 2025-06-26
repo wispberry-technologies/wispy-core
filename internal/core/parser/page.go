@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"wispy-core/pkg/models"
+	"wispy-core/internal/models"
 )
 
 // ParsePageHTML parses an HTML file with HTML comment metadata

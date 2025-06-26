@@ -6,8 +6,8 @@ import (
 	"log"
 	"strings"
 	"time"
+	"wispy-core/internal/models"
 	"wispy-core/pkg/common"
-	"wispy-core/pkg/models"
 )
 
 func ScaffoldPagesDb(db *sql.DB) {

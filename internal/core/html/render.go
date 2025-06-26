@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
+	"wispy-core/internal/models"
 	"wispy-core/pkg/common"
-	"wispy-core/pkg/models"
 	"wispy-core/pkg/template"
 	"wispy-core/pkg/wispytail"
 )

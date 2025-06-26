@@ -15,8 +15,8 @@ import (
 	"wispy-core/internal/cache"
 	"wispy-core/internal/core/pages"
 	"wispy-core/internal/core/parser"
+	"wispy-core/internal/models"
 	"wispy-core/pkg/common"
-	"wispy-core/pkg/models"
 
 	"github.com/go-chi/chi/v5"
 )

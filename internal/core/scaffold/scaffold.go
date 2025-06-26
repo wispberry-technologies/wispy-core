@@ -6,7 +6,7 @@ import (
 	"log"
 	"strings"
 	"time"
-	"wispy-core/pkg/models"
+	"wispy-core/internal/models"
 )
 
 // models.Page

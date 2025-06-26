@@ -7,9 +7,9 @@ import (
 	"net/url"
 
 	"wispy-core/internal/cache"
+	"wispy-core/internal/models"
 	"wispy-core/pkg/auth"
 	"wispy-core/pkg/common"
-	"wispy-core/pkg/models"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"

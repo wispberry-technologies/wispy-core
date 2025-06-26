@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"wispy-core/pkg/models"
+	"wispy-core/internal/models"
 
 	"github.com/pelletier/go-toml"
 )
