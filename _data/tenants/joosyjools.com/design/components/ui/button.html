@@ -1,0 +1,10 @@
+<!-- A reusable button component with variants -->
+<button class="btn btn-{{ .variant | default "primary" }} 
+	{{ with .size }}btn-{{ . }}{{ end }}
+	{{ with .class }}{{ . }}{{ end }}"
+	{{ with .disabled }}disabled{{ end }}
+	{{ with .id }}id="{{ . }}"{{ end }}
+	{{ with .attributes }}{{ . | safeAttr }}{{ end }}>
+	{{ with .icon }}<span class="icon">{{ . | safeHTML }}</span>{{ end }}
+	{{ .children }}
+</button>

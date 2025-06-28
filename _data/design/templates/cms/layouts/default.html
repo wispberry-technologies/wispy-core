@@ -1,0 +1,33 @@
+<style>
+    html,
+    body {
+        height: 100%;
+        background-color: var(--color-base-300);
+    }
+
+    .dots-background {
+        height: 100%;
+        --dot-bg: var(--color-base-300);
+        --dot-color: color-mix(in oklab, var(--color-base-content) 30%, transparent 0%);
+        --dot-size: 1px;
+        --dot-space: 1.5rem;
+        background:
+            linear-gradient(90deg, var(--dot-bg) calc(var(--dot-space) - var(--dot-size)), transparent 1%) center / var(--dot-space) var(--dot-space),
+            linear-gradient(var(--dot-bg) calc(var(--dot-space) - var(--dot-size)), transparent 1%) center / var(--dot-space) var(--dot-space),
+            var(--dot-color);
+    }
+</style>
+<body class="min-h-screen text-base-content">
+    <!-- Main Content -->
+    <main class="p-6">
+        {% block "page-body" %} <p> Could not load page body.</p> {% endblock %}
+    </main>
+    <!-- Footer -->
+    {% block "footer" %}
+        <footer class="footer footer-center p-4 text-base-content">
+            <div>
+                <p>&copy; 2025 {{ Site.Name }}. Powered by Wispy-CMS.</p>
+            </div>
+        </footer>
+    {% endblock %}
+</body>

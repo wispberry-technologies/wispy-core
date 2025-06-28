@@ -1,4 +1,7 @@
 {
+  // 
+  // 
+  // =--- ---= General Settings =--- ---=
   "files.watcherExclude": {
     "**/.git": true,
     "**/.DS_Store": true,
@@ -10,12 +13,19 @@
       "file": "./.vscode/daisyui.md"
     },
     {
-      "file": "./.vscode/project-guide.md"
+      "file": "./PROJECT_STANDARDS.md"
+      
+    },
+    {
+      "text": "only use input or response should NOT BE USED! unless specifically allowed/told, otherwise use `application/x-www-form-urlencoded` for API requests. Validate all incoming data against a defined schema using `go-playground/validator`."
+    },
+    {
+      "text": "make sure not to create unnessary functions when utils already exists make sure to keep the code DRY and avoid code duplication"
     },
   ],
-  "go-template.languages": [
-    "html",
-  ],
+  // 
+  // 
+  // =--- ---= Editor Settings =--- ---=
   "editor.fontFamily": "'Fira Code Nerd Font', 'Jetbrains Mono Nerd Font', 'Hack Nerd Font', 'monospace'",
   "editor.lineHeight": 1.5,
   "editor.smoothScrolling": true,
@@ -25,9 +35,18 @@
   "terminal.integrated.fontFamily": "'Fira Code Nerd Font', 'Jetbrains Mono Nerd Font', 'Hack Nerd Font', 'monospace'",
   "terminal.integrated.lineHeight": 1.5,
   "workbench.iconTheme": "catppuccin-latte",
+  // 
+  // 
+  // =--- ---= Extensions Settings =--- ---=
+  "files.associations": {
+    "*.html": "html"
+  },
+  "emmet.includeLanguages": {
+    "twig": "html"
+  },
   "highlight.regexes": {
     "(\\@\\w+)": {
-      "filterFileRegex": ".*\\.{|html|tmpl|go-template}",
+      "filterFileRegex": ".*\\.{|html|tmpl}",
       "decorations": [
         {
           "name": "keyword",
@@ -40,12 +59,20 @@
     }
   },
   "cSpell.words": [
+    "bluemonday",
+    "dedupe",
+    "fasttemplate",
     "fieldset",
+    "htmltemplate",
     "httprate",
+    "jstmpllitinterp",
+    "libexec",
     "multisite",
     "rootscrollgutter",
     "rootscrolllock",
+    "texttemplate",
     "tmpl",
-    "wispberry"
+    "wispberry",
+    "wispytail"
   ]
 }

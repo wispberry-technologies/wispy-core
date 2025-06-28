@@ -1,0 +1,12 @@
+<!--
+@name index
+@slug /
+@layout cms
+@require_auth true
+@required_roles [cms_viewer, cms_editor]
+-->
+{% define "page-body" %}
+  <!-- Insert login form or section here, or use a partial include if supported by the new engine -->
+  {% render "@app/dashboard.html" %}
+  <!--  -->
+{% enddefine %}

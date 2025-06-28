@@ -1,0 +1,51 @@
+<!-- daisyUI CSS -->
+{% asset "css-inline" "@assets/css/daisyui@5.css" %}
+{% asset "css-inline" "@assets/themes/midnight-wisp.css" %}
+<style>
+    html,
+    body {
+        height: 100%;
+        background-color: var(--color-base-300);
+    }
+
+    .dots-background {
+        height: 100%;
+        --dot-bg: var(--color-base-300);
+        --dot-color: color-mix(in oklab, var(--color-base-content) 30%, transparent 0%);
+        --dot-size: 1px;
+        --dot-space: 1.5rem;
+        background:
+            linear-gradient(90deg, var(--dot-bg) calc(var(--dot-space) - var(--dot-size)), transparent 1%) center / var(--dot-space) var(--dot-space),
+            linear-gradient(var(--dot-bg) calc(var(--dot-space) - var(--dot-size)), transparent 1%) center / var(--dot-space) var(--dot-space),
+            var(--dot-color);
+    }
+</style>
+<body class="min-h-screen text-base-content flex flex-col dots-background">
+    <!-- Main Content -->
+    <main class="flex">
+        <nav>
+          <ul class="menu bg-base-200 rounded-box w-56">
+            <li>
+              <a> {% icon "outline/home" class="h-5 w-5" %} Home </a>
+            </li>
+            <li>
+              <a> {% icon "outline/home" class="h-5 w-5" %} Item 1 </a>
+            </li>
+            <li>
+              <a> {% icon "outline/cog-6-tooth" class="h-5 w-5" %} Item 4 </a>
+            </li>
+          </ul>
+        </nav>  
+        <div>
+          {% block "page-body" %} <p> Could not load page body.</p> {% endblock %}
+        </div>
+    </main>
+    <!-- Footer -->
+    {% block "footer" %}
+        <footer class="footer footer-center p-4 text-base-content opacity-60">
+            <div>
+                <p>&copy; 2025 {{ .Site.Name }}. Powered by Wispy-CMS.</p>
+            </div>
+        </footer>
+    {% endblock %}
+</body>

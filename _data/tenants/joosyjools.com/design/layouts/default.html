@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>{{.Title}} | {{.Site.Name}}</title>
+	<meta name="description" content="{{.Description}}">
+	<link rel="stylesheet" href="/assets/css/theme.css">
+	<!-- Favicon -->
+	<link rel="icon" href="/assets/images/favicon.ico">
+	<!-- Additional meta tags -->
+	<meta name="generator" content="Wispy Core">
+	<meta property="og:title" content="{{.Title}}">
+	<meta property="og:description" content="{{.Description}}">
+	<meta property="og:type" content="website">
+	<meta property="og:url" content="{{.Site.BaseURL}}">
+	<!-- Enable responsive design -->
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body class="bg-base-100 text-base-content min-h-screen flex flex-col">
+	<!-- Header -->
+	<header class="bg-base-200 shadow-sm">
+		<div class="container mx-auto p-4">
+			<nav class="flex items-center justify-between">
+				<div class="flex-none">
+					<a href="/" class="text-xl font-bold">{{.Site.Name}}</a>
+				</div>
+				<div class="flex-1 px-2 mx-2">
+					<ul class="flex space-x-4">
+						<li><a href="/" class="hover:text-primary">Home</a></li>
+						<li><a href="/pages/about" class="hover:text-primary">About</a></li>
+					</ul>
+				</div>
+			</nav>
+		</div>
+	</header>
+
+	<!-- Main content -->
+	<main class="container mx-auto p-4 flex-grow">
+		{{ template "content" . }}
+	</main>
+
+	<!-- Footer -->
+	<footer class="bg-base-200 p-4">
+		<div class="container mx-auto text-center">
+			<p>&copy; 2025 {{.Site.Name}}. All rights reserved.</p>
+		</div>
+	</footer>
+
+	<!-- Scripts -->
+	<script src="/assets/js/main.js"></script>
+</body>
+</html>

@@ -1,5 +1,9 @@
 {
   "recommendations": [
-    "fabiospampinato.vscode-highlight"
+    "fabiospampinato.vscode-highlight",
+    "mblode.twig-language-2",
+    "streetsidesoftware.code-spell-checker",
+    "tamasfe.even-better-toml",
+    "bradlc.vscode-tailwindcss"
   ]
 }

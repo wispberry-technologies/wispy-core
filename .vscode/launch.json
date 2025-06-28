@@ -5,12 +5,13 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Go",
+      "name": "Launch Test",
       "type": "go",
       "request": "launch",
-      "cwd": "${workspaceFolder}/example",
       "mode": "auto",
-      "program": "./example",
+      "program": "${workspaceFolder}/server",
+      // Load .env
+      "envFile": "${workspaceFolder}/.env",
     }
   ]
 }
