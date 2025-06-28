@@ -110,8 +110,14 @@ func LoadGlobalConfig() GlobalConfig {
 	// Set WISPY_CORE_ROOT
 	common.GetEnvOrSet("WISPY_CORE_ROOT", projectRoot) // Default to current directory if not set
 	// Get configuration from environment
-	port := common.GetEnvOrSet("PORT", "8080")
-	host := common.GetEnvOrSet("HOST", "")
+	var port, host string
+	if common.IsProduction() {
+		port = common.GetEnvOrSet("PORT", "443")
+		host = common.GetEnvOrSet("HOST", "0.0.0.0")
+	} else {
+		port = common.GetEnvOrSet("PORT", "8080")      // Default port for development
+		host = common.GetEnvOrSet("HOST", "localhost") // Default host for development
+	}
 	env := common.GetEnvOrSet("ENV", "development")
 	sitesPath := common.GetEnvOrSet("SITES_PATH", filepath.Join(projectRoot, "_data/sites"))    // Default sites path
 	staticPath := common.GetEnvOrSet("STATIC_PATH", filepath.Join(projectRoot, "_data/static")) // Optional, but recommended for static assets
