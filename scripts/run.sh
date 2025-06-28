@@ -11,7 +11,7 @@ sudo ufw allow 443/tcp
 sudo ufw allow 80/tcp
 
 # Kill any process running on port 8080
-echo "${RED}Shutting down any running server on port 8080...  ${RESET}"
+echo "${RED}Shutting down any running servers ${RESET}"
 lsof -ti:8080 | xargs kill -9 2>/dev/null || echo "No server was running on :8080"
 lsof -ti:80 | xargs kill -9 2>/dev/null || echo "No server was running on :80"
 lsof -ti:443 | xargs kill -9 2>/dev/null || echo "No server was running on :443"

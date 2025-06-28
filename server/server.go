@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"path/filepath"
 	"time"
@@ -15,6 +16,17 @@ import (
 	"wispy-core/core/site"
 	"wispy-core/network"
 )
+
+// isPortAvailable checks if a port is available
+func isPortAvailable(port int) bool {
+	addr := fmt.Sprintf(":%d", port)
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return false
+	}
+	listener.Close()
+	return true
+}
 
 func main() {
 	// -----------
@@ -78,8 +90,14 @@ func main() {
 		))
 	}
 
-	httpsAddr := fmt.Sprintf("%s:%d", host, port)
-	httpAddr := fmt.Sprintf("%s:80", host) // HTTP port for redirects
+	// Use standard ports for HTTP and HTTPS
+	httpAddr := fmt.Sprintf("%s:80", host)   // Standard HTTP port
+	httpsAddr := fmt.Sprintf("%s:443", host) // Standard HTTPS port
+
+	// If a custom port was specified, use it for HTTPS
+	if port != 80 && port != 443 {
+		httpsAddr = fmt.Sprintf("%s:%d", host, port)
+	}
 
 	// Create an HTTP server that redirects to HTTPS
 	httpServer := &http.Server{
@@ -153,24 +171,46 @@ func main() {
 	// Channel to collect errors from the HTTP server
 	httpErrors := make(chan error, 1)
 
-	// Start HTTP server in a goroutine
-	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			common.Warning("HTTP server failed: %v", err)
-			httpErrors <- err
-		}
-	}()
+	// Extract port numbers from addresses for availability checking
+	httpPort := 80
+	httpsPort := 443
+	if port != 80 && port != 443 {
+		httpsPort = port
+	}
 
-	// Give the HTTP server a moment to bind to the port and report any errors
-	select {
-	case err := <-httpErrors:
-		common.Warning("HTTP server couldn't start: %v", err)
-		// Continue even if HTTP server fails, as HTTPS might still work
-	case <-time.After(500 * time.Millisecond):
-		// Continue after a short delay if no immediate errors
+	// Test if ports are available before starting servers
+	httpPortAvailable := isPortAvailable(httpPort)
+	httpsPortAvailable := isPortAvailable(httpsPort)
+
+	if !httpPortAvailable {
+		common.Warning("HTTP port %d is already in use. HTTP redirects will not be available.", httpPort)
+	}
+
+	if !httpsPortAvailable {
+		common.Fatal("HTTPS port %d is already in use. Cannot start server.", httpsPort)
+	}
+
+	// Start HTTP server in a goroutine (only if port is available)
+	if httpPortAvailable {
+		go func() {
+			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				common.Warning("HTTP server failed: %v", err)
+				httpErrors <- err
+			}
+		}()
+
+		// Give the HTTP server a moment to bind to the port and report any errors
+		select {
+		case err := <-httpErrors:
+			common.Warning("HTTP server couldn't start: %v", err)
+			// Continue even if HTTP server fails, as HTTPS might still work
+		case <-time.After(500 * time.Millisecond):
+			// Continue after a short delay if no immediate errors
+		}
 	}
 
 	// Start HTTPS server (blocking)
+	common.Info("Starting HTTPS server on %s", httpsAddr)
 	if err := httpsServer.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 		common.Fatal("HTTPS server failed to start: %v", err)
 	}
