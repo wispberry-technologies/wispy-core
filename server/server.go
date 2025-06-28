@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -99,24 +100,6 @@ func main() {
 		httpsAddr = fmt.Sprintf("%s:%d", host, port)
 	}
 
-	// Create an HTTP server that redirects to HTTPS
-	httpServer := &http.Server{
-		Addr: httpAddr,
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Build the redirect URL
-			target := "https://" + r.Host + r.URL.Path
-			if len(r.URL.RawQuery) > 0 {
-				target += "?" + r.URL.RawQuery
-			}
-
-			// Redirect to HTTPS
-			http.Redirect(w, r, target, http.StatusMovedPermanently)
-		}),
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
-		MaxHeaderBytes: 1 << 20,
-	}
-
 	// ------------
 	// # Setup routes and site management
 	// ------------
@@ -140,8 +123,21 @@ func main() {
 		http.Error(w, "Site not found", http.StatusNotFound)
 	})
 
+	// Create host router with the site manager
+	hostRouter := network.NewHostRouter(siteManager, notFoundHandler, "localhost")
+
+	// Set the host router as the main handler
+	rootRouter.Mount("/", hostRouter)
+
+	// Setup static file serving
+	rootRouter.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir(staticPath))))
+
 	// Create SSL certificates directory
-	certsDir := filepath.Join(globConf.GetProjectRoot(), globConf.GetCacheDir(), "/.certs")
+	certsDir := filepath.Join(projectRoot, globConf.GetCacheDir(), ".certs")
+	// Create directory if it doesn't exist
+	if err := common.EnsureDir(certsDir); err != nil {
+		common.Warning("Failed to create certificates directory: %v", err)
+	}
 
 	// Set up default domains and get site domains
 	defaultDomains := []string{
@@ -153,23 +149,31 @@ func main() {
 	// Create domain list from site domains and default domains
 	siteDomains := siteManager.Domains().GetDomains()
 	domains := network.CreateDomainListFromMap(siteDomains, defaultDomains)
-	_, httpsServer := network.NewSSLServer(certsDir, httpsAddr, domains, rootRouter)
 
-	// Create host router with the site manager
-	hostRouter := network.NewHostRouter(siteManager, notFoundHandler, "localhost")
+	// Create the certificate manager and HTTPS server
+	certManager, httpsServer := network.NewSSLServer(certsDir, httpsAddr, domains, rootRouter)
 
-	// Set the host router as the main handler
-	rootRouter.Mount("/", hostRouter)
+	// Create an HTTP server that both redirects to HTTPS and handles ACME challenges
+	httpServer := &http.Server{
+		Addr: httpAddr,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Check if this is an ACME challenge
+			if strings.HasPrefix(r.URL.Path, "/.well-known/acme-challenge/") {
+				certManager.HTTPHandler(nil).ServeHTTP(w, r)
+				return
+			}
 
-	// Setup static file serving
-	rootRouter.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir(staticPath))))
-
-	// Start both HTTP and HTTPS servers
-	common.Info("HTTP server starting on http://%s", httpAddr)
-	common.Info("HTTPS server starting on https://%s", httpsAddr)
-
-	// Channel to collect errors from the HTTP server
-	httpErrors := make(chan error, 1)
+			// Otherwise redirect to HTTPS
+			target := "https://" + r.Host + r.URL.Path
+			if len(r.URL.RawQuery) > 0 {
+				target += "?" + r.URL.RawQuery
+			}
+			http.Redirect(w, r, target, http.StatusMovedPermanently)
+		}),
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
 
 	// Extract port numbers from addresses for availability checking
 	httpPort := 80
@@ -193,24 +197,15 @@ func main() {
 	// Start HTTP server in a goroutine (only if port is available)
 	if httpPortAvailable {
 		go func() {
+			common.Info("Starting HTTP server on http://%s", httpAddr)
 			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				common.Warning("HTTP server failed: %v", err)
-				httpErrors <- err
 			}
 		}()
-
-		// Give the HTTP server a moment to bind to the port and report any errors
-		select {
-		case err := <-httpErrors:
-			common.Warning("HTTP server couldn't start: %v", err)
-			// Continue even if HTTP server fails, as HTTPS might still work
-		case <-time.After(500 * time.Millisecond):
-			// Continue after a short delay if no immediate errors
-		}
 	}
 
 	// Start HTTPS server (blocking)
-	common.Info("Starting HTTPS server on %s", httpsAddr)
+	common.Info("Starting HTTPS server on https://%s", httpsAddr)
 	if err := httpsServer.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 		common.Fatal("HTTPS server failed to start: %v", err)
 	}
