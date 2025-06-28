@@ -1,0 +1,21 @@
+<!-- A reusable card component -->
+<div class="card {{ with .class }}{{ . }}{{ end }}"
+	{{ with .id }}id="{{ . }}"{{ end }}
+	{{ with .attributes }}{{ . | safeAttr }}{{ end }}>
+	{{ with .image }}
+	<figure>
+		<img src="{{ . }}" alt="{{ $.imageAlt | default "Card image" }}" />
+	</figure>
+	{{ end }}
+	<div class="card-body">
+		{{ with .title }}<h2 class="card-title">{{ . }}</h2>{{ end }}
+		<div class="card-content">
+			{{ .children }}
+		</div>
+		{{ with .actions }}
+		<div class="card-actions">
+			{{ . | safeHTML }}
+		</div>
+		{{ end }}
+	</div>
+</div>

@@ -9,7 +9,7 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}/cmd/server",
+      "program": "${workspaceFolder}/server",
       // Load .env
       "envFile": "${workspaceFolder}/.env",
     }

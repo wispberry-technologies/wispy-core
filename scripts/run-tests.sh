@@ -16,7 +16,7 @@ cd "$(dirname "$0")/.."
 
 # Run all tests with verbose output
 echo "Running all tests..."
-go test -v ./pkg/go_templates/* $GO_TEST_FLAGS
+go test -v .go_templates/* $GO_TEST_FLAGS
 
 # Exit with the same status code as the tests
 exit $?

@@ -12,9 +12,16 @@
     {
       "file": "./.vscode/daisyui.md"
     },
-    // {
-    //   "file": "./README.md"
-    // },
+    {
+      "file": "./PROJECT_STANDARDS.md"
+      
+    },
+    {
+      "text": "only use input or response should NOT BE USED! unless specifically allowed/told, otherwise use `application/x-www-form-urlencoded` for API requests. Validate all incoming data against a defined schema using `go-playground/validator`."
+    },
+    {
+      "text": "make sure not to create unnessary functions when utils already exists make sure to keep the code DRY and avoid code duplication"
+    },
   ],
   // 
   // 
@@ -56,10 +63,14 @@
     "dedupe",
     "fasttemplate",
     "fieldset",
+    "htmltemplate",
     "httprate",
+    "jstmpllitinterp",
+    "libexec",
     "multisite",
     "rootscrollgutter",
     "rootscrolllock",
+    "texttemplate",
     "tmpl",
     "wispberry",
     "wispytail"
