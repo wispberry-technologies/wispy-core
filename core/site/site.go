@@ -3,6 +3,8 @@ package site
 import (
 	"sync"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 )
 
 // Site represents a tenant instance with atomic access patterns
@@ -17,6 +19,7 @@ type site struct {
 	Data       map[string]interface{} `toml:"data" json:"data"`
 	CreatedAt  time.Time              `toml:"created_at" json:"created_at"`
 	UpdatedAt  time.Time              `toml:"updated_at" json:"updated_at"`
+	Router     *chi.Mux               `toml:"-" json:"-"`
 }
 
 type Site interface {
@@ -31,6 +34,7 @@ type Site interface {
 	GetCreatedAt() time.Time
 	GetUpdatedAt() time.Time
 	SetUpdatedAt(t time.Time)
+	GetRouter() *chi.Mux
 }
 
 func (s *site) GetID() string {
@@ -104,4 +108,13 @@ func (s *site) SetUpdatedAt(t time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.UpdatedAt = t
+}
+
+func (s *site) GetRouter() *chi.Mux {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.Router == nil {
+		s.Router = chi.NewRouter()
+	}
+	return s.Router
 }

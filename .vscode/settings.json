@@ -9,9 +9,9 @@
     "**/.cache" : true,
   },
   "github.copilot.chat.codeGeneration.instructions": [
-    {
-      "file": "./.vscode/daisyui.md"
-    },
+    // {
+    //   "file": "./.vscode/daisyui.md"
+    // },
     {
       "file": "./PROJECT_STANDARDS.md"
       

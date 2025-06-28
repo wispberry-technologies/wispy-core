@@ -94,6 +94,9 @@ func (c *globalConfig) GetRequestsPerMinute() int {
 // LoadGlobalConfig initializes the global configuration by reading environment variables
 // ----------
 func LoadGlobalConfig() GlobalConfig {
+	// Load environment variables and set defaults
+	common.LoadDotEnv() // Load .env file if it exists
+
 	// Get current working directory
 	var projectRoot string
 	currentDir, dirErr := os.Getwd()

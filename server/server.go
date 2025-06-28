@@ -12,7 +12,8 @@ import (
 
 	"wispy-core/common"
 	"wispy-core/config"
-	"wispy-core/security"
+	"wispy-core/core/site"
+	"wispy-core/network"
 )
 
 func main() {
@@ -78,7 +79,7 @@ func main() {
 	}
 
 	certsDir := filepath.Join(globConf.GetProjectRoot(), globConf.GetCacheDir(), "/.certs")
-	domains := security.NewDomainList()
+	domains := network.NewDomainList()
 	// Add default domains if needed
 	defaultDomains := []string{"localhost", "example.com", "www.example.com"}
 	for _, domain := range defaultDomains {
@@ -89,14 +90,39 @@ func main() {
 
 	addr := fmt.Sprintf("%s:%d", host, port)
 	// TODO: api support for handling adding domains dynamically
-	_, server := security.NewSSLServer(certsDir, addr, domains, rootRouter)
+	_, server := network.NewSSLServer(certsDir, addr, domains, rootRouter)
 
 	// ------------
-	// # Setup routes
-	// - Static files
-	// - API endpoints
-	// - Site management
+	// # Setup routes and site management
 	// ------------
+
+	// Initialize site manager
+	siteManager := site.NewSiteManager(sitesPath)
+
+	// Load all sites
+	sites, err := siteManager.LoadAllSites()
+	if err != nil {
+		common.Fatal("Failed to load sites: %v", err)
+	}
+
+	common.Info("Loaded %d sites", len(sites))
+
+	// Setup routes for all sites
+	site.ScaffoldAllSites(sites)
+
+	// Setup not found handler
+	notFoundHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Site not found", http.StatusNotFound)
+	})
+
+	// Create host router with the site manager
+	hostRouter := network.NewHostRouter(siteManager, notFoundHandler, "localhost")
+
+	// Set the host router as the main handler
+	rootRouter.Mount("/", hostRouter)
+
+	// Setup static file serving
+	rootRouter.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir(staticPath))))
 
 	// Start the HTTP server
 	common.Info("Server starting on https://%s", addr)
