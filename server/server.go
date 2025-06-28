@@ -78,19 +78,26 @@ func main() {
 		))
 	}
 
-	certsDir := filepath.Join(globConf.GetProjectRoot(), globConf.GetCacheDir(), "/.certs")
-	domains := network.NewDomainList()
-	// Add default domains if needed
-	defaultDomains := []string{"localhost", "example.com", "www.example.com"}
-	for _, domain := range defaultDomains {
-		if err := domains.AddDomain(domain); err != nil {
-			common.Warning("Failed to add default domain %q: %v", domain, err)
-		}
-	}
+	httpsAddr := fmt.Sprintf("%s:%d", host, port)
+	httpAddr := fmt.Sprintf("%s:80", host) // HTTP port for redirects
 
-	addr := fmt.Sprintf("%s:%d", host, port)
-	// TODO: api support for handling adding domains dynamically
-	_, server := network.NewSSLServer(certsDir, addr, domains, rootRouter)
+	// Create an HTTP server that redirects to HTTPS
+	httpServer := &http.Server{
+		Addr: httpAddr,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Build the redirect URL
+			target := "https://" + r.Host + r.URL.Path
+			if len(r.URL.RawQuery) > 0 {
+				target += "?" + r.URL.RawQuery
+			}
+
+			// Redirect to HTTPS
+			http.Redirect(w, r, target, http.StatusMovedPermanently)
+		}),
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
 
 	// ------------
 	// # Setup routes and site management
@@ -115,6 +122,21 @@ func main() {
 		http.Error(w, "Site not found", http.StatusNotFound)
 	})
 
+	// Create SSL certificates directory
+	certsDir := filepath.Join(globConf.GetProjectRoot(), globConf.GetCacheDir(), "/.certs")
+
+	// Set up default domains and get site domains
+	defaultDomains := []string{
+		host,        // The configured host
+		"*",         // Wildcard domain for unregistered domains
+		"localhost", // Local development
+	}
+
+	// Create domain list from site domains and default domains
+	siteDomains := siteManager.Domains().GetDomains()
+	domains := network.CreateDomainListFromMap(siteDomains, defaultDomains)
+	_, httpsServer := network.NewSSLServer(certsDir, httpsAddr, domains, rootRouter)
+
 	// Create host router with the site manager
 	hostRouter := network.NewHostRouter(siteManager, notFoundHandler, "localhost")
 
@@ -124,9 +146,32 @@ func main() {
 	// Setup static file serving
 	rootRouter.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir(staticPath))))
 
-	// Start the HTTP server
-	common.Info("Server starting on https://%s", addr)
-	if err := server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
-		common.Fatal("Server failed to start: %v", err)
+	// Start both HTTP and HTTPS servers
+	common.Info("HTTP server starting on http://%s", httpAddr)
+	common.Info("HTTPS server starting on https://%s", httpsAddr)
+
+	// Channel to collect errors from the HTTP server
+	httpErrors := make(chan error, 1)
+
+	// Start HTTP server in a goroutine
+	go func() {
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			common.Warning("HTTP server failed: %v", err)
+			httpErrors <- err
+		}
+	}()
+
+	// Give the HTTP server a moment to bind to the port and report any errors
+	select {
+	case err := <-httpErrors:
+		common.Warning("HTTP server couldn't start: %v", err)
+		// Continue even if HTTP server fails, as HTTPS might still work
+	case <-time.After(500 * time.Millisecond):
+		// Continue after a short delay if no immediate errors
+	}
+
+	// Start HTTPS server (blocking)
+	if err := httpsServer.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+		common.Fatal("HTTPS server failed to start: %v", err)
 	}
 }

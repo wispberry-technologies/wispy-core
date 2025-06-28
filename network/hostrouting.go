@@ -34,59 +34,58 @@ func NewHostRouter(siteManager site.SiteManager, notFound http.Handler, defaultH
 	}
 }
 
+// extractHost removes any port number from the host string
+func extractHost(hostWithPort string) string {
+	if idx := strings.IndexByte(hostWithPort, ':'); idx >= 0 {
+		return hostWithPort[:idx]
+	}
+	return hostWithPort
+}
+
+// isDebugRequested checks if debug info was requested via query param or header
+func isDebugRequested(r *http.Request) bool {
+	return r.URL.Query().Get("__include_debug_info__") == "true" ||
+		r.Header.Get("__include_debug_info__") == "true"
+}
+
+// respondWithNotFound responds with a not found error
+func respondWithNotFound(w http.ResponseWriter, r *http.Request, host string, err error, includeDebug bool, handler http.Handler) {
+	common.Warning("No site found for host: %s", host)
+
+	if includeDebug {
+		http.Error(w, fmt.Sprintf("Site not found for host: %s\nError: %v", host, err), http.StatusNotFound)
+		return
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ServeHTTP implements http.Handler
 func (hr *HostRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Extract host from request
-	host := r.Host
-
-	// Remove port if present
-	if idx := strings.IndexByte(host, ':'); idx >= 0 {
-		host = host[:idx]
-	}
-
-	// Check for debug mode
-	includeDebugInfo := false
-	if r.URL.Query().Get("__include_debug_info__") == "true" || r.Header.Get("__include_debug_info__") == "true" {
-		includeDebugInfo = true
-	}
+	host := extractHost(r.Host)
+	includeDebug := isDebugRequested(r)
 
 	// Try to get the site for this host
-	s, err := hr.siteManager.GetSite(host)
+	site, err := hr.siteManager.GetSite(host)
+
+	// If site not found, try the default host
+	if err != nil && hr.defaultHost != "" && host != hr.defaultHost {
+		site, err = hr.siteManager.GetSite(hr.defaultHost)
+	}
+
+	// Still no site found, return not found
 	if err != nil {
-		// If we have a default host, try that
-		if hr.defaultHost != "" && host != hr.defaultHost {
-			s, err = hr.siteManager.GetSite(hr.defaultHost)
-		}
-
-		// If we still don't have a site, use the not found handler
-		if err != nil {
-			common.Warning("No site found for host: %s", host)
-
-			if includeDebugInfo {
-				// Include debug info in the response
-				http.Error(w, fmt.Sprintf("Site not found for host: %s\nError: %v", host, err), http.StatusNotFound)
-				return
-			}
-
-			hr.notFound.ServeHTTP(w, r)
-			return
-		}
+		respondWithNotFound(w, r, host, err, includeDebug, hr.notFound)
+		return
 	}
 
 	// Get the router for this site
-	router := s.GetRouter()
+	router := site.GetRouter()
 
-	// If the router is nil, use the not found handler
+	// If the router is nil, return not found with a different error
 	if router == nil {
-		common.Warning("No router found for site: %s", host)
-
-		if includeDebugInfo {
-			// Include debug info in the response
-			http.Error(w, fmt.Sprintf("No router found for site: %s", host), http.StatusInternalServerError)
-			return
-		}
-
-		hr.notFound.ServeHTTP(w, r)
+		routerErr := fmt.Errorf("no router configured for site")
+		respondWithNotFound(w, r, host, routerErr, includeDebug, hr.notFound)
 		return
 	}
 
