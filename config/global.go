@@ -111,7 +111,7 @@ func LoadGlobalConfig() GlobalConfig {
 	common.GetEnvOrSet("WISPY_CORE_ROOT", projectRoot) // Default to current directory if not set
 	// Get configuration from environment
 	port := common.GetEnvOrSet("PORT", "8080")
-	host := common.GetEnvOrSet("HOST", "localhost")
+	host := common.GetEnvOrSet("HOST", "")
 	env := common.GetEnvOrSet("ENV", "development")
 	sitesPath := common.GetEnvOrSet("SITES_PATH", filepath.Join(projectRoot, "_data/sites"))    // Default sites path
 	staticPath := common.GetEnvOrSet("STATIC_PATH", filepath.Join(projectRoot, "_data/static")) // Optional, but recommended for static assets
