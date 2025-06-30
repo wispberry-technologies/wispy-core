@@ -140,18 +140,17 @@ func main() {
 	}
 
 	// Set up default domains and get site domains
-	defaultDomains := []string{
-		host,        // The configured host
-		"*",         // Wildcard domain for unregistered domains
-		"localhost", // Local development
-	}
+	// defaultDomains := []string{
+	// 	host,        // The configured host
+	// 	"*",         // Wildcard domain for unregistered domains
+	// 	"localhost", // Local development
+	// }
 
 	// Create domain list from site domains and default domains
 	siteDomains := siteManager.Domains().GetDomains()
-	domains := network.CreateDomainListFromMap(siteDomains, defaultDomains)
 
 	// Create the certificate manager and HTTPS server
-	certManager, httpsServer := network.NewSSLServer(certsDir, httpsAddr, domains, rootRouter)
+	certManager, httpsServer := network.NewSSLServer(certsDir, httpsAddr, siteDomains, rootRouter)
 
 	// Create an HTTP server that both redirects to HTTPS and handles ACME challenges
 	httpServer := &http.Server{

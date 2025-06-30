@@ -12,41 +12,41 @@ import (
 
 type siteManager struct {
 	mu             sync.RWMutex
-	sites          map[string]Site
+	sites          map[string]Site // Maps domain to Site
 	tenantsRootDir string
 	domains        DomainList
 }
 
 // DomainList represents a list of domains associated with sites
 type DomainList interface {
-	GetDomains() map[string]string // Maps domain to site ID
-	AddDomain(domain, siteID string) error
+	GetDomains() []string // Returns list of all domains
+	AddDomain(domain string) error
 	RemoveDomain(domain string) error
-	GetSiteID(domain string) (string, bool)
+	HasDomain(domain string) bool
 }
 
 // domainList implements DomainList
 type domainList struct {
 	mu      sync.RWMutex
-	domains map[string]string // Maps domain to site ID
+	domains map[string]bool // Set of domains
 }
 
-func (dl *domainList) GetDomains() map[string]string {
+func (dl *domainList) GetDomains() []string {
 	dl.mu.RLock()
 	defer dl.mu.RUnlock()
 
-	result := make(map[string]string)
-	for domain, siteID := range dl.domains {
-		result[domain] = siteID
+	result := make([]string, 0, len(dl.domains))
+	for domain := range dl.domains {
+		result = append(result, domain)
 	}
 	return result
 }
 
-func (dl *domainList) AddDomain(domain, siteID string) error {
+func (dl *domainList) AddDomain(domain string) error {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
 
-	dl.domains[domain] = siteID
+	dl.domains[domain] = true
 	return nil
 }
 
@@ -58,27 +58,26 @@ func (dl *domainList) RemoveDomain(domain string) error {
 	return nil
 }
 
-func (dl *domainList) GetSiteID(domain string) (string, bool) {
+func (dl *domainList) HasDomain(domain string) bool {
 	dl.mu.RLock()
 	defer dl.mu.RUnlock()
 
-	siteID, ok := dl.domains[domain]
-	return siteID, ok
+	return dl.domains[domain]
 }
 
 // NewDomainList creates a new domain list
 func NewDomainList() DomainList {
 	return &domainList{
-		domains: make(map[string]string),
+		domains: make(map[string]bool),
 	}
 }
 
 type SiteManager interface {
 	Domains() DomainList
 	LoadAllSites() (map[string]Site, error)
-	LoadSite(tenantID string) (Site, error)
-	GetSite(tenantDomain string) (Site, error)
-	UpdateSite(tenantDomain string, site Site) error
+	LoadSiteByDomain(domain string) (Site, error)
+	GetSite(domain string) (Site, error)
+	UpdateSite(domain string, site Site) error
 }
 
 // NewSiteManager creates a new site manager
@@ -118,19 +117,21 @@ func (sm *siteManager) LoadAllSites() (map[string]Site, error) {
 		go func(entry os.DirEntry) {
 			defer wg.Done()
 
-			site, err := sm.LoadSite(entry.Name())
+			site, err := sm.LoadSiteByDomain(entry.Name())
 			if err != nil {
 				errs <- fmt.Errorf("error loading site %s: %w", entry.Name(), err)
 				return
 			}
 
 			mu.Lock()
-			sites[entry.Name()] = site
+			domain := site.GetDomain()
+			if domain == "" {
+				domain = entry.Name() // Use directory name as fallback
+			}
+			sites[domain] = site
 
 			// Register domain
-			if site.GetDomain() != "" {
-				sm.domains.AddDomain(site.GetDomain(), site.GetID())
-			}
+			sm.domains.AddDomain(domain)
 			mu.Unlock()
 		}(entry)
 	}
@@ -146,9 +147,9 @@ func (sm *siteManager) LoadAllSites() (map[string]Site, error) {
 	return sites, nil
 }
 
-// LoadSite loads a site configuration from the tenants directory
-func (sm *siteManager) LoadSite(tenantID string) (Site, error) {
-	configPath := filepath.Join(sm.tenantsRootDir, tenantID, "config.toml")
+// LoadSiteByDomain loads a site configuration by domain name
+func (sm *siteManager) LoadSiteByDomain(domain string) (Site, error) {
+	configPath := filepath.Join(sm.tenantsRootDir, domain, "config.toml")
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -158,7 +159,6 @@ func (sm *siteManager) LoadSite(tenantID string) (Site, error) {
 	// Temporary struct for TOML parsing
 	var config struct {
 		Site struct {
-			ID         string    `toml:"id"`
 			Name       string    `toml:"name"`
 			Domain     string    `toml:"domain"`
 			BaseURL    string    `toml:"base_url"`
@@ -224,6 +224,12 @@ func (sm *siteManager) LoadSite(tenantID string) (Site, error) {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 
+	// Use domain from config or fallback to directory name
+	siteDomain := config.Site.Domain
+	if siteDomain == "" {
+		siteDomain = domain
+	}
+
 	// Create Theme instance
 	theme := &Theme{
 		Name: config.Theme.Name,
@@ -283,12 +289,11 @@ func (sm *siteManager) LoadSite(tenantID string) (Site, error) {
 		Variables: config.Theme.Variables,
 	}
 
-	// Create Site instance
+	// Create Site instance without ID field
 	s := &site{
 		mu:         sync.RWMutex{},
-		ID:         config.Site.ID,
 		Name:       config.Site.Name,
-		Domain:     config.Site.Domain,
+		Domain:     siteDomain,
 		BaseURL:    config.Site.BaseURL,
 		Theme:      theme,
 		ContentDir: config.Site.ContentDir,
@@ -312,46 +317,38 @@ func (sm *siteManager) LoadSite(tenantID string) (Site, error) {
 }
 
 // GetSite returns a site by domain
-func (sm *siteManager) GetSite(tenantDomain string) (Site, error) {
+func (sm *siteManager) GetSite(domain string) (Site, error) {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
-	siteID, found := sm.domains.GetSiteID(tenantDomain)
+	site, found := sm.sites[domain]
 	if !found {
-		return nil, fmt.Errorf("site not found for domain: %s", tenantDomain)
+		return nil, fmt.Errorf("site not found for domain: %s", domain)
 	}
 
-	for _, site := range sm.sites {
-		if site.GetID() == siteID {
-			return site, nil
-		}
-	}
-
-	return nil, fmt.Errorf("site not found with ID: %s", siteID)
+	return site, nil
 }
 
 // UpdateSite updates a site by domain
-func (sm *siteManager) UpdateSite(tenantDomain string, updatedSite Site) error {
+func (sm *siteManager) UpdateSite(domain string, updatedSite Site) error {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
-	siteID, found := sm.domains.GetSiteID(tenantDomain)
+	_, found := sm.sites[domain]
 	if !found {
-		return fmt.Errorf("site not found for domain: %s", tenantDomain)
+		return fmt.Errorf("site not found for domain: %s", domain)
 	}
 
-	// Find the site with the matching ID
-	for id, site := range sm.sites {
-		if site.GetID() == siteID {
-			sm.sites[id] = updatedSite
-			// Update domain mapping if domain changed
-			if updatedSite.GetDomain() != tenantDomain {
-				sm.domains.RemoveDomain(tenantDomain)
-				sm.domains.AddDomain(updatedSite.GetDomain(), updatedSite.GetID())
-			}
-			return nil
-		}
+	sm.sites[domain] = updatedSite
+
+	// Update domain registration if domain changed
+	newDomain := updatedSite.GetDomain()
+	if newDomain != domain {
+		delete(sm.sites, domain)
+		sm.sites[newDomain] = updatedSite
+		sm.domains.RemoveDomain(domain)
+		sm.domains.AddDomain(newDomain)
 	}
 
-	return fmt.Errorf("site not found with ID: %s", siteID)
+	return nil
 }
