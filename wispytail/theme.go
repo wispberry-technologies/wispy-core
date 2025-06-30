@@ -370,8 +370,13 @@ func GenerateThemeLayer(config *ThemeConfig) string {
 
 	// Theme layer
 	builder.AddLayer("theme", func(b *CSSBuilder) {
-		// b.AddRule(":root", "")
 		b.AddBlock(":root {") // Start :root block
+		
+		// DaisyUI semantic colors
+		b.AddSection("DaisyUI semantic colors")
+		b.AddPropertyFromMap("color", config.DaisyUIColors)
+		b.AddBlock("")
+		
 		// Font families
 		b.AddSection("Font families")
 		b.AddPropertyFromMap("font", config.FontFamilies)

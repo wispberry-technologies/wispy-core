@@ -10,6 +10,7 @@ import (
 // TrieNode represents a node in the trie.
 type TrieNode struct {
 	children map[rune]*TrieNode
+	value    string
 	isEnd    bool
 	cssRule  string
 }
@@ -114,4 +115,16 @@ func (t *Trie) WriteCSSToFile(filename string, buildSelectorFunc func(className 
 	// Convert the trie to CSS and write to the file
 	t.ConvertToCSS(file, buildSelectorFunc)
 	return nil
+}
+
+// HasPrefix checks if any key in the trie starts with the given prefix
+func (t *Trie) HasPrefix(prefix string) bool {
+	node := t.root
+	for _, char := range prefix {
+		if _, exists := node.children[char]; !exists {
+			return false
+		}
+		node = node.children[char]
+	}
+	return true
 }

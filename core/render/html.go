@@ -87,8 +87,10 @@ func writeHead(w io.Writer, rs RenderState) {
 }
 
 func writeBody(w io.Writer, rs RenderState) {
+	w.Write([]byte(`<body>`))
 	// Body content
 	w.Write([]byte(rs.Body()))
+	w.Write([]byte(`</body>`))
 }
 
 func writeDocEnd(w io.Writer) {
