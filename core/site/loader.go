@@ -130,6 +130,11 @@ func (sm *siteManager) LoadAllSites() (map[string]Site, error) {
 			}
 			sites[domain] = site
 
+			// Store in the site manager's sites map
+			sm.mu.Lock()
+			sm.sites[domain] = site
+			sm.mu.Unlock()
+
 			// Register domain
 			sm.domains.AddDomain(domain)
 			mu.Unlock()

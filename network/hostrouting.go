@@ -87,6 +87,9 @@ func (hr *HostRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Still no site found, return not found
 	if err != nil {
+		common.Debug("No site found for host: %s, error: %v", host, err)
+		common.Debug("defaultHost is set to: %s", hr.defaultHost)
+		common.Debug("domains: %v", hr.siteManager.Domains().GetDomains())
 		respondWithNotFound(w, r, host, err, includeDebug, hr.notFound)
 		return
 	}
