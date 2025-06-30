@@ -2,18 +2,19 @@ module wispy-core
 
 go 1.23.0
 
-require github.com/lmittmann/tint v1.1.2
+require (
+	github.com/go-playground/validator/v10 v10.26.0
+	github.com/lmittmann/tint v1.1.2
+)
 
 require (
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-playground/validator/v10 v10.26.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 )
 
 require (
-	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/zeebo/xxh3 v1.0.2 // indirect

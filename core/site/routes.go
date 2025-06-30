@@ -112,31 +112,31 @@ func createPageRoute(router *chi.Mux, s Site, templateEngine *tpl.Engine, pagePa
 
 // createDefaultRoute creates a default route when no pages are found
 func createDefaultRoute(router *chi.Mux, s Site) {
-	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		// Generate basic CSS for default content
-		defaultHTML := "<h1>Welcome to " + s.GetName() + "</h1><p>This site is under construction.</p>"
-		classes := wispytail.ExtractClasses(defaultHTML)
-		css := wispytail.ResolveClasses(classes, wispytail.NewTrie())
+	// router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+	// 	// Generate basic CSS for default content
+	// 	defaultHTML := "<h1>Welcome to " + s.GetName() + "</h1><p>This site is under construction.</p>"
+	// 	classes := wispytail.ExtractClasses(defaultHTML)
+	// 	css := wispytail.ResolveClasses(classes, wispytail.NewTrie())
 
-		// Generate theme CSS
-		themeConfig := wispytail.DefaultThemeConfig()
-		themeCSS := wispytail.GenerateThemeLayer(themeConfig)
-		baseCSS := wispytail.GenerateCssBaseLayer()
+	// 	// Generate theme CSS
+	// 	themeConfig := wispytail.DefaultThemeConfig()
+	// 	themeCSS := wispytail.GenerateThemeLayer(themeConfig)
+	// 	baseCSS := wispytail.GenerateCssBaseLayer()
 
-		fullCSS := themeCSS + "\n" + baseCSS + "\n" + css
+	// 	fullCSS := themeCSS + "\n" + baseCSS + "\n" + css
 
-		renderState := render.NewRenderState()
-		renderState.SetHeadTitle(s.GetName())
-		renderState.SetBody(defaultHTML)
-		renderState.AddStyles(render.StyleAsset{Src: "/assets/css/theme.css"})
-		renderState.AddScripts(render.ScriptAsset{Src: "/assets/js/main.js"})
-		renderState.SetHeadInlineCSS(fullCSS)
+	// 	renderState := render.NewRenderState()
+	// 	renderState.SetHeadTitle(s.GetName())
+	// 	renderState.SetBody(defaultHTML)
+	// 	renderState.AddStyles(render.StyleAsset{Src: "/assets/css/theme.css"})
+	// 	renderState.AddScripts(render.ScriptAsset{Src: "/assets/js/main.js"})
+	// 	renderState.SetHeadInlineCSS(fullCSS)
 
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := render.HtmlBaseRenderResponse(w, renderState); err != nil {
-			common.Error("Failed to render HTML response: %v", err)
-		}
-	})
+	// 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	// 	if err := render.HtmlBaseRenderResponse(w, renderState); err != nil {
+	// 		common.Error("Failed to render HTML response: %v", err)
+	// 	}
+	// })
 }
 
 // setupStaticRoutes configures static file serving
