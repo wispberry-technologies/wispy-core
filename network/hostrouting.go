@@ -24,6 +24,8 @@ func NewHostRouter(siteManager site.SiteManager, notFound http.Handler, defaultH
 	}
 
 	if notFound == nil {
+		common.Warning("No notFound handler provided, using default http.NotFoundHandler")
+		common.Warning("from: network.NewHostRouter()")
 		notFound = http.NotFoundHandler()
 	}
 
@@ -51,6 +53,7 @@ func isDebugRequested(r *http.Request) bool {
 // respondWithNotFound responds with a not found error
 func respondWithNotFound(w http.ResponseWriter, r *http.Request, host string, err error, includeDebug bool, handler http.Handler) {
 	common.Warning("No site found for host: %s", host)
+	common.Debug("defaultHost is set to: %s", host)
 
 	if includeDebug {
 		http.Error(w, fmt.Sprintf("Site not found for host: %s\nError: %v", host, err), http.StatusNotFound)
@@ -75,6 +78,9 @@ func (hr *HostRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Still no site found, return not found
 	if err != nil {
+		common.Debug("No site found for host: %s, error: %v", host, err)
+		common.Debug("defaultHost is set to: %s", hr.defaultHost)
+		common.Debug("domains: %v", hr.siteManager.Domains().GetDomains())
 		respondWithNotFound(w, r, host, err, includeDebug, hr.notFound)
 		return
 	}
