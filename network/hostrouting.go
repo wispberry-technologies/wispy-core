@@ -71,14 +71,19 @@ func (hr *HostRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Try to get the site for this host
 	site, err := hr.siteManager.GetSite(host)
 
-	// If site not found, try the default host
+	// If site not found, try the default host (aka fallback to "localhost")
 	if err != nil && hr.defaultHost != "" && host != hr.defaultHost {
-		site, err = hr.siteManager.GetSite(host)
+		site, err = hr.siteManager.GetSite(hr.defaultHost)
 	}
 
 	common.Debug("No site found for host: %s, error: %v", host, err)
-	common.Debug("defaultHost is set to: %s", hr.defaultHost)
 	common.Debug("domains: %v", hr.siteManager.Domains().GetDomains())
+	_sites, _sitesError := hr.siteManager.LoadAllSites()
+	if _sitesError != nil {
+		common.Warning("Failed to load all sites: %v", _sitesError)
+	} else {
+		common.Debug("Loaded sites: %d", len(_sites))
+	}
 
 	// Still no site found, return not found
 	if err != nil {
