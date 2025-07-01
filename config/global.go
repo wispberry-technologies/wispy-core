@@ -113,6 +113,9 @@ func LoadGlobalConfig() GlobalConfig {
 	// If running from /server, go up two levels
 	if filepath.Base(currentDir) == "server" {
 		projectRoot = filepath.Dir(currentDir)
+	} else {
+		// Otherwise, use the current directory
+		projectRoot = currentDir
 	}
 	// Set WISPY_CORE_ROOT
 	common.GetEnvOrSet("WISPY_CORE_ROOT", projectRoot) // Default to current directory if not set
