@@ -1,6 +1,7 @@
 package core
 
 import (
+	"database/sql"
 	"html/template"
 	"io"
 	"time"
@@ -18,12 +19,17 @@ type Site interface {
 	GetBaseURL() string
 	GetTheme() *theme.Root
 	GetContentDir() string
+	GetStaticDir() string
+	GetAssetsDir() string
+	GetConfig() map[string]interface{}
 	GetData() map[string]interface{}
 	SetData(key string, value interface{})
 	GetCreatedAt() time.Time
 	GetUpdatedAt() time.Time
 	SetUpdatedAt(t time.Time)
 	GetRouter() *chi.Mux
+	GetDatabaseManager() DatabaseManager
+	GetTemplateEngine() SiteTplEngine
 }
 
 type SiteTplEngine interface {
@@ -51,4 +57,20 @@ type PageContext struct {
 	Site       *Site
 	Components map[string]interface{}
 	LocalData  map[string]interface{}
+}
+
+// DatabaseManager handles database connections for a site
+type DatabaseManager interface {
+	// GetConnection returns a database connection for the specified database name
+	GetConnection(dbName string) (*sql.DB, error)
+	// CreateDatabase creates a new database file if it doesn't exist
+	CreateDatabase(dbName string) error
+	// ListDatabases returns all available databases for the site
+	ListDatabases() ([]string, error)
+	// Close closes all database connections
+	Close() error
+	// ExecuteSchema executes a schema file on the specified database
+	ExecuteSchema(dbName, schemaPath string) error
+	// GetOrCreateConnection returns a database connection, creating it if it doesn't exist
+	GetOrCreateConnection(dbName string) (*sql.DB, error)
 }

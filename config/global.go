@@ -135,7 +135,7 @@ func LoadGlobalConfig() GlobalConfig {
 		httpsPort = common.GetEnvOrSet("HTTPS_PORT", "8080")
 		host = common.GetEnvOrSet("HOST", "localhost") // Default host for development
 	}
-	sitesPath := common.GetEnvOrSet("SITES_PATH", filepath.Join(projectRoot, "_data/sites"))    // Default sites path
+	sitesPath := common.GetEnvOrSet("SITES_PATH", filepath.Join(projectRoot, "_data/tenants"))  // Default sites path
 	staticPath := common.GetEnvOrSet("STATIC_PATH", filepath.Join(projectRoot, "_data/static")) // Optional, but recommended for static assets
 	cacheDir := common.GetEnvOrSet("CACHE_DIR", filepath.Join(projectRoot, ".wispy/cache"))     // Default cache directory
 

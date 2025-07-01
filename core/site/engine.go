@@ -7,12 +7,24 @@ import (
 	"wispy-core/common"
 	"wispy-core/core"
 	"wispy-core/tpl"
+	"wispy-core/wispytail"
 )
 
 type siteTplEngine struct {
 	tplEngine     tpl.Engine
 	site          core.Site
 	wispyTailTrie *common.Trie
+}
+
+func NewSiteTplEngine(engine tpl.Engine, site core.Site) core.SiteTplEngine {
+	trie := common.NewTrie()
+	wispytail.PopulateTrieWithUtils(trie)
+
+	return &siteTplEngine{
+		tplEngine:     engine,
+		wispyTailTrie: trie,
+		site:          site,
+	}
 }
 
 func (ste *siteTplEngine) LoadTemplate(templatePath string) (*template.Template, error) {

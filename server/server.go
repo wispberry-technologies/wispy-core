@@ -112,7 +112,7 @@ func main() {
 	})
 
 	// Mounting API routes
-	rootRouter.Route("/api/v1", func(r chi.Router) {
+	rootRouter.Route("/api", func(r chi.Router) {
 		// Mount API v1 routes
 		apiv1.MountApiV1(r, siteManager)
 	})

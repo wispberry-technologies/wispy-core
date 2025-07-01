@@ -1,6 +1,7 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -8,11 +9,26 @@ import (
 	"time"
 )
 
+func GetIPAddress(r *http.Request) string {
+	// Check for X-Forwarded-For header first
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		// X-Forwarded-For can contain multiple IPs, take the first one
+		return strings.Split(xff, ",")[0]
+	}
+
+	// Fallback to RemoteAddr if no X-Forwarded-For header is present
+	ip := r.RemoteAddr
+	if idx := strings.Index(ip, ":"); idx != -1 {
+		ip = ip[:idx] // Strip port if present
+	}
+	return ip
+}
+
 // shouldIncludeDebugInfo checks if debug info should be included in the response
 // based on project standards:
 // - Query parameter: __include_debug_info__=true
 // - HTTP header: __include_debug_info__: true
-func shouldIncludeDebugInfo(r *http.Request) bool {
+func ShouldIncludeDebugInfo(r *http.Request) bool {
 	// Check query parameter
 	if r.URL.Query().Get("__include_debug_info__") == "true" {
 		return true
@@ -24,10 +40,10 @@ func shouldIncludeDebugInfo(r *http.Request) bool {
 
 // respondWithError writes a plain text error response based on project standards
 // All API error responses MUST be in plain text
-func respondWithError(w http.ResponseWriter, r *http.Request, status int, message string, err error) {
+func RespondWithError(w http.ResponseWriter, r *http.Request, status int, message string, err error) {
 	// Generate debug info if requested
 	var debugInfo string
-	if err != nil && shouldIncludeDebugInfo(r) {
+	if err != nil && ShouldIncludeDebugInfo(r) {
 		debugInfo = fmt.Sprintf("%v", err)
 	}
 
@@ -39,6 +55,17 @@ func respondWithError(w http.ResponseWriter, r *http.Request, status int, messag
 		Error("Auth error: %s - %v", message, err)
 	} else {
 		Info("Auth info: %s", message)
+	}
+}
+
+// RespondWithJSON writes a JSON response with the given status code
+func RespondWithJSON(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to encode JSON: %v", err), http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -71,6 +98,15 @@ func PlainTextError(w http.ResponseWriter, status int, msg string, debug ...stri
 	}
 	w.WriteHeader(status)
 	w.Write([]byte(msg))
+}
+
+func RespondWithPlainText(w http.ResponseWriter, status int, msg string) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(status)
+	if _, err := w.Write([]byte(msg)); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to write response: %v", err), http.StatusInternalServerError)
+		return
+	}
 }
 
 func NormalizeHost(host string) string {
