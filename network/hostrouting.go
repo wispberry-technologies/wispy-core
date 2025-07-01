@@ -68,6 +68,17 @@ func (hr *HostRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	host := extractHost(r.Host)
 	includeDebug := isDebugRequested(r)
 
+	// Handle local development case
+	if common.IsLocalDevelopment() {
+		if host == "localhost" || host == "127.0.0.1" {
+			// check if request had query parameter for debug targeting host (localhost=example.com)
+			if targetHost := r.URL.Query().Get("localhost"); targetHost != "" {
+				common.Debug("Debug targeting host: %s", targetHost)
+				host = targetHost
+			}
+		}
+	}
+
 	// Try to get the site for this host
 	site, err := hr.siteManager.GetSite(host)
 
@@ -78,12 +89,6 @@ func (hr *HostRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	common.Debug("No site found for host: %s, error: %v", host, err)
 	common.Debug("domains: %v", hr.siteManager.Domains().GetDomains())
-	_sites, _sitesError := hr.siteManager.LoadAllSites()
-	if _sitesError != nil {
-		common.Warning("Failed to load all sites: %v", _sitesError)
-	} else {
-		common.Debug("Loaded sites: %d", len(_sites))
-	}
 
 	// Still no site found, return not found
 	if err != nil {

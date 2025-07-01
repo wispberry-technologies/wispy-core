@@ -9,6 +9,8 @@ import (
 	"sync"
 	"text/template"
 	"time"
+	"wispy-core/core"
+	"wispy-core/core/site/theme"
 )
 
 // ScaffoldConfig defines new site parameters for site creation
@@ -28,7 +30,7 @@ type ScaffoldConfig struct {
 
 // Scaffold creates a new site with complete theme support
 // It handles directory creation, theme generation, and config file creation
-func Scaffold(rootDir string, cfg ScaffoldConfig) (Site, error) {
+func Scaffold(rootDir string, cfg ScaffoldConfig) (core.Site, error) {
 	if err := validateConfig(cfg); err != nil {
 		return nil, err
 	}
@@ -88,7 +90,7 @@ func Scaffold(rootDir string, cfg ScaffoldConfig) (Site, error) {
 }
 
 // createTheme generates a complete theme configuration based on the provided configuration options
-func createTheme(name, mode string, cfg ScaffoldConfig) *Theme {
+func createTheme(name, mode string, cfg ScaffoldConfig) *theme.Root {
 	// Validate and normalize theme mode
 	if mode != "dark" {
 		mode = "light" // default to light
@@ -107,10 +109,10 @@ func createTheme(name, mode string, cfg ScaffoldConfig) *Theme {
 	}
 
 	// Create base theme structure
-	theme := &Theme{
+	theme := &theme.Root{
 		Name: name,
 		Base: mode,
-		Tokens: ThemeTokens{
+		Tokens: theme.ThemeTokens{
 			Spacing:    createSpacingTokens(),
 			Typography: createTypographyTokens(typographyPreset),
 			Borders:    createBorderTokens(mode),
@@ -137,9 +139,9 @@ func createTheme(name, mode string, cfg ScaffoldConfig) *Theme {
 
 // createLightColorTokens generates the color tokens for light mode
 // Different presets can be specified to generate different palettes
-func createLightColorTokens(preset string) ColorTokens {
+func createLightColorTokens(preset string) theme.ColorTokens {
 	// Default light mode colors
-	tokens := ColorTokens{
+	tokens := theme.ColorTokens{
 		Primary:          "oklch(69% 0.17 162.48)",
 		PrimaryContent:   "oklch(97% 0.021 166.113)",
 		Secondary:        "oklch(39% 0.095 152.535)",
@@ -185,9 +187,9 @@ func createLightColorTokens(preset string) ColorTokens {
 
 // createDarkColorTokens generates the color tokens for dark mode
 // Different presets can be specified to generate different palettes
-func createDarkColorTokens(preset string) ColorTokens {
+func createDarkColorTokens(preset string) theme.ColorTokens {
 	// Default dark mode colors
-	tokens := ColorTokens{
+	tokens := theme.ColorTokens{
 		Primary:          "oklch(84% 0.238 128.85)",
 		PrimaryContent:   "oklch(26% 0.065 152.934)",
 		Secondary:        "oklch(39% 0.095 152.535)",
@@ -232,8 +234,8 @@ func createDarkColorTokens(preset string) ColorTokens {
 }
 
 // createSpacingTokens generates the spacing tokens
-func createSpacingTokens() SpacingTokens {
-	return SpacingTokens{
+func createSpacingTokens() theme.SpacingTokens {
+	return theme.SpacingTokens{
 		Selector: "0.5rem",
 		Field:    "0.25rem",
 		Base:     "1rem",
@@ -246,9 +248,9 @@ func createSpacingTokens() SpacingTokens {
 
 // createTypographyTokens generates the typography tokens
 // This can be customized based on the typography preset
-func createTypographyTokens(preset string) TypographyTokens {
+func createTypographyTokens(preset string) theme.TypographyTokens {
 	// Default typography settings
-	tokens := TypographyTokens{
+	tokens := theme.TypographyTokens{
 		FontSans:       "Inter, system-ui, sans-serif",
 		FontMono:       "JetBrains Mono, Roboto Mono, monospace",
 		FontSerif:      "Georgia, serif",
@@ -288,8 +290,8 @@ func createTypographyTokens(preset string) TypographyTokens {
 }
 
 // createBorderTokens generates the border tokens
-func createBorderTokens(mode string) BorderTokens {
-	tokens := BorderTokens{
+func createBorderTokens(mode string) theme.BorderTokens {
+	tokens := theme.BorderTokens{
 		RadiusSelector: "0.5rem",
 		RadiusField:    "0.25rem",
 		RadiusBox:      "0.25rem",
@@ -308,8 +310,8 @@ func createBorderTokens(mode string) BorderTokens {
 }
 
 // createShadowTokens generates the shadow tokens
-func createShadowTokens() ShadowTokens {
-	return ShadowTokens{
+func createShadowTokens() theme.ShadowTokens {
+	return theme.ShadowTokens{
 		Base:  "0 1px 3px rgba(0,0,0,0.1)",
 		Sm:    "0 1px 2px rgba(0,0,0,0.05)",
 		Md:    "0 4px 6px rgba(0,0,0,0.1)",
@@ -321,8 +323,8 @@ func createShadowTokens() ShadowTokens {
 }
 
 // createAnimationTokens generates the animation tokens
-func createAnimationTokens() AnimationTokens {
-	return AnimationTokens{
+func createAnimationTokens() theme.AnimationTokens {
+	return theme.AnimationTokens{
 		DurationFast:   "100ms",
 		DurationNormal: "200ms",
 		DurationSlow:   "300ms",
@@ -333,7 +335,7 @@ func createAnimationTokens() AnimationTokens {
 }
 
 // applyThemeOptions applies custom theme options to override default theme values
-func applyThemeOptions(theme *Theme, options map[string]string) {
+func applyThemeOptions(theme *theme.Root, options map[string]string) {
 	// Apply custom color overrides if specified
 	if primary, ok := options["primary"]; ok && primary != "" {
 		theme.Tokens.Colors.Primary = primary
@@ -496,7 +498,7 @@ func createThemeVariables(mode string) map[string]string {
 
 // generateThemeCSS creates the CSS file with theme variables
 // It provides a comprehensive set of CSS variables for theme customization
-func generateThemeCSS(filePath string, theme *Theme) error {
+func generateThemeCSS(filePath string, theme *theme.Root) error {
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 		return fmt.Errorf("failed to create theme CSS directory: %w", err)
 	}
@@ -791,13 +793,13 @@ func isValidDomain(domain string) bool {
 // configTemplateData represents data for the site configuration template
 type configTemplateData struct {
 	ScaffoldConfig
-	Theme     *Theme
+	Theme     *theme.Root
 	CreatedAt time.Time
 }
 
 // generateConfigFile creates the site configuration TOML file with proper formatting
 // It includes site information, design system configuration, and content types
-func generateConfigFile(path string, cfg ScaffoldConfig, theme *Theme) error {
+func generateConfigFile(path string, cfg ScaffoldConfig, theme *theme.Root) error {
 	const configTemplate = `# Site Configuration
 [site]
 id = "{{.ID}}"

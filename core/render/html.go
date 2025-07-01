@@ -56,6 +56,7 @@ func writeHead(w io.Writer, rs RenderState) {
 		}
 		w.Write([]byte(`>`))
 	}
+
 	// Inline CSS
 	if inlineCSS := rs.GetHeadInlineCSS(); inlineCSS != "" {
 		w.Write([]byte(`<style>`))

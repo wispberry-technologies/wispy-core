@@ -13,6 +13,10 @@
     //   "file": "./.vscode/daisyui.md"
     // },
     {
+      "file": "./Agent-Rerference-Short.md"
+      
+    },
+    {
       "file": "./PROJECT_STANDARDS.md"
       
     },
@@ -59,6 +63,7 @@
     }
   },
   "cSpell.words": [
+    "apiv",
     "bluemonday",
     "dedupe",
     "fasttemplate",

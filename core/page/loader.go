@@ -5,13 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"wispy-core/core/site"
+	"wispy-core/core"
 
 	"github.com/pelletier/go-toml/v2"
 )
 
 // LoadPage loads a page from the content directory
-func LoadPage(site site.Site, path string, tenantsRoot string) (*Page, error) {
+func LoadPage(site core.Site, path string, tenantsRoot string) (*core.Page, error) {
 	contentPath := filepath.Join(tenantsRoot, site.GetDomain(), site.GetContentDir(), path)
 	if !strings.HasSuffix(contentPath, ".md") {
 		contentPath += ".md"
@@ -28,7 +28,7 @@ func LoadPage(site site.Site, path string, tenantsRoot string) (*Page, error) {
 		return nil, fmt.Errorf("invalid page format in %s", contentPath)
 	}
 
-	var page Page
+	var page core.Page
 	if err := toml.Unmarshal([]byte(parts[1]), &page); err != nil {
 		return nil, err
 	}
@@ -44,8 +44,8 @@ func LoadPage(site site.Site, path string, tenantsRoot string) (*Page, error) {
 }
 
 // LoadPagesForSite loads all pages for a given site
-func LoadPagesForSite(site site.Site, tenantsRoot string) ([]*Page, error) {
-	var pages []*Page
+func LoadPagesForSite(site core.Site, tenantsRoot string) ([]*core.Page, error) {
+	var pages []*core.Page
 	contentRoot := filepath.Join(tenantsRoot, site.GetDomain(), site.GetContentDir())
 
 	err := filepath.Walk(contentRoot, func(path string, info os.FileInfo, err error) error {

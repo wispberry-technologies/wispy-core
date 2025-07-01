@@ -1,14 +1,13 @@
-package wispytail
+package core
 
 import (
 	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
-	common "wispy-core/common"
+	"wispy-core/common"
 )
 
 var daisyUIComponentMap = map[string]string{
@@ -23,7 +22,7 @@ var daisyUIComponentMap = map[string]string{
 	"chat":        "chat.css",
 	// Add more as you add more component CSS files
 }
-var daisyUIComponentDir = "pkg/wispytail/daisyui-components"
+var daisyUIComponentDir = "wispytail/daisyui-components"
 
 // Tailwind v4 cascade layers
 const (
@@ -96,27 +95,6 @@ var statePseudoPrefixes = map[string]string{
 	"out-of-range":      ":out-of-range",
 	"print":             "@media print",
 	"dark":              "@media (prefers-color-scheme: dark)",
-}
-
-// --- CSS Generation ---
-// ExtractClasses parses HTML from the reader and extracts unique class names in order.
-func ExtractClasses(input string) []string {
-	seen := make(map[string]bool) // Track unique class names
-	var classList []string        // Preserve order
-	regex := regexp.MustCompile(`class\s*=\s*"([^"]+)"`)
-	matches := regex.FindAllString(input, -1)
-	for _, match := range matches {
-		match = match[7 : len(match)-1]      // Remove 'class="' and '"'
-		classes := strings.Split(match, " ") // Split class names by space
-		for _, class := range classes {
-			if !seen[class] {
-				seen[class] = true                   // Mark class as seen
-				classList = append(classList, class) // Add to list
-			}
-		}
-	}
-
-	return classList
 }
 
 // --- Selector & Media Wrapping Helpers ---
@@ -252,7 +230,7 @@ func BuildSelector(originalClass string, prefixes []string) (selector string, me
 	return selector, mediaQuery
 }
 
-func GenerateRuleForClass(class string, trie *Trie) (rule string, mediaQuery string, ok bool) {
+func generateRuleForClass(class string, trie *common.Trie) (rule string, mediaQuery string, ok bool) {
 	// Handle colons inside brackets properly - they are not variant separators
 	var parts []string
 	var currentPart strings.Builder
@@ -302,10 +280,10 @@ func GenerateRuleForClass(class string, trie *Trie) (rule string, mediaQuery str
 	return "", "", false
 }
 
-var fallbackTrie = NewTrie()
+var fallbackTrie = common.NewTrie()
 
 // GenerateCSS accepts a set of class names and the trie, returning Tailwind v4 compatible CSS with cascade layers.
-func ResolveClasses(classes []string, trie *Trie) string {
+func ResolveClasses(classes []string, trie *common.Trie) string {
 	if trie == nil {
 		trie = fallbackTrie
 	}
@@ -323,7 +301,7 @@ func ResolveClasses(classes []string, trie *Trie) string {
 		fmt.Println("Missing classes:")
 	}
 	for _, className := range classes {
-		if rule, mediaQuery, ok := GenerateRuleForClass(className, trie); ok {
+		if rule, mediaQuery, ok := generateRuleForClass(className, trie); ok {
 			if mediaQuery == "" {
 				// Rules without media queries go into utilities layer
 				utilityRules = append(utilityRules, rule)
@@ -421,12 +399,12 @@ func EscapeClass(class string) string {
 }
 
 // GenerateFullCSSv4 combines base CSS with utility classes for complete Tailwind v4 output
-func GenerateFullCSS(classes []string, config *ThemeConfig, trie *Trie) string {
+func GenerateCSSFromClasses(classes []string, config *ThemeConfig, trie *common.Trie) string {
 	var buffer bytes.Buffer
 
 	// Add base CSS first
-	buffer.WriteString(GenerateThemeLayer(config))
-	buffer.WriteString(GenerateCssBaseLayer())
+	// buffer.WriteString(generateThemeLayer(config))
+	// buffer.WriteString(generateCssBaseLayer())
 
 	// --- daisyUI component CSS auto-inclusion ---
 	// Track which component CSS files have been included
@@ -455,7 +433,7 @@ func GenerateFullCSS(classes []string, config *ThemeConfig, trie *Trie) string {
 }
 
 // // PopulateBasicUtilities adds common Tailwind utilities to the trie
-// func PopulateBasicUtilities(trie *Trie) {
+// func PopulateBasicUtilities(trie *common.Trie) {
 // 	// Container utility
 // 	trie.Insert("container", "width: 100%; margin-left: auto; margin-right: auto; max-width: 1536px")
 

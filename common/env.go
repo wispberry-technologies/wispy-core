@@ -55,11 +55,21 @@ func GetEnvBool(key string, defaultValue bool) bool {
 }
 
 func IsProduction() bool {
-	isProd := GetEnv("ENV", "development")
+	isProd := GetEnv("ENV", "local")
 	if isProd == "PRODUCTION" || isProd == "PROD" || isProd == "production" || isProd == "prod" {
 		return true
 	}
 	return false
+}
+
+func IsLocalDevelopment() bool {
+	env := GetEnv("ENV", "local")
+	return env == "LOCAL" || env == "local"
+}
+
+func IsStaging() bool {
+	env := GetEnv("ENV", "local")
+	return env == "staging" || env == "STAGING"
 }
 
 func LoadDotEnv() {

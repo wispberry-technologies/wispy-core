@@ -3,6 +3,11 @@ package site
 import (
 	"sync"
 	"time"
+	"wispy-core/common"
+	"wispy-core/core"
+	"wispy-core/core/site/theme"
+	"wispy-core/tpl"
+	"wispy-core/wispytail"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -14,7 +19,7 @@ type site struct {
 	Name       string                 `toml:"name" json:"name"`
 	Domain     string                 `toml:"domain" json:"domain"`
 	BaseURL    string                 `toml:"base_url" json:"base_url"`
-	Theme      *Theme                 `toml:"theme" json:"theme"`
+	Theme      *theme.Root            `toml:"theme" json:"theme"`
 	ContentDir string                 `toml:"content_dir" json:"content_dir"`
 	Data       map[string]interface{} `toml:"data" json:"data"`
 	CreatedAt  time.Time              `toml:"created_at" json:"created_at"`
@@ -22,19 +27,15 @@ type site struct {
 	Router     *chi.Mux               `toml:"-" json:"-"`
 }
 
-type Site interface {
-	GetID() string
-	GetName() string
-	GetDomain() string
-	GetBaseURL() string
-	GetTheme() *Theme
-	GetContentDir() string
-	GetData() map[string]interface{}
-	SetData(key string, value interface{})
-	GetCreatedAt() time.Time
-	GetUpdatedAt() time.Time
-	SetUpdatedAt(t time.Time)
-	GetRouter() *chi.Mux
+func NewSiteTplEngine(engine tpl.Engine, site core.Site) core.SiteTplEngine {
+	trie := common.NewTrie()
+	wispytail.PopulateTrieWithUtils(trie)
+
+	return &siteTplEngine{
+		tplEngine:     engine,
+		wispyTailTrie: trie,
+		site:          site,
+	}
 }
 
 func (s *site) GetID() string {
@@ -61,7 +62,7 @@ func (s *site) GetBaseURL() string {
 	return s.BaseURL
 }
 
-func (s *site) GetTheme() *Theme {
+func (s *site) GetTheme() *theme.Root {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	// Return a copy of the theme to prevent external modification

@@ -1,7 +1,8 @@
-package wispytail
+package core
 
 import (
 	"fmt"
+	"wispy-core/common"
 )
 
 // --- Tailwind v4 Data Definitions ---
@@ -234,8 +235,7 @@ var (
 )
 
 // BuildExtendedTrie builds a trie preloaded with all of our utility CSS classes.
-func BuildFullTrie() *Trie {
-	trie := NewTrie()
+func BuildFullTrie(trie *common.Trie) *common.Trie {
 	manualInserts(trie)
 	addLayout(trie)
 	addFlexGrid(trie)
@@ -262,17 +262,16 @@ func BuildFullTrie() *Trie {
 	addAdvancedUtilities(trie)
 	addContainers(trie)
 	addOutlineUtils(trie)
-
 	return trie
 }
 
 // mostly made for cases where creating logic for a small group of classes is not worth it
-func manualInserts(trie *Trie) {
+func manualInserts(trie *common.Trie) {
 
 }
 
 // --- Layout Utilities ---
-func addLayout(trie *Trie) {
+func addLayout(trie *common.Trie) {
 	// Container and box-sizing
 	trie.Insert("box-border", "box-sizing: border-box;")
 	trie.Insert("box-content", "box-sizing: content-box;")
@@ -346,13 +345,13 @@ func addLayout(trie *Trie) {
 		trie.Insert("z-"+z, "z-index: "+z+";")
 	}
 }
-func addContainers(trie *Trie) {
+func addContainers(trie *common.Trie) {
 	// TODO:
 	// Dynamic containers child-width utilities with CSS variables for flexibility
 }
 
 // --- Flexbox and Grid Utilities ---
-func addFlexGrid(trie *Trie) {
+func addFlexGrid(trie *common.Trie) {
 	// Flex direction and wrap
 	for k, rule := range flexDirs {
 		trie.Insert("flex-"+k, "flex-direction: "+rule)
@@ -408,7 +407,7 @@ func addFlexGrid(trie *Trie) {
 	trie.Insert("place-self-center", "place-self: center;")
 }
 
-func addGridUtilities(trie *Trie) {
+func addGridUtilities(trie *common.Trie) {
 	// Grid column span utilities
 	for i := 1; i <= 12; i++ {
 		trie.Insert(fmt.Sprintf("col-span-%d", i), fmt.Sprintf("grid-column: span %d / span %d;", i, i))
@@ -439,7 +438,7 @@ func addGridUtilities(trie *Trie) {
 }
 
 // --- Grid Auto Flow & Auto Columns/Rows ---
-func addGridAutoFlow(trie *Trie) {
+func addGridAutoFlow(trie *common.Trie) {
 	trie.Insert("grid-flow-row", "grid-auto-flow: row;")
 	trie.Insert("grid-flow-col", "grid-auto-flow: column;")
 	trie.Insert("grid-flow-row-dense", "grid-auto-flow: row dense;")
@@ -454,7 +453,7 @@ func addGridAutoFlow(trie *Trie) {
 	trie.Insert("auto-rows-fr", "grid-auto-rows: minmax(0, 1fr);")
 }
 
-func addSpacing(trie *Trie) {
+func addSpacing(trie *common.Trie) {
 	// Auto margins
 	trie.Insert("mx-auto", "margin-inline: auto;")
 	trie.Insert("my-auto", "margin-block: auto;")
@@ -526,7 +525,7 @@ func addSpacing(trie *Trie) {
 }
 
 // --- Sizing Utilities ---
-func addSizing(trie *Trie) {
+func addSizing(trie *common.Trie) {
 	trie.Insert("w-screen", "width: 100vw;")
 	trie.Insert("min-w-screen", "min-width: 100vw;")
 	trie.Insert("max-w-screen", "max-width: 100vw;")
@@ -558,7 +557,7 @@ func addSizing(trie *Trie) {
 }
 
 // --- Typography Utilities ---
-func addTypography(trie *Trie) {
+func addTypography(trie *common.Trie) {
 	// Font families
 	for _, f := range []string{"sans", "serif", "mono"} {
 		trie.Insert("font-"+f, "font-family: "+f+";")
@@ -623,7 +622,7 @@ func addTypography(trie *Trie) {
 }
 
 // --- Background Utilities ---
-func addBackgrounds(trie *Trie) {
+func addBackgrounds(trie *common.Trie) {
 	trie.Insert("bg-transparent", "background-color: transparent;")
 
 	// Background attachment
@@ -645,7 +644,7 @@ func addBackgrounds(trie *Trie) {
 }
 
 // --- Ring Utils ---
-func addRingUtils(trie *Trie) {
+func addRingUtils(trie *common.Trie) {
 	// Ring widths (0, 1, 2, 4, 8, etc.)
 	ringWidths := []string{"0", "1", "2", "4", "8"}
 	for _, w := range ringWidths {
@@ -670,7 +669,7 @@ func addRingUtils(trie *Trie) {
 }
 
 // --- Border Ring Utils ---
-func addDivideUtils(trie *Trie) {
+func addDivideUtils(trie *common.Trie) {
 	// Divide widths (0, 2, 4, 8, etc.)
 	for _, w := range borderWidths {
 		trie.Insert("divide-x-"+w, "border-right-width: "+w+"px; border-left-width: "+w+"px;")
@@ -694,7 +693,7 @@ func addDivideUtils(trie *Trie) {
 }
 
 // --- Outline Utils ---
-func addOutlineUtils(trie *Trie) {
+func addOutlineUtils(trie *common.Trie) {
 	// Outline widths (0, 2, 4, 8, etc.)
 	for _, w := range borderWidths {
 		trie.Insert("outline-"+w, "outline-width: "+w+"px;")
@@ -718,7 +717,7 @@ func addOutlineUtils(trie *Trie) {
 }
 
 // --- Border Utilities ---
-func addBorders(trie *Trie) {
+func addBorders(trie *common.Trie) {
 	// Border Width
 	trie.Insert("border-px", "border-width: 1px;")
 	trie.Insert("border", "border-width: 1px;")
@@ -758,7 +757,7 @@ func addBorders(trie *Trie) {
 }
 
 // --- Effects Utilities ---
-func addEffects(trie *Trie) {
+func addEffects(trie *common.Trie) {
 	// Shadows: sizes and with color
 	for _, s := range boxShadowSizes {
 		trie.Insert("shadow-"+s, "box-shadow: var(--shadow-"+s+");")
@@ -781,7 +780,7 @@ func addEffects(trie *Trie) {
 }
 
 // --- Filters Utilities ---
-func addFilters(trie *Trie) {
+func addFilters(trie *common.Trie) {
 	trie.Insert("filter", "filter: blur(0);")
 	trie.Insert("filter-none", "filter: none;")
 	for _, b := range blurValues {
@@ -813,7 +812,7 @@ func addFilters(trie *Trie) {
 	}
 }
 
-func addTables(trie *Trie) {
+func addTables(trie *common.Trie) {
 	// Table layout
 	trie.Insert("table-auto", "table-layout: auto;")
 	trie.Insert("table-fixed", "table-layout: fixed;")
@@ -868,7 +867,7 @@ func addTables(trie *Trie) {
 }
 
 // --- Transitions and Animations Utilities ---
-func addTransitions(trie *Trie) {
+func addTransitions(trie *common.Trie) {
 	trie.Insert("transition", "transition-property: all;")
 	for _, v := range []string{"none", "all", "colors", "opacity", "shadow", "transform"} {
 		trie.Insert("transition-"+v, "transition-property: "+v+";")
@@ -886,7 +885,7 @@ func addTransitions(trie *Trie) {
 }
 
 // --- Transforms Utilities ---
-func addTransforms(trie *Trie) {
+func addTransforms(trie *common.Trie) {
 	trie.Insert("transform", "transform: translate(0,0);")
 	trie.Insert("transform-none", "transform: none;")
 	for _, s := range []string{"0", "50", "75", "90", "95", "100", "105", "110", "125", "150"} {
@@ -916,7 +915,7 @@ func addTransforms(trie *Trie) {
 }
 
 // --- Interactivity Utilities ---
-func addInteractivity(trie *Trie) {
+func addInteractivity(trie *common.Trie) {
 	for _, color := range colorNames {
 		trie.Insert("accent-"+color, "accent-color: "+color+";")
 		trie.Insert("caret-"+color, "caret-color: "+color+";")
@@ -947,7 +946,7 @@ func addInteractivity(trie *Trie) {
 }
 
 // --- SVG Utilities ---
-func addSVG(trie *Trie) {
+func addSVG(trie *common.Trie) {
 	trie.Insert("fill-none", "fill: none;")
 	trie.Insert("fill-current", "fill: currentColor;")
 	trie.Insert("stroke-none", "stroke: none;")
@@ -969,20 +968,20 @@ func addSVG(trie *Trie) {
 }
 
 // --- Accessibility Utilities ---
-func addAccessibility(trie *Trie) {
+func addAccessibility(trie *common.Trie) {
 	trie.Insert("sr-only", "position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;")
 	trie.Insert("not-sr-only", "position: static; width: auto; height: auto; padding: 0; margin: 0; overflow: visible; clip: auto; white-space: normal;")
 }
 
 // Aspect Ratio Utilities
-func addAspectRatio(trie *Trie) {
+func addAspectRatio(trie *common.Trie) {
 	trie.Insert("aspect-auto", "aspect-ratio: auto;")
 	trie.Insert("aspect-square", "aspect-ratio: 1 / 1;")
 	trie.Insert("aspect-video", "aspect-ratio: 16 / 9;")
 }
 
 // Scroll Snap Utilities
-func addScrollSnap(trie *Trie) {
+func addScrollSnap(trie *common.Trie) {
 	trie.Insert("snap-start", "scroll-snap-align: start;")
 	trie.Insert("snap-center", "scroll-snap-align: center;")
 	trie.Insert("snap-end", "scroll-snap-align: end;")
@@ -991,12 +990,12 @@ func addScrollSnap(trie *Trie) {
 }
 
 // Placeholder Styling
-func addPlaceholderStyling(trie *Trie) {
+func addPlaceholderStyling(trie *common.Trie) {
 	// TODO:
 }
 
 // Advanced Utilities (forms, typography/prose, line-clamp, advanced animations)
-func addAdvancedUtilities(trie *Trie) {
+func addAdvancedUtilities(trie *common.Trie) {
 	// TODO: Forms plugin (sample inputs)
 
 	// TODO: Typography - prose classes

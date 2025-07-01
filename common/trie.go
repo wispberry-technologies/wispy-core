@@ -1,4 +1,4 @@
-package wispytail
+package common
 
 import (
 	"fmt"

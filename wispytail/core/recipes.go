@@ -1,4 +1,4 @@
-package wispytail
+package core
 
 import (
 	"fmt"

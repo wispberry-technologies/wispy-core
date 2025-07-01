@@ -1,7 +1,7 @@
-package site
+package theme
 
 // Theme represents a complete design system configuration
-type Theme struct {
+type Root struct {
 	Name      string
 	Base      string // "light" or "dark"
 	Tokens    ThemeTokens

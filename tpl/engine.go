@@ -10,16 +10,16 @@ import (
 	"strings"
 	"sync"
 
-	"wispy-core/wispytail"
+	"wispy-core/common"
 )
 
 // TemplateEngine handles template loading and rendering
-type TemplateEngine struct {
+type templateEngine struct {
 	mu        sync.RWMutex
 	templates map[string]*template.Template
 	layoutDir string
 	pagesDir  string
-	trie      *wispytail.Trie
+	trie      *common.Trie
 }
 
 // TemplateData represents the data passed to templates
@@ -44,18 +44,33 @@ type RenderResult struct {
 	CSS  string
 }
 
+type TemplateEngine interface {
+	LoadTemplate(templatePath string) (*template.Template, error)
+	RenderTemplate(templatePath string, data TemplateData) (string, error)
+	RenderTemplateTo(w io.Writer, templatePath string, data TemplateData) error
+	ScanPages() ([]string, error)
+}
+
 // NewTemplateEngine creates a new template engine
-func NewTemplateEngine(layoutDir, pagesDir string) *TemplateEngine {
-	return &TemplateEngine{
+func NewTemplateEngine(layoutDir, pagesDir string) TemplateEngine {
+	return &templateEngine{
 		templates: make(map[string]*template.Template),
 		layoutDir: layoutDir,
 		pagesDir:  pagesDir,
-		trie:      wispytail.NewTrie(),
+		trie:      common.NewTrie(),
 	}
 }
 
+func (te *templateEngine) TemplateEngine() TemplateEngine {
+	return te
+}
+
+func (te *templateEngine) GetTrie() *common.Trie {
+	return te.trie
+}
+
 // LoadTemplate loads a template from the pages directory
-func (te *TemplateEngine) LoadTemplate(templatePath string) (*template.Template, error) {
+func (te *templateEngine) LoadTemplate(templatePath string) (*template.Template, error) {
 	te.mu.Lock()
 	defer te.mu.Unlock()
 
@@ -100,7 +115,7 @@ func (te *TemplateEngine) LoadTemplate(templatePath string) (*template.Template,
 }
 
 // RenderTemplate renders a template with the given data
-func (te *TemplateEngine) RenderTemplate(templatePath string, data TemplateData) (string, error) {
+func (te *templateEngine) RenderTemplate(templatePath string, data TemplateData) (string, error) {
 	tmpl, err := te.LoadTemplate(templatePath)
 	if err != nil {
 		return "", err
@@ -115,7 +130,7 @@ func (te *TemplateEngine) RenderTemplate(templatePath string, data TemplateData)
 }
 
 // RenderTemplateTo renders a template directly to a writer
-func (te *TemplateEngine) RenderTemplateTo(w io.Writer, templatePath string, data TemplateData) error {
+func (te *templateEngine) RenderTemplateTo(w io.Writer, templatePath string, data TemplateData) error {
 	tmpl, err := te.LoadTemplate(templatePath)
 	if err != nil {
 		return err
@@ -128,34 +143,8 @@ func (te *TemplateEngine) RenderTemplateTo(w io.Writer, templatePath string, dat
 	return nil
 }
 
-// RenderTemplateWithCSS renders a template and generates CSS from extracted classes
-func (te *TemplateEngine) RenderTemplateWithCSS(templatePath string, data TemplateData) (*RenderResult, error) {
-	tmpl, err := te.LoadTemplate(templatePath)
-	if err != nil {
-		return nil, err
-	}
-
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return nil, fmt.Errorf("failed to execute template: %w", err)
-	}
-
-	htmlContent := buf.String()
-
-	// Extract classes from the rendered HTML
-	classes := wispytail.ExtractClasses(htmlContent)
-
-	// Generate CSS for the extracted classes
-	css := wispytail.ResolveClasses(classes, te.trie)
-
-	return &RenderResult{
-		HTML: htmlContent,
-		CSS:  css,
-	}, nil
-}
-
 // ScanPages scans the pages directory and returns a list of available pages
-func (te *TemplateEngine) ScanPages() ([]string, error) {
+func (te *templateEngine) ScanPages() ([]string, error) {
 	var pages []string
 
 	err := filepath.Walk(te.pagesDir, func(path string, info os.FileInfo, err error) error {

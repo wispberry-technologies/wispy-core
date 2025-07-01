@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -11,23 +10,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httprate"
+	"golang.org/x/crypto/acme/autocert"
 
 	"wispy-core/common"
 	"wispy-core/config"
+	"wispy-core/core/apiv1"
 	"wispy-core/core/site"
 	"wispy-core/network"
 )
-
-// isPortAvailable checks if a port is available
-func isPortAvailable(port int) bool {
-	addr := fmt.Sprintf(":%d", port)
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		return false
-	}
-	listener.Close()
-	return true
-}
 
 func main() {
 	// -----------
@@ -39,7 +29,8 @@ func main() {
 	// Get current working directory
 	var (
 		projectRoot       = globConf.GetProjectRoot()
-		port              = globConf.GetPort()
+		httpPort          = globConf.GetHttpPort()
+		httpsPort         = globConf.GetHttpsPort()
 		host              = globConf.GetHost()
 		env               = globConf.GetEnv()
 		sitesPath         = globConf.GetSitesPath()
@@ -64,7 +55,7 @@ func main() {
 	common.Info("» Sites directory: %s", sitesPath)
 	common.Info("» Static directory: %s", staticPath)
 	common.Info("» Environment: %s", env)
-	common.Info("» Host: %s, Port: %d", host, port)
+	common.Info("» Host: %s, Port: %d", host, httpsPort)
 	common.Info("» Rate limiting: %d req/sec, %d req/min", requestsPerSecond, requestsPerMinute)
 
 	// Create the main router with global middleware
@@ -92,13 +83,10 @@ func main() {
 	}
 
 	// Use standard ports for HTTP and HTTPS
-	httpAddr := fmt.Sprintf("%s:80", host)   // Standard HTTP port
-	httpsAddr := fmt.Sprintf("%s:443", host) // Standard HTTPS port
-
-	// If a custom port was specified, use it for HTTPS
-	if port != 80 && port != 443 {
-		httpsAddr = fmt.Sprintf("%s:%d", host, port)
-	}
+	httpAddr := fmt.Sprintf("%s:%d", host, httpPort)
+	httpsAddr := fmt.Sprintf("%s:%d", host, httpsPort)
+	common.Debug("HTTP ADDRESS: ", httpAddr)
+	common.Debug("HTTPSS ADDRESS: ", httpsAddr)
 
 	// ------------
 	// # Setup routes and site management
@@ -123,6 +111,12 @@ func main() {
 		http.Error(w, "Site not found", http.StatusNotFound)
 	})
 
+	// Mounting API routes
+	rootRouter.Route("/api/v1", func(r chi.Router) {
+		// Mount API v1 routes
+		apiv1.MountApiV1(r, siteManager)
+	})
+
 	// Create host router with the site manager
 	hostRouter := network.NewHostRouter(siteManager, notFoundHandler, "localhost")
 
@@ -139,21 +133,29 @@ func main() {
 		common.Warning("Failed to create certificates directory: %v", err)
 	}
 
-	// Set up default domains and get site domains
-	// defaultDomains := []string{
-	// 	host,        // The configured host
-	// 	"*",         // Wildcard domain for unregistered domains
-	// 	"localhost", // Local development
-	// }
-
 	// Create domain list from site domains and default domains
 	siteDomains := siteManager.Domains().GetDomains()
 
-	// Create the certificate manager and HTTPS server
-	certManager, httpsServer := network.NewSSLServer(certsDir, httpsAddr, siteDomains, rootRouter)
+	var httpServer *http.Server
+	var httpsServer *http.Server
+	var certManager *autocert.Manager
+	// Create the appropriate server based on environment
+	if common.IsStaging() || common.IsProduction() {
+		//
+		certManager, httpsServer = network.NewSSLServer(certsDir, httpsAddr, siteDomains, rootRouter)
+	} else {
+		// For local development, use self-signed certificates
+		localServer, err := network.NewLocalSSLServer(certsDir, httpsAddr, rootRouter)
+		if err != nil {
+			common.Fatal("Failed to create local SSL server: %v", err)
+		}
+		httpsServer = localServer
+		common.Info("Using local self-signed certificates for development")
+	}
 
+	//
 	// Create an HTTP server that both redirects to HTTPS and handles ACME challenges
-	httpServer := &http.Server{
+	httpServer = &http.Server{
 		Addr: httpAddr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Check if this is an ACME challenge
@@ -174,38 +176,19 @@ func main() {
 		MaxHeaderBytes: 1 << 20,
 	}
 
-	// Extract port numbers from addresses for availability checking
-	httpPort := 80
-	httpsPort := 443
-	if port != 80 && port != 443 {
-		httpsPort = port
-	}
-
-	// Test if ports are available before starting servers
-	httpPortAvailable := isPortAvailable(httpPort)
-	httpsPortAvailable := isPortAvailable(httpsPort)
-
-	if !httpPortAvailable {
-		common.Warning("HTTP port %d is already in use. HTTP redirects will not be available.", httpPort)
-	}
-
-	if !httpsPortAvailable {
-		common.Fatal("HTTPS port %d is already in use. Cannot start server.", httpsPort)
-	}
-
-	// Start HTTP server in a goroutine (only if port is available)
-	if httpPortAvailable {
-		go func() {
-			common.Info("Starting HTTP server on http://%s", httpAddr)
-			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				common.Warning("HTTP server failed: %v", err)
-			}
-		}()
-	}
+	// Start HTTP server in a goroutine (only if not in local mode and port is available)
+	go func() {
+		common.Info("Starting HTTP server on http://%s", httpAddr)
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			common.Warning("HTTP server failed: %v", err)
+		}
+	}()
 
 	// Start HTTPS server (blocking)
+	// go func() {
 	common.Info("Starting HTTPS server on https://%s", httpsAddr)
 	if err := httpsServer.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 		common.Fatal("HTTPS server failed to start: %v", err)
 	}
+	// }()
 }

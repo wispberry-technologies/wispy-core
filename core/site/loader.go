@@ -7,12 +7,15 @@ import (
 	"sync"
 	"time"
 
+	"wispy-core/core"
+	"wispy-core/core/site/theme"
+
 	"github.com/pelletier/go-toml/v2"
 )
 
 type siteManager struct {
 	mu             sync.RWMutex
-	sites          map[string]Site // Maps domain to Site
+	sites          map[string]core.Site // Maps domain to Site
 	tenantsRootDir string
 	domains        DomainList
 }
@@ -74,16 +77,16 @@ func NewDomainList() DomainList {
 
 type SiteManager interface {
 	Domains() DomainList
-	LoadAllSites() (map[string]Site, error)
-	LoadSiteByDomain(domain string) (Site, error)
-	GetSite(domain string) (Site, error)
-	UpdateSite(domain string, site Site) error
+	LoadAllSites() (map[string]core.Site, error)
+	LoadSiteByDomain(domain string) (core.Site, error)
+	GetSite(domain string) (core.Site, error)
+	UpdateSite(domain string, site core.Site) error
 }
 
 // NewSiteManager creates a new site manager
 func NewSiteManager(tenantsRootDir string) SiteManager {
 	return &siteManager{
-		sites:          make(map[string]Site),
+		sites:          make(map[string]core.Site),
 		tenantsRootDir: tenantsRootDir,
 		domains:        NewDomainList(),
 	}
@@ -95,7 +98,7 @@ func (sm *siteManager) Domains() DomainList {
 }
 
 // LoadAllSites loads all tenant sites from the directory
-func (sm *siteManager) LoadAllSites() (map[string]Site, error) {
+func (sm *siteManager) LoadAllSites() (map[string]core.Site, error) {
 	entries, err := os.ReadDir(sm.tenantsRootDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read tenants directory: %w", err)
@@ -104,7 +107,7 @@ func (sm *siteManager) LoadAllSites() (map[string]Site, error) {
 	var (
 		wg    sync.WaitGroup
 		mu    sync.Mutex
-		sites = make(map[string]Site)
+		sites = make(map[string]core.Site)
 		errs  = make(chan error, len(entries))
 	)
 
@@ -153,7 +156,7 @@ func (sm *siteManager) LoadAllSites() (map[string]Site, error) {
 }
 
 // LoadSiteByDomain loads a site configuration by domain name
-func (sm *siteManager) LoadSiteByDomain(domain string) (Site, error) {
+func (sm *siteManager) LoadSiteByDomain(domain string) (core.Site, error) {
 	configPath := filepath.Join(sm.tenantsRootDir, domain, "config.toml")
 
 	data, err := os.ReadFile(configPath)
@@ -236,11 +239,11 @@ func (sm *siteManager) LoadSiteByDomain(domain string) (Site, error) {
 	}
 
 	// Create Theme instance
-	theme := &Theme{
+	theme := &theme.Root{
 		Name: config.Theme.Name,
 		Base: config.Theme.Base,
-		Tokens: ThemeTokens{
-			Colors: ColorTokens{
+		Tokens: theme.ThemeTokens{
+			Colors: theme.ColorTokens{
 				Primary:          config.Theme.Colors.Primary,
 				PrimaryContent:   config.Theme.Colors.PrimaryContent,
 				Secondary:        config.Theme.Colors.Secondary,
@@ -262,7 +265,7 @@ func (sm *siteManager) LoadSiteByDomain(domain string) (Site, error) {
 				Error:            config.Theme.Colors.Error,
 				ErrorContent:     config.Theme.Colors.ErrorContent,
 			},
-			Spacing: SpacingTokens{
+			Spacing: theme.SpacingTokens{
 				Selector: config.Theme.Variables["spacing_selector"],
 				Field:    config.Theme.Variables["spacing_field"],
 				Base:     config.Theme.Variables["spacing_base"],
@@ -271,17 +274,17 @@ func (sm *siteManager) LoadSiteByDomain(domain string) (Site, error) {
 				Lg:       config.Theme.Variables["spacing_lg"],
 				Xl:       config.Theme.Variables["spacing_xl"],
 			},
-			Typography: TypographyTokens{
+			Typography: theme.TypographyTokens{
 				FontSans:  config.Theme.Variables["font_sans"],
 				FontMono:  config.Theme.Variables["font_mono"],
 				FontSerif: config.Theme.Variables["font_serif"],
 			},
-			Borders: BorderTokens{
+			Borders: theme.BorderTokens{
 				Width:          config.Theme.Variables["border_width"],
 				RadiusSelector: config.Theme.Variables["border_radius_selector"],
 				RadiusField:    config.Theme.Variables["border_radius_field"],
 			},
-			Shadows: ShadowTokens{
+			Shadows: theme.ShadowTokens{
 				Sm:    config.Theme.Variables["shadow_sm"],
 				Md:    config.Theme.Variables["shadow_md"],
 				Lg:    config.Theme.Variables["shadow_lg"],
@@ -289,7 +292,7 @@ func (sm *siteManager) LoadSiteByDomain(domain string) (Site, error) {
 				Inner: config.Theme.Variables["shadow_inner"],
 				None:  config.Theme.Variables["shadow_none"],
 			},
-			Animations: AnimationTokens{},
+			Animations: theme.AnimationTokens{},
 		},
 		Variables: config.Theme.Variables,
 	}
@@ -322,7 +325,7 @@ func (sm *siteManager) LoadSiteByDomain(domain string) (Site, error) {
 }
 
 // GetSite returns a site by domain
-func (sm *siteManager) GetSite(domain string) (Site, error) {
+func (sm *siteManager) GetSite(domain string) (core.Site, error) {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
@@ -335,7 +338,7 @@ func (sm *siteManager) GetSite(domain string) (Site, error) {
 }
 
 // UpdateSite updates a site by domain
-func (sm *siteManager) UpdateSite(domain string, updatedSite Site) error {
+func (sm *siteManager) UpdateSite(domain string, updatedSite core.Site) error {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
