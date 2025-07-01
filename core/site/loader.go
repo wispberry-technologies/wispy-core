@@ -321,6 +321,9 @@ func (sm *siteManager) LoadSiteByDomain(domain string) (core.Site, error) {
 		s.Theme.Base = "light"
 	}
 
+	// Setup Database manager
+	s.DbManager = NewDatabaseManager(s.Domain)
+
 	return s, nil
 }
 
