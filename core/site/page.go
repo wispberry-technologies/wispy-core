@@ -10,6 +10,8 @@ import (
 	"wispy-core/wispytail"
 
 	"github.com/go-chi/chi/v5"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // LoadPage loads a page from the content directory
@@ -112,10 +114,10 @@ func getPageTitle(pagePath, siteName string) string {
 	title := strings.TrimSuffix(filepath.Base(pagePath), ".html")
 	title = strings.ReplaceAll(title, "_", " ")
 	title = strings.ReplaceAll(title, "-", " ")
-	// title = strings.Title(title)
+	title = cases.Title(language.English).String(title)
 
 	if title == "Index" {
-		return siteName
+		return cases.Title(language.English).String(siteName)
 	}
 
 	return title + " | " + siteName

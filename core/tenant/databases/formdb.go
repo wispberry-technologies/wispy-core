@@ -47,8 +47,9 @@ func ScaffoldFormsDatabase(db *sql.DB) error {
 
 	// Add example email collection form
 	exampleFormSQL := `
-		INSERT INTO forms (name, title, description, fields, settings)
+		INSERT INTO forms (uuid, name, title, description, fields, settings)
 		VALUES (
+			'example-email-form',
 			'email_collection',
 			'Email Collection',
 			'Collect email addresses from users',
