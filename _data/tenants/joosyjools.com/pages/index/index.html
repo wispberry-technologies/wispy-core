@@ -1,18 +1,18 @@
 {{ define "body" }}
 
-<section class="hero py-14">
+<section class="hero py-14" style="z-index: 10;">
   <!-- LOGO  -->
   {{ template "atoms/svg-logo" . }}
   <!-- Hero Content -->
   <div class="text-center max-w-md flex flex-col items-center mx-auto gap-3">
 
     <div>
-      <h1 class="text-5xl font-bold">Welcome to test</h1>
-      <h4 class="text-xl  py-2">Get started with your new site.</h4>
+      <h1 class="text-5xl font-bold">Join The Waitlist</h1>
+      <p class="text-xl py-2 opacity-80">Be the first to know when we launch!</p>
     </div>
       
     <!-- Email Collection Form -->
-    <form action="/api/v1/forms/submit" method="POST" class="join">
+    <form action="/api/v1/forms/submit?redirect=/notified-welcome" method="POST" class="join">
       <input type="hidden" name="__form_id__" value="1" />
       <div>
         <label class="input validator join-item">

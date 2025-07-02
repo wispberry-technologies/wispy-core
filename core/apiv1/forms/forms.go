@@ -203,7 +203,13 @@ func (f *FormApi) FormSubmission(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	common.RespondWithPlainText(w, http.StatusOK, "Form submitted successfully")
+	// queryParam redirect then redirect
+	redirectURL := r.URL.Query().Get("redirect")
+	if redirectURL != "" {
+		common.RedirectWithMessage(w, r, redirectURL, "Form submitted successfully!", "")
+	} else {
+		common.RespondWithPlainText(w, http.StatusOK, "Form submitted successfully")
+	}
 }
 
 func (f *FormApi) validateAndNormalizeSubmission(formData url.Values, form Form) (map[string]string, map[string]string, error) {
