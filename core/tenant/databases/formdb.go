@@ -30,6 +30,13 @@ func ScaffoldFormsDatabase(db *sql.DB) error {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
 				uuid TEXT NOT NULL UNIQUE,
         form_id INTEGER NOT NULL,
+				first_name TEXT,
+				last_name TEXT,
+				tags TEXT,
+				email TEXT NOT NULL,
+				tel TEXT,
+				subject TEXT,
+				message TEXT,
         data TEXT NOT NULL, -- JSON string containing submission data
         ip_address TEXT,
         user_agent TEXT,
@@ -42,6 +49,11 @@ func ScaffoldFormsDatabase(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_forms_uuid ON forms(uuid);`,
 		`CREATE INDEX IF NOT EXISTS idx_forms_name ON forms(name);`,
 		`CREATE INDEX IF NOT EXISTS idx_submissions_form_id ON form_submissions(form_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_submissions_email ON form_submissions(email);`,
+		`CREATE INDEX IF NOT EXISTS idx_submissions_first_name ON form_submissions(first_name);`,
+		`CREATE INDEX IF NOT EXISTS idx_submissions_last_name ON form_submissions(last_name);`,
+		`CREATE INDEX IF NOT EXISTS idx_submissions_tel ON form_submissions(tel);`,
+		`CREATE INDEX IF NOT EXISTS idx_submissions_subject ON form_submissions(subject);`,
 		`CREATE INDEX IF NOT EXISTS idx_submissions_created_at ON form_submissions(created_at);`,
 	}
 

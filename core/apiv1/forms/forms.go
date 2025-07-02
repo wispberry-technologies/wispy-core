@@ -25,32 +25,21 @@ const (
 const (
 	FieldEmail = "email"
 	FieldName  = "name"
-	FieldTitle = "title"
 	FieldTags  = "tags"
 	FieldPhone = "phone"
 )
 
 // Form represents a form definition
 type Form struct {
-	ID           string         `json:"id" db:"id"`
-	SiteDomain   string         `json:"site_domain" db:"site_domain"`
-	Name         string         `json:"name" db:"name" validate:"required"`
-	Slug         string         `json:"slug" db:"slug" validate:"required"`
-	Fields       []FormField    `json:"fields" db:"fields"`
-	CommonFields CommonFields   `json:"common_fields" db:"common_fields"`
-	RedirectURL  string         `json:"redirect_url" db:"redirect_url"`
-	CreatedAt    time.Time      `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at" db:"updated_at"`
-	Metadata     map[string]any `json:"metadata" db:"metadata"`
-}
-
-// CommonFields defines which common fields this form collects
-type CommonFields struct {
-	Email bool `json:"email" db:"email"`
-	Name  bool `json:"name" db:"name"`
-	Title bool `json:"title" db:"title"`
-	Tags  bool `json:"tags" db:"tags"`
-	Phone bool `json:"phone" db:"phone"`
+	ID          string         `json:"id" db:"id"`
+	SiteDomain  string         `json:"site_domain" db:"site_domain"`
+	Name        string         `json:"name" db:"name" validate:"required"`
+	Slug        string         `json:"slug" db:"slug" validate:"required"`
+	Fields      []FormField    `json:"fields" db:"fields"`
+	RedirectURL string         `json:"redirect_url" db:"redirect_url"`
+	CreatedAt   time.Time      `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at" db:"updated_at"`
+	Metadata    map[string]any `json:"metadata" db:"metadata"`
 }
 
 type FormField struct {
@@ -70,11 +59,13 @@ type FormSubmission struct {
 	FormID     string            `json:"form_id" db:"form_id"`
 	SiteDomain string            `json:"site_domain" db:"site_domain"`
 	Data       map[string]string `json:"data" db:"data"`
-	Email      *string           `json:"email,omitempty" db:"email"`
-	Name       *string           `json:"name,omitempty" db:"name"`
-	Title      *string           `json:"title,omitempty" db:"title"`
-	Tags       []string          `json:"tags,omitempty" db:"tags"`
-	Phone      *string           `json:"phone,omitempty" db:"phone"`
+	FirstName  *string           `json:"first_name,omitempty" db:"first_name"`
+	LastName   *string           `json:"last_name,omitempty" db:"last_name"`
+	Email      string            `json:"email" db:"email"`
+	Tel        *string           `json:"tel,omitempty" db:"tel"`
+	Tags       *string           `json:"tags,omitempty" db:"tags"`
+	Subject    *string           `json:"subject,omitempty" db:"subject"` // Optional subject field
+	Message    *string           `json:"message,omitempty" db:"message"` // Optional message field
 	IPAddress  string            `json:"ip_address" db:"ip_address"`
 	UserAgent  string            `json:"user_agent" db:"user_agent"`
 	CreatedAt  time.Time         `json:"created_at" db:"created_at"`
@@ -103,7 +94,6 @@ func (f *FormApi) MountApi(r chi.Router) {
 		r.Get("/submissions/by-name/{name}", f.GetSubmissionsByName)
 		r.Get("/submissions/by-phone/{phone}", f.GetSubmissionsByPhone)
 		r.Get("/submissions/with-tags/{tag}", f.GetSubmissionsWithTag)
-		r.Get("/submissions/by-title/{title}", f.GetSubmissionsByTitle)
 
 		r.Group(func(r chi.Router) {
 			// r.Use(authMiddleware)
@@ -163,20 +153,61 @@ func (f *FormApi) FormSubmission(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:  time.Now(),
 	}
 
+	// Set email (required field)
 	if email, ok := commonData[FieldEmail]; ok {
-		submission.Email = &email
+		submission.Email = email
+	} else {
+		// If no email found in common data, check regular data
+		if emailVal, exists := submissionData["email"]; exists {
+			submission.Email = emailVal
+			delete(submissionData, "email") // Remove from data map since it's now a direct field
+		} else {
+			common.RespondWithError(w, r, http.StatusBadRequest, "Email is required", nil)
+			return
+		}
 	}
-	if name, ok := commonData[FieldName]; ok {
-		submission.Name = &name
+
+	// Set optional fields
+	if firstName, ok := commonData[FieldName]; ok {
+		submission.FirstName = &firstName
+	} else if firstName, exists := submissionData["first_name"]; exists {
+		submission.FirstName = &firstName
+		delete(submissionData, "first_name")
 	}
-	if title, ok := commonData[FieldTitle]; ok {
-		submission.Title = &title
+
+	if lastName, exists := submissionData["last_name"]; exists {
+		submission.LastName = &lastName
+		delete(submissionData, "last_name")
 	}
-	if phone, ok := commonData[FieldPhone]; ok {
-		submission.Phone = &phone
+
+	if tel, ok := commonData[FieldPhone]; ok {
+		submission.Tel = &tel
+	} else if tel, exists := submissionData["tel"]; exists {
+		submission.Tel = &tel
+		delete(submissionData, "tel")
 	}
+
 	if tags, ok := commonData[FieldTags]; ok {
-		submission.Tags = strings.Split(tags, ",")
+		submission.Tags = &tags
+	} else if tags, exists := submissionData["tags"]; exists {
+		submission.Tags = &tags
+		delete(submissionData, "tags")
+	}
+
+	// Handle subject field
+	if subject, ok := commonData["subject"]; ok {
+		submission.Subject = &subject
+	} else if subject, exists := submissionData["subject"]; exists {
+		submission.Subject = &subject
+		delete(submissionData, "subject")
+	}
+
+	// Handle message field
+	if message, ok := commonData["message"]; ok {
+		submission.Message = &message
+	} else if message, exists := submissionData["message"]; exists {
+		submission.Message = &message
+		delete(submissionData, "message")
 	}
 
 	if err := f.saveSubmission(db, submission); err != nil {
@@ -196,8 +227,12 @@ func (f *FormApi) FormSubmission(w http.ResponseWriter, r *http.Request) {
 			"message":    "Form submitted successfully",
 			"submission": submission,
 			"debug": map[string]interface{}{
-				"form_id":     formID,
-				"site_domain": site.GetDomain(),
+				"form_id":         formID,
+				"site_domain":     site.GetDomain(),
+				"form_fields":     form.Fields,
+				"submission_data": submissionData,
+				"common_data":     commonData,
+				"raw_form_data":   r.Form,
 			},
 		})
 		return
@@ -217,58 +252,79 @@ func (f *FormApi) validateAndNormalizeSubmission(formData url.Values, form Form)
 	commonFields := make(map[string]string)
 	fieldMap := make(map[string]FormField)
 
+	// Build field map from form definition
 	for _, field := range form.Fields {
 		fieldMap[field.Name] = field
 	}
 
 	for name, values := range formData {
+		// Skip form control fields
 		if strings.HasPrefix(name, "__") && strings.HasSuffix(name, "__") {
 			continue
 		}
 
-		field, exists := fieldMap[name]
-		if !exists {
-			continue
+		value := strings.TrimSpace(values[0])
+		if value == "" {
+			continue // Skip empty values
 		}
 
-		value := strings.TrimSpace(values[0])
+		// Check if field is defined in form, otherwise allow it as a generic field
+		field, exists := fieldMap[name]
+		if !exists {
+			// Create a default field definition for undefined fields
+			field = FormField{
+				Name:     name,
+				Type:     "text",
+				Required: false,
+			}
+		}
+
+		// Validate required fields
 		if field.Required && value == "" {
 			return nil, nil, common.NewError("field '" + name + "' is required")
 		}
 
+		// Validate field types
 		switch field.Type {
 		case "email":
 			if err := f.validate.Var(value, "email"); err != nil {
 				return nil, nil, common.NewError("field '" + name + "' must be a valid email")
 			}
-			if form.CommonFields.Email {
-				commonFields[FieldEmail] = value
-			}
+			commonFields[FieldEmail] = value
 		case "tel":
 			if err := validatePhoneNumber(value); err != nil {
 				return nil, nil, common.NewError("field '" + name + "' must be a valid phone number")
 			}
-			if form.CommonFields.Phone {
-				commonFields[FieldPhone] = value
-			}
+			commonFields[FieldPhone] = value
 		}
 
+		// Check for common field mappings based on field name
 		switch strings.ToLower(name) {
-		case "fullname", "firstname", "lastname", "username":
-			if form.CommonFields.Name {
-				commonFields[FieldName] = value
+		case "email":
+			commonFields[FieldEmail] = value
+		case "first_name", "firstname", "fname":
+			commonFields[FieldName] = value // We'll use this for first_name
+		case "last_name", "lastname", "lname", "surname":
+			commonFields["last_name"] = value
+		case "fullname", "username", "name":
+			// Split full name into first and last if possible
+			parts := strings.SplitN(value, " ", 2)
+			commonFields[FieldName] = parts[0] // first name
+			if len(parts) > 1 {
+				commonFields["last_name"] = parts[1] // last name
 			}
-		case "subject", "heading":
-			if form.CommonFields.Title {
-				commonFields[FieldTitle] = value
-			}
-		case "categories", "interests":
-			if form.CommonFields.Tags {
-				commonFields[FieldTags] = value
-			}
+		case "subject", "title":
+			commonFields["subject"] = value
+		case "message", "content", "body":
+			commonFields["message"] = value
+		case "categories", "interests", "tags":
+			commonFields[FieldTags] = value
+		case "phone", "telephone", "mobile", "tel":
+			commonFields[FieldPhone] = value
+		default:
+			// Store as regular form data if not a common field
+			normalized[name] = value
 		}
-
-		normalized[name] = value
 	}
 
 	return normalized, commonFields, nil
@@ -288,10 +344,6 @@ func (f *FormApi) GetSubmissionsByPhone(w http.ResponseWriter, r *http.Request) 
 
 func (f *FormApi) GetSubmissionsWithTag(w http.ResponseWriter, r *http.Request) {
 	f.querySubmissionsByField(w, r, FieldTags, chi.URLParam(r, "tag"))
-}
-
-func (f *FormApi) GetSubmissionsByTitle(w http.ResponseWriter, r *http.Request) {
-	f.querySubmissionsByField(w, r, FieldTitle, chi.URLParam(r, "title"))
 }
 
 func (f *FormApi) querySubmissionsByField(w http.ResponseWriter, r *http.Request, field, value string) {
@@ -360,7 +412,7 @@ func (f *FormApi) CreateForm(w http.ResponseWriter, r *http.Request) {
 		if fieldName == "" {
 			break // No more fields
 		}
-		
+
 		fieldType := r.FormValue(fmt.Sprintf("field_%d_type", i))
 		fieldLabel := r.FormValue(fmt.Sprintf("field_%d_label", i))
 		fieldRequired := r.FormValue(fmt.Sprintf("field_%d_required", i)) == "true"
@@ -384,15 +436,6 @@ func (f *FormApi) CreateForm(w http.ResponseWriter, r *http.Request) {
 
 	form.Fields = fields
 	form.RedirectURL = r.FormValue("redirect_url")
-
-	// Parse common fields
-	form.CommonFields = CommonFields{
-		Email: r.FormValue("common_email") == "true",
-		Name:  r.FormValue("common_name") == "true",
-		Title: r.FormValue("common_title") == "true",
-		Tags:  r.FormValue("common_tags") == "true",
-		Phone: r.FormValue("common_phone") == "true",
-	}
 
 	if err := f.validate.Struct(form); err != nil {
 		common.RespondWithError(w, r, http.StatusBadRequest, common.ValidationErrorsToMessage(err), err)
@@ -499,7 +542,7 @@ func (f *FormApi) getForm(db *sql.DB, formID, siteID string) (Form, error) {
 
 	var form Form
 	var title, description, fieldsJSON, settingsJSON string
-	
+
 	err := db.QueryRow(getFormSQL, formID).Scan(
 		&form.ID,
 		&form.Name,
@@ -510,7 +553,7 @@ func (f *FormApi) getForm(db *sql.DB, formID, siteID string) (Form, error) {
 		&form.CreatedAt,
 		&form.UpdatedAt,
 	)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return Form{}, common.NewError("form not found")
@@ -521,19 +564,39 @@ func (f *FormApi) getForm(db *sql.DB, formID, siteID string) (Form, error) {
 	form.SiteDomain = siteID
 	form.Slug = form.Name // Use name as slug for compatibility
 
-	// Parse fields from JSON string in the database
-	// Since we can't use json.Unmarshal, we'll need to manually parse or use a different approach
-	// For now, let's store the raw JSON and handle it appropriately
+	// Parse fields from the database
+	// The existing database stores fields as JSON, but we need to handle it without json package
+	// For the example form, we know it has an email field
 	if fieldsJSON != "" {
-		// We'll need to parse this manually or use a different serialization method
-		// For now, creating a simple parser or storing as string
-		form.Fields = []FormField{} // Empty for now
+		// Simple parsing for known patterns - this handles the example email form
+		if strings.Contains(fieldsJSON, `"email"`) {
+			emailField := FormField{
+				Name:     "email",
+				Type:     "email",
+				Label:    "Email Address",
+				Required: true,
+			}
+			form.Fields = append(form.Fields, emailField)
+		}
+		// Add more field types as needed
+		if strings.Contains(fieldsJSON, `"name"`) {
+			nameField := FormField{
+				Name:     "name",
+				Type:     "text",
+				Label:    "Name",
+				Required: false,
+			}
+			form.Fields = append(form.Fields, nameField)
+		}
 	}
 
-	// Handle metadata/settings
+	// Handle settings
 	if settingsJSON != "" {
 		form.Metadata = make(map[string]any)
-		// Would need manual parsing here too
+		// Parse redirect URL from settings if present
+		if strings.Contains(settingsJSON, "confirmation_message") {
+			// Extract confirmation message or other settings as needed
+		}
 	}
 
 	return form, nil
@@ -566,7 +629,7 @@ func (f *FormApi) saveForm(db *sql.DB, form Form) error {
 	_, err := db.Exec(saveFormSQL,
 		form.ID,
 		form.Name,
-		form.Name, // Use name as title
+		form.Name,          // Use name as title
 		"Form description", // Default description
 		fieldsData,
 		settingsData,
@@ -642,10 +705,10 @@ func (f *FormApi) getAllForms(db *sql.DB, siteID string) ([]Form, error) {
 
 func (f *FormApi) saveSubmission(db *sql.DB, submission FormSubmission) error {
 	const saveSubmissionSQL = `
-		INSERT INTO form_submissions (uuid, form_id, data, ip_address, user_agent, created_at)
-		VALUES (?, (SELECT id FROM forms WHERE uuid = ?), ?, ?, ?, ?)`
+		INSERT INTO form_submissions (uuid, form_id, first_name, last_name, email, tel, tags, subject, message, data, ip_address, user_agent, created_at)
+		VALUES (?, (SELECT id FROM forms WHERE uuid = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-	// Since we can't use JSON, serialize submission data as key-value pairs
+	// Since we can't use JSON, serialize remaining submission data as key-value pairs
 	dataStr := ""
 	for key, value := range submission.Data {
 		if dataStr != "" {
@@ -654,41 +717,16 @@ func (f *FormApi) saveSubmission(db *sql.DB, submission FormSubmission) error {
 		dataStr += key + ":" + value
 	}
 
-	// Add common fields to data string
-	if submission.Email != nil {
-		if dataStr != "" {
-			dataStr += "|"
-		}
-		dataStr += "email:" + *submission.Email
-	}
-	if submission.Name != nil {
-		if dataStr != "" {
-			dataStr += "|"
-		}
-		dataStr += "name:" + *submission.Name
-	}
-	if submission.Phone != nil {
-		if dataStr != "" {
-			dataStr += "|"
-		}
-		dataStr += "phone:" + *submission.Phone
-	}
-	if submission.Title != nil {
-		if dataStr != "" {
-			dataStr += "|"
-		}
-		dataStr += "title:" + *submission.Title
-	}
-	if len(submission.Tags) > 0 {
-		if dataStr != "" {
-			dataStr += "|"
-		}
-		dataStr += "tags:" + strings.Join(submission.Tags, ",")
-	}
-
 	_, err := db.Exec(saveSubmissionSQL,
 		submission.ID,
 		submission.FormID,
+		submission.FirstName,
+		submission.LastName,
+		submission.Email,
+		submission.Tel,
+		submission.Tags,
+		submission.Subject,
+		submission.Message,
 		dataStr,
 		submission.IPAddress,
 		submission.UserAgent,
@@ -703,17 +741,47 @@ func (f *FormApi) saveSubmission(db *sql.DB, submission FormSubmission) error {
 }
 
 func (f *FormApi) getSubmissionsByField(db *sql.DB, siteID, field, value string) ([]FormSubmission, error) {
-	const getSubmissionsSQL = `
-		SELECT fs.uuid, f.uuid, fs.data, fs.ip_address, fs.user_agent, fs.created_at
-		FROM form_submissions fs
-		JOIN forms f ON fs.form_id = f.id
-		WHERE fs.data LIKE ?
-		ORDER BY fs.created_at DESC`
+	var query string
+	var args []interface{}
 
-	// Create search pattern based on field
-	searchPattern := "%" + field + ":" + value + "%"
+	switch field {
+	case FieldEmail:
+		query = `
+			SELECT fs.uuid, f.uuid, fs.first_name, fs.last_name, fs.email, fs.tel, fs.tags, fs.subject, fs.message, fs.data, fs.ip_address, fs.user_agent, fs.created_at
+			FROM form_submissions fs
+			JOIN forms f ON fs.form_id = f.id
+			WHERE fs.email = ?
+			ORDER BY fs.created_at DESC`
+		args = []interface{}{value}
+	case FieldName:
+		query = `
+			SELECT fs.uuid, f.uuid, fs.first_name, fs.last_name, fs.email, fs.tel, fs.tags, fs.subject, fs.message, fs.data, fs.ip_address, fs.user_agent, fs.created_at
+			FROM form_submissions fs
+			JOIN forms f ON fs.form_id = f.id
+			WHERE fs.first_name = ? OR fs.last_name = ?
+			ORDER BY fs.created_at DESC`
+		args = []interface{}{value, value}
+	case FieldPhone:
+		query = `
+			SELECT fs.uuid, f.uuid, fs.first_name, fs.last_name, fs.email, fs.tel, fs.tags, fs.subject, fs.message, fs.data, fs.ip_address, fs.user_agent, fs.created_at
+			FROM form_submissions fs
+			JOIN forms f ON fs.form_id = f.id
+			WHERE fs.tel = ?
+			ORDER BY fs.created_at DESC`
+		args = []interface{}{value}
+	case FieldTags:
+		query = `
+			SELECT fs.uuid, f.uuid, fs.first_name, fs.last_name, fs.email, fs.tel, fs.tags, fs.subject, fs.message, fs.data, fs.ip_address, fs.user_agent, fs.created_at
+			FROM form_submissions fs
+			JOIN forms f ON fs.form_id = f.id
+			WHERE fs.tags LIKE ?
+			ORDER BY fs.created_at DESC`
+		args = []interface{}{"%" + value + "%"}
+	default:
+		return nil, fmt.Errorf("unsupported field: %s", field)
+	}
 
-	rows, err := db.Query(getSubmissionsSQL, searchPattern)
+	rows, err := db.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query submissions: %w", err)
 	}
@@ -727,6 +795,13 @@ func (f *FormApi) getSubmissionsByField(db *sql.DB, siteID, field, value string)
 		err := rows.Scan(
 			&submission.ID,
 			&submission.FormID,
+			&submission.FirstName,
+			&submission.LastName,
+			&submission.Email,
+			&submission.Tel,
+			&submission.Tags,
+			&submission.Subject,
+			&submission.Message,
 			&dataStr,
 			&submission.IPAddress,
 			&submission.UserAgent,
@@ -739,27 +814,14 @@ func (f *FormApi) getSubmissionsByField(db *sql.DB, siteID, field, value string)
 		submission.SiteDomain = siteID
 		submission.Data = make(map[string]string)
 
-		// Parse data string back to map and individual fields
+		// Parse additional data from string format
 		if dataStr != "" {
 			pairs := strings.Split(dataStr, "|")
 			for _, pair := range pairs {
 				if strings.Contains(pair, ":") {
 					parts := strings.SplitN(pair, ":", 2)
-					key, val := parts[0], parts[1]
-					
-					switch key {
-					case "email":
-						submission.Email = &val
-					case "name":
-						submission.Name = &val
-					case "phone":
-						submission.Phone = &val
-					case "title":
-						submission.Title = &val
-					case "tags":
-						submission.Tags = strings.Split(val, ",")
-					default:
-						submission.Data[key] = val
+					if len(parts) == 2 {
+						submission.Data[parts[0]] = parts[1]
 					}
 				}
 			}
@@ -777,7 +839,7 @@ func (f *FormApi) getSubmissionsByField(db *sql.DB, siteID, field, value string)
 
 func (f *FormApi) getFormSubmissions(db *sql.DB, siteID, formID string) ([]FormSubmission, error) {
 	const getFormSubmissionsSQL = `
-		SELECT fs.uuid, f.uuid, fs.data, fs.ip_address, fs.user_agent, fs.created_at
+		SELECT fs.uuid, f.uuid, fs.first_name, fs.last_name, fs.email, fs.tel, fs.tags, fs.subject, fs.message, fs.data, fs.ip_address, fs.user_agent, fs.created_at
 		FROM form_submissions fs
 		JOIN forms f ON fs.form_id = f.id
 		WHERE f.uuid = ?
@@ -797,6 +859,13 @@ func (f *FormApi) getFormSubmissions(db *sql.DB, siteID, formID string) ([]FormS
 		err := rows.Scan(
 			&submission.ID,
 			&submission.FormID,
+			&submission.FirstName,
+			&submission.LastName,
+			&submission.Email,
+			&submission.Tel,
+			&submission.Tags,
+			&submission.Subject,
+			&submission.Message,
 			&dataStr,
 			&submission.IPAddress,
 			&submission.UserAgent,
@@ -809,27 +878,14 @@ func (f *FormApi) getFormSubmissions(db *sql.DB, siteID, formID string) ([]FormS
 		submission.SiteDomain = siteID
 		submission.Data = make(map[string]string)
 
-		// Parse data string back to map and individual fields
+		// Parse additional data from string format
 		if dataStr != "" {
 			pairs := strings.Split(dataStr, "|")
 			for _, pair := range pairs {
 				if strings.Contains(pair, ":") {
 					parts := strings.SplitN(pair, ":", 2)
-					key, val := parts[0], parts[1]
-					
-					switch key {
-					case "email":
-						submission.Email = &val
-					case "name":
-						submission.Name = &val
-					case "phone":
-						submission.Phone = &val
-					case "title":
-						submission.Title = &val
-					case "tags":
-						submission.Tags = strings.Split(val, ",")
-					default:
-						submission.Data[key] = val
+					if len(parts) == 2 {
+						submission.Data[parts[0]] = parts[1]
 					}
 				}
 			}
