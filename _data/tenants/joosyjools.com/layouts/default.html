@@ -22,41 +22,86 @@
 	</footer>
 	<!--  -->
 	<link href="https://cdn.jsdelivr.net/combine/npm/daisyui@5/base/svg.css,npm/daisyui@5/base/scrollbar.css,npm/daisyui@5/base/rootcolor.css,npm/daisyui@5/components/button.css,npm/daisyui@5/components/loading.css,npm/daisyui@5/components/label.css,npm/daisyui@5/components/input.css,npm/daisyui@5/components/link.css,npm/daisyui@5/components/countdown.css,npm/daisyui@5/utilities/join.css,npm/daisyui@5/utilities/typography.css,npm/daisyui@5/utilities/radius.css" rel="stylesheet" type="text/css" />
-	<!--  -->
+	<!-- Canvas for sparkle effect -->
+	<canvas id="sparkleCanvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; mix-blend-mode: screen;"></canvas>
+	
 	<script>
   const rainbowColors = ['#FF5F5F', '#FFB347', '#FFFF66', '#8AFF8A', '#7EC8E3', '#C48DFF', '#FF85E1'];
-
+  
+  // Canvas setup
+  const canvas = document.getElementById('sparkleCanvas');
+  const ctx = canvas.getContext('2d');
+  const sparkles = [];
+  
+  // Resize canvas to match window size
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  
+  // Sparkle class
+  class Sparkle {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.color = rainbowColors[Math.floor(Math.random() * rainbowColors.length)];
+      this.life = 2000; // 2 seconds in milliseconds
+      this.maxLife = 2000;
+      this.size = 8;
+    }
+    
+    update(deltaTime) {
+      this.life -= deltaTime;
+      return this.life > 0;
+    }
+    
+    draw() {
+      const progress = this.life / this.maxLife;
+      const opacity = progress;
+      const scale = 1 + (1 - progress); // Scale from 1 to 2
+      const currentSize = this.size * scale;
+      
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, currentSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+  
+  // Animation loop
+  let lastTime = 0;
+  function animate(currentTime) {
+    const deltaTime = currentTime - lastTime;
+    lastTime = currentTime;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Update and draw sparkles
+    for (let i = sparkles.length - 1; i >= 0; i--) {
+      const sparkle = sparkles[i];
+      if (!sparkle.update(deltaTime)) {
+        sparkles.splice(i, 1);
+      } else {
+        sparkle.draw();
+      }
+    }
+    
+    requestAnimationFrame(animate);
+  }
+  
+  // Mouse move handler
   document.addEventListener('mousemove', function (e) {
-    const sparkle = document.createElement('div');
-    sparkle.classList.add('sparkle');
-    sparkle.style.left = e.pageX + 'px';
-    sparkle.style.top = e.pageY + 'px';
-    sparkle.style.background = rainbowColors[Math.floor(Math.random() * rainbowColors.length)];
-    document.body.appendChild(sparkle);
-    setTimeout(() => sparkle.remove(), 2000);
+    sparkles.push(new Sparkle(e.clientX, e.clientY));
   });
+  
+  // Start animation
+  requestAnimationFrame(animate);
 </script>
-<style>
-	.sparkle {
-		position: absolute;
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		pointer-events: none;
-		animation: sparkle-fade 2s forwards;
-		mix-blend-mode: screen;
-		z-index: 1;
-	}
-
-	@keyframes sparkle-fade {
-		0% {
-			opacity: 1;
-			transform: scale(1);
-		}
-		100% {
-			opacity: 0;
-			transform: scale(2);
-		}
-	}
-</style>
 </body>
