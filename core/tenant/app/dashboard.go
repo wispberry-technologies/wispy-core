@@ -2,6 +2,9 @@ package app
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
+	"wispy-core/common"
 	"wispy-core/tpl"
 	"wispy-core/wispytail"
 )
@@ -45,7 +48,16 @@ func DashboardHandler(cms WispyCms) http.HandlerFunc {
 		themeConfig := wispytail.DefaultThemeConfig()
 		// Generate theme CSS
 		trie := engine.GetWispyTailTrie()
-		themeCss := wispytail.DefaultCssTheme
+		// _data/design/systems/themes
+		var themeCss = wispytail.DefaultCssTheme
+		themePath := filepath.Join(filepath.Join("_data", "design", "systems", "themes", cms.GetTheme()+".css"))
+		themeBytes, err := os.ReadFile(themePath)
+		if err != nil {
+			common.Error("Failed to read theme file %s: %v", themePath, err)
+		} else {
+			themeCss += string(themeBytes)
+		}
+
 		baseTwCss := wispytail.GenerateThemeLayer(themeConfig)
 		css := wispytail.Generate(state.GetBody(), themeConfig, trie)
 

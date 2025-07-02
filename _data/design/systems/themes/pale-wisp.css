@@ -1,6 +1,7 @@
 /* Pale Wisp Theme - Light theme for Wispy Core */
 :root {
   color-scheme: light;
+  --color-body: oklch(100% 0 0);
   --color-base-100: oklch(21% 0.006 285.885);
   --color-base-200: oklch(14% 0.005 285.823);
   --color-base-300: oklch(14% 0 0);
@@ -29,18 +30,10 @@
   --border: 1px;
   --depth: 0;
   --noise: 0;
-  --radius-selector: 0rem;
-  --radius-field: 0.25rem;
-  --radius-box: 0.25rem;
-  --size-selector: 0.25rem;
-  --size-field: 0.25rem;
-  --border: 1px;
-  --depth: 0;
-  --noise: 0;
 }
-:root:has(input.theme-controller[value=pale-wisp]:checked),
-[data-theme=pale-wisp] {
+[data-theme=pale-wisp]{
   color-scheme: "dark";
+  --color-body: oklch(0% 0 0);
   --color-base-100: oklch(25.33% 0.016 252.42);
   --color-base-200: oklch(23.26% 0.014 253.1);
   --color-base-300: oklch(21.15% 0.012 254.09);

@@ -2,6 +2,7 @@
 /* Midnight Wisp Theme - Dark theme for Wispy Core */
 :root{
   color-scheme: "dark";
+  --color-body: oklch(0% 0 0);
   --color-base-100: oklch(25.33% 0.016 252.42);
   --color-base-200: oklch(23.26% 0.014 253.1);
   --color-base-300: oklch(21.15% 0.012 254.09);
@@ -33,9 +34,9 @@
 }
 
 /* Pale Wisp Theme - Light theme for Wispy Core */
-:root:has(input.theme-controller[value=pale-wisp]:checked),
 [data-theme=pale-wisp] {
   color-scheme: "light";
+  --color-body: oklch(100% 0 0);
   --color-base-100: oklch(100% 0 0);
   --color-base-200: oklch(97% 0 0);
   --color-base-300: oklch(94% 0 0);

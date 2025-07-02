@@ -2,12 +2,12 @@
     html,
     body {
         height: 100%;
-        background-color: var(--color-base-300);
+        background-color: var(--color-body);
     }
 
     .dots-background {
         height: 100%;
-        --dot-bg: var(--color-base-300);
+        --dot-bg: var(--color-body);
         --dot-color: color-mix(in oklab, var(--color-base-content) 30%, transparent 0%);
         --dot-size: 1px;
         --dot-space: 1.5rem;
@@ -17,7 +17,7 @@
             var(--dot-color);
     }
 </style>
-<body class="min-h-screen text-base-content">
+<body class="min-h-screen text-base-content" data-theme="robot-green">
     <!-- Main Content -->
     <main class="p-6">
     {{ block "body" . }} <p> Could not load page body.</p> {{ end }}

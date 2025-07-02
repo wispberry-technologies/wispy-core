@@ -8,10 +8,12 @@ import (
 
 type wispyCms struct {
 	tplEngine tpl.TemplateEngine
+	theme     string
 }
 
 type WispyCms interface {
 	GetTemplateEngine() tpl.TemplateEngine
+	GetTheme() string
 }
 
 func NewWispyCms() WispyCms {
@@ -36,9 +38,14 @@ func NewWispyCms() WispyCms {
 
 	return &wispyCms{
 		tplEngine: templateEngine,
+		theme:     "robot-green",
 	}
 }
 
 func (wc *wispyCms) GetTemplateEngine() tpl.TemplateEngine {
 	return wc.tplEngine
+}
+
+func (wc *wispyCms) GetTheme() string {
+	return wc.theme
 }
