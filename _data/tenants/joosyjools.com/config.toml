@@ -1,6 +1,6 @@
 # Site Configuration
 [site]
-name = "joosyjools"
+name = "Joosy Jools"
 domain = "joosyjools.com"
 base_url = "https://joosyjools.com"
 content_dir = "content"
