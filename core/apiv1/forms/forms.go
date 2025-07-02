@@ -33,7 +33,7 @@ const (
 // Form represents a form definition
 type Form struct {
 	ID           string         `json:"id" db:"id"`
-	SiteID       string         `json:"site_id" db:"site_id"`
+	SiteDomain   string         `json:"site_domain" db:"site_domain"`
 	Name         string         `json:"name" db:"name" validate:"required"`
 	Slug         string         `json:"slug" db:"slug" validate:"required"`
 	Fields       []FormField    `json:"fields" db:"fields"`
@@ -66,10 +66,10 @@ type FormField struct {
 }
 
 type FormSubmission struct {
-	ID        string            `json:"id" db:"id"`
-	FormID    string            `json:"form_id" db:"form_id"`
-	SiteID    string            `json:"site_id" db:"site_id"`
-	Data      map[string]string `json:"data" db:"data"`
+	ID          string            `json:"id" db:"id"`
+	FormID      string            `json:"form_id" db:"form_id"`
+	SiteDomain  string            `json:"site_domain" db:"site_domain"`
+	Data        map[string]string `json:"data" db:"data"`
 	Email     *string           `json:"email,omitempty" db:"email"`
 	Name      *string           `json:"name,omitempty" db:"name"`
 	Title     *string           `json:"title,omitempty" db:"title"`
@@ -141,7 +141,7 @@ func (f *FormApi) FormSubmission(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	form, err := f.getForm(db, formID, site.GetID())
+	form, err := f.getForm(db, formID, site.GetDomain())
 	if err != nil {
 		common.RespondWithError(w, r, http.StatusBadRequest, "Invalid form", err)
 		return
@@ -154,13 +154,13 @@ func (f *FormApi) FormSubmission(w http.ResponseWriter, r *http.Request) {
 	}
 
 	submission := FormSubmission{
-		ID:        uuid.New().String(),
-		FormID:    formID,
-		SiteID:    site.GetID(),
-		Data:      submissionData,
-		IPAddress: common.GetIPAddress(r),
-		UserAgent: r.UserAgent(),
-		CreatedAt: time.Now(),
+		ID:          uuid.New().String(),
+		FormID:      formID,
+		SiteDomain:  site.GetDomain(),
+		Data:        submissionData,
+		IPAddress:   common.GetIPAddress(r),
+		UserAgent:   r.UserAgent(),
+		CreatedAt:   time.Now(),
 	}
 
 	if email, ok := commonData[FieldEmail]; ok {
@@ -196,8 +196,8 @@ func (f *FormApi) FormSubmission(w http.ResponseWriter, r *http.Request) {
 			"message":    "Form submitted successfully",
 			"submission": submission,
 			"debug": map[string]interface{}{
-				"form_id": formID,
-				"site_id": site.GetID(),
+				"form_id":     formID,
+				"site_domain": site.GetDomain(),
 			},
 		})
 		return
@@ -308,7 +308,7 @@ func (f *FormApi) querySubmissionsByField(w http.ResponseWriter, r *http.Request
 	}
 	defer db.Close()
 
-	submissions, err := f.getSubmissionsByField(db, site.GetID(), field, value)
+	submissions, err := f.getSubmissionsByField(db, site.GetDomain(), field, value)
 	if err != nil {
 		common.RespondWithError(w, r, http.StatusInternalServerError, "Failed to query submissions", err)
 		return
@@ -343,7 +343,7 @@ func (f *FormApi) CreateForm(w http.ResponseWriter, r *http.Request) {
 	}
 
 	form.ID = uuid.New().String()
-	form.SiteID = site.GetID()
+	form.SiteDomain = site.GetDomain()
 	form.CreatedAt = time.Now()
 	form.UpdatedAt = time.Now()
 
@@ -369,7 +369,7 @@ func (f *FormApi) ListForms(w http.ResponseWriter, r *http.Request) {
 	}
 	defer db.Close()
 
-	forms, err := f.getAllForms(db, site.GetID())
+	forms, err := f.getAllForms(db, site.GetDomain())
 	if err != nil {
 		common.RespondWithError(w, r, http.StatusInternalServerError, "Failed to list forms", err)
 		return
@@ -393,7 +393,7 @@ func (f *FormApi) GetForm(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	formID := chi.URLParam(r, "formID")
-	form, err := f.getForm(db, formID, site.GetID())
+	form, err := f.getForm(db, formID, site.GetDomain())
 	if err != nil {
 		common.RespondWithError(w, r, http.StatusNotFound, "Form not found", err)
 		return
@@ -417,7 +417,7 @@ func (f *FormApi) GetFormSubmissions(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	formID := chi.URLParam(r, "formID")
-	submissions, err := f.getFormSubmissions(db, site.GetID(), formID)
+	submissions, err := f.getFormSubmissions(db, site.GetDomain(), formID)
 	if err != nil {
 		common.RespondWithError(w, r, http.StatusInternalServerError, "Failed to get submissions", err)
 		return
