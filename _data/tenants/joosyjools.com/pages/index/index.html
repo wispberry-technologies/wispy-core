@@ -1,6 +1,5 @@
 {{ define "body" }}
-
-<section class="hero py-14">
+<section class="hero pb-6 my-auto">
   <!-- LOGO  -->
   {{ template "atoms/svg-logo" . }}
   <!-- Hero Content -->
@@ -28,9 +27,9 @@
               <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
             </g>
           </svg>
-          <input type="email" name="email" placeholder="e.g. stargirl@gmail.com" required />
+          <input class="round" type="email" name="email" placeholder="e.g. stargirl@gmail.com" required />
         </label>
-        <div class="validator-hint hidden">Enter valid email address</div>
+        <!-- <div class="validator-hint hidden">Enter valid email address</div> -->
       </div>
       <button type="submit" class="btn btn-primary join-item">Get Notified!</button>
     </form>
