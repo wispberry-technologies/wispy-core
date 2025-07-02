@@ -108,10 +108,12 @@
   i = 0;
   document.addEventListener('mousemove', function (e) {
     if (i == 20) {
-    const x = e.clientX + Math.random() * 15 + 5;
-    const y = e.clientY + Math.random() * 15 + 5;
-    // const s = Math.random() * 0.5 + 0.5;
-    sparkles.push(new Sparkle(x, y, 1.1)); // Random scale between 0.5 and 1.0
+    // const x = e.clientX + Math.random() * 15 + 5;
+    // const y = e.clientY + Math.random() * 15 + 5;
+    const x = e.clientX 
+    const y = e.clientY;
+    const s = Math.random() * 0.5 + 0.5;
+    sparkles.push(new Sparkle(x, y, s)); // Random scale between 0.5 and 1.0
     }else{
       i++;
     }
