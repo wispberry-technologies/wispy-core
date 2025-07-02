@@ -20,14 +20,15 @@
 <body class="min-h-screen text-base-content">
     <!-- Main Content -->
     <main class="p-6">
-        {% block "page-body" %} <p> Could not load page body.</p> {% endblock %}
+    {{ block "body" . }} <p> Could not load page body.</p> {{ end }}
     </main>
     <!-- Footer -->
-    {% block "footer" %}
+    {{ block "footer" . }}
         <footer class="footer footer-center p-4 text-base-content">
             <div>
-                <p>&copy; 2025 {{ Site.Name }}. Powered by Wispy-CMS.</p>
+                <p>&copy; 2025 WISPBERRY TECHNOLOGIES INC. All rights reserved.</p>
             </div>
         </footer>
-    {% endblock %}
+    {{ end}}
 </body>
+

@@ -589,9 +589,11 @@ func addTypography(trie *common.Trie) {
 		trie.Insert("leading-"+val, "line-height: var(--leading-"+val+");")
 	}
 	// Text align
-	for _, a := range []string{"left", "center", "right", "justify"} {
-		trie.Insert("text-"+a, "text-align: "+a+";")
-	}
+	trie.Insert("text-left", "text-align: left;")
+	trie.Insert("text-right", "text-align: right;")
+	trie.Insert("text-center", "text-align: center;")
+	trie.Insert("text-justify", "text-align: justify;")
+
 	for _, v := range borderWidths {
 		trie.Insert("underline-"+v, "text-decoration-thickness: "+v+"px;")
 		trie.Insert("underline-offset-"+v, "text-underline-offset: "+v+"px;")

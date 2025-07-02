@@ -14,6 +14,7 @@ func ScaffoldContentDatabase(db *sql.DB) error {
 	contentTableSQL := `
     CREATE TABLE IF NOT EXISTS content (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+				uuid TEXT NOT NULL UNIQUE,
         slug TEXT NOT NULL UNIQUE,
         title TEXT NOT NULL,
         content TEXT NOT NULL,
@@ -39,6 +40,7 @@ func ScaffoldContentDatabase(db *sql.DB) error {
 
 	// Create indexes
 	indexesSQL := []string{
+		`CREATE INDEX IF NOT EXISTS idx_content_uuid ON content(uuid);`,
 		`CREATE INDEX IF NOT EXISTS idx_content_slug ON content(slug);`,
 		`CREATE INDEX IF NOT EXISTS idx_content_type ON content(content_type);`,
 		`CREATE INDEX IF NOT EXISTS idx_content_status ON content(status);`,

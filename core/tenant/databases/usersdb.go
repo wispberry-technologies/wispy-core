@@ -13,35 +13,40 @@ func ScaffoldUsersDatabase(db *sql.DB) error {
 	// Create users table
 	usersTableSQL := `
     CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL UNIQUE,
-        email TEXT NOT NULL UNIQUE,
-        password_hash TEXT NOT NULL,
-        first_name TEXT,
-        last_name TEXT,
-        role TEXT DEFAULT 'user',
-        active BOOLEAN DEFAULT 1,
-        email_verified BOOLEAN DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        last_login DATETIME
-    );`
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			uuid TEXT NOT NULL UNIQUE,
+			username TEXT NOT NULL UNIQUE,
+			email TEXT NOT NULL UNIQUE,
+			password_hash TEXT NOT NULL,
+			first_name TEXT,
+			last_name TEXT,
+			role TEXT DEFAULT 'user',
+			active BOOLEAN DEFAULT 1,
+			email_verified BOOLEAN DEFAULT 0,
+			must_change_password BOOLEAN DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			last_login DATETIME
+		);`
 
 	// Create user sessions table
 	sessionsTableSQL := `
     CREATE TABLE IF NOT EXISTS user_sessions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        session_token TEXT NOT NULL UNIQUE,
-        expires_at DATETIME NOT NULL,
-        ip_address TEXT,
-        user_agent TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			uuid TEXT NOT NULL UNIQUE,
+			user_id INTEGER NOT NULL,
+			session_token TEXT NOT NULL UNIQUE,
+			expires_at DATETIME NOT NULL,
+			ip_address TEXT,
+			user_agent TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );`
 
 	// Create indexes
 	indexesSQL := []string{
+		`CREATE INDEX IF NOT EXISTS idx_users_uuid ON users(uuid);`,
+		`CREATE INDEX IF NOT EXISTS idx_users_id ON users(id);`,
 		`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);`,
 		`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_token ON user_sessions(session_token);`,

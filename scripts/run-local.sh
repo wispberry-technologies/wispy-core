@@ -10,8 +10,8 @@ RESET='\033[0m'
 # Kill any process running on port 8080
 echo "${RED}Shutting down any running servers ${RESET}"
 lsof -ti:8080 | xargs kill -9 2>/dev/null || echo "No server was running on :8080"
-lsof -ti:80 | xargs kill -9 2>/dev/null || echo "No server was running on :80"
-lsof -ti:443 | xargs kill -9 2>/dev/null || echo "No server was running on :443"
+# lsof -ti:80 | xargs kill -9 2>/dev/null || echo "No server was running on :80"
+# lsof -ti:443 | xargs kill -9 2>/dev/null || echo "No server was running on :443"
 go mod tidy
 
 # 

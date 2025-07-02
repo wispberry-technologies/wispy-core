@@ -1,4 +1,4 @@
-package render
+package tpl
 
 import (
 	"io"
@@ -22,8 +22,6 @@ func HtmlBaseRenderResponse(w http.ResponseWriter, rs RenderState) error {
 }
 
 func HtmlBaseRender(w io.Writer, rs RenderState) (err error) {
-
-	// 3. Build HTML document
 	writeDocStart(w, rs)
 	writeHead(w, rs)
 	writeBody(w, rs)
@@ -88,10 +86,10 @@ func writeHead(w io.Writer, rs RenderState) {
 }
 
 func writeBody(w io.Writer, rs RenderState) {
-	w.Write([]byte(`<body>`))
+	// w.Write([]byte(`<body>`))
 	// Body content
-	w.Write([]byte(rs.Body()))
-	w.Write([]byte(`</body>`))
+	w.Write([]byte(rs.GetBody()))
+	// w.Write([]byte(`</body>`))
 }
 
 func writeDocEnd(w io.Writer) {

@@ -14,6 +14,7 @@ func ScaffoldMediaDatabase(db *sql.DB) error {
 	mediaTableSQL := `
     CREATE TABLE IF NOT EXISTS media (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+				uuid TEXT NOT NULL UNIQUE,
         filename TEXT NOT NULL,
         original_filename TEXT NOT NULL,
         file_path TEXT NOT NULL,
@@ -43,6 +44,7 @@ func ScaffoldMediaDatabase(db *sql.DB) error {
 
 	// Create indexes
 	indexesSQL := []string{
+		`CREATE INDEX IF NOT EXISTS idx_media_uuid ON media(uuid);`,
 		`CREATE INDEX IF NOT EXISTS idx_media_filename ON media(filename);`,
 		`CREATE INDEX IF NOT EXISTS idx_media_mime_type ON media(mime_type);`,
 		`CREATE INDEX IF NOT EXISTS idx_media_created_at ON media(created_at);`,

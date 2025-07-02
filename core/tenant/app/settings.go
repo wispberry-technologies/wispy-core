@@ -2,5 +2,8 @@ package app
 
 import "net/http"
 
-func SettingsHandler(w http.ResponseWriter, r *http.Request) {
+func SettingsHandler(cms WispyCms) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+	}
 }

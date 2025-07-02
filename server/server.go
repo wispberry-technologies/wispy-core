@@ -12,10 +12,12 @@ import (
 	"github.com/go-chi/httprate"
 	"golang.org/x/crypto/acme/autocert"
 
+	"wispy-core/auth"
 	"wispy-core/common"
 	"wispy-core/config"
 	"wispy-core/core/apiv1"
 	"wispy-core/core/site"
+	"wispy-core/core/tenant/app"
 	"wispy-core/network"
 )
 
@@ -85,8 +87,6 @@ func main() {
 	// Use standard ports for HTTP and HTTPS
 	httpAddr := fmt.Sprintf("%s:%d", host, httpPort)
 	httpsAddr := fmt.Sprintf("%s:%d", host, httpsPort)
-	common.Debug("HTTP ADDRESS: ", httpAddr)
-	common.Debug("HTTPSS ADDRESS: ", httpsAddr)
 
 	// ------------
 	// # Setup routes and site management
@@ -94,6 +94,14 @@ func main() {
 
 	// Initialize site manager
 	siteManager := site.NewSiteManager(sitesPath)
+
+	// Auth
+	authConfig := auth.DefaultConfig()
+	authProvider, aProviderErr := auth.NewDefaultAuthProvider(authConfig)
+	if aProviderErr != nil {
+		common.Fatal("Failed to create auth provider: %v", aProviderErr)
+	}
+	authMiddleware := auth.NewMiddleware(authProvider, authConfig)
 
 	// Load all sites
 	sites, err := siteManager.LoadAllSites()
@@ -104,7 +112,7 @@ func main() {
 	common.Info("Loaded %d sites", len(sites))
 
 	// Setup routes for all sites
-	site.ScaffoldAllSites(sites)
+	site.ScaffoldAllTenantSites(sites)
 
 	// Setup not found handler
 	notFoundHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -113,12 +121,19 @@ func main() {
 
 	// Mounting API routes
 	rootRouter.Route("/api", func(r chi.Router) {
+
 		// Mount API v1 routes
-		apiv1.MountApiV1(r, siteManager)
+		apiv1.MountApiV1(r, siteManager, authProvider, authConfig, authMiddleware)
+	})
+
+	// Mounting tenant app routes
+	// This will handle routes for the Wispy CMS application
+	rootRouter.Route("/wispy-cms", func(r chi.Router) {
+		app.RegisterAppRoutes(r, siteManager, authProvider, authConfig, authMiddleware)
 	})
 
 	// Create host router with the site manager
-	hostRouter := network.NewHostRouter(siteManager, notFoundHandler, "localhost")
+	hostRouter := network.NewHostRouter(siteManager, notFoundHandler, authProvider, authConfig, authMiddleware, "localhost")
 
 	// Set the host router as the main handler
 	rootRouter.Mount("/", hostRouter)

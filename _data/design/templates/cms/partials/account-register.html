@@ -3,7 +3,7 @@
     <h1 class="text-4xl font-bold mb-2 text-center">Register</h1>
     <p class="text-sm text-base-content/70 text-center mb-8">Create your account to get started.</p>
 
-    {% if .AuthConfig.RegistrationEnabled %}
+    {{ if .AuthConfig.RegistrationEnabled }}
     <!-- Registration form shown only if enabled -->
     <form id="registerForm" class="space-y-4">
       <fieldset class="fieldset bg-base-200 border-base-300 rounded-box border gap-y-4 p-6">
@@ -13,7 +13,7 @@
         <div id="messageContainer" class="hidden mb-4"></div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {% if .AuthConfig.EnabledFields | contains("first_name") %}
+          {{ if has .AuthConfig.EnabledFields "first_name" }}
           <!-- First name field -->
           <label class="form-control w-full">
             <div class="label">
@@ -21,9 +21,9 @@
             </div>
             <input type="text" class="input input-bordered w-full" placeholder="First Name" name="first_name" />
           </label>
-          {% endif %}
+          {{ end }}
 
-          {% if .AuthConfig.EnabledFields | contains("last_name") %}
+          {{ if has .AuthConfig.EnabledFields "last_name" }}
           <!-- Last name field -->
           <label class="form-control w-full">
             <div class="label">
@@ -31,10 +31,10 @@
             </div>
             <input type="text" class="input input-bordered w-full" placeholder="Last Name" name="last_name" />
           </label>
-          {% endif %}
+          {{ end }}
         </div>
 
-        {% if .AuthConfig.EnabledFields | contains("display_name") %}
+        {{ if has .AuthConfig.EnabledFields "display_name" }}
         <!-- Display name field -->
         <label class="form-control w-full">
           <div class="label">
@@ -42,10 +42,10 @@
           </div>
           <input type="text" class="input input-bordered w-full" placeholder="Display Name" name="display_name" required/>
         </label>
-        {% endif %}
+        {{ end }}
 
 
-        {% if .AuthConfig.EnabledFields | contains("email") %}
+        {{ if has .AuthConfig.EnabledFields "email" }}
         <!-- Email field -->
         <label class="form-control w-full">
           <div class="label">
@@ -53,10 +53,10 @@
           </div>
           <input type="email" class="input input-bordered w-full" placeholder="Email" name="email" required />
         </label>
-        {% endif %}
+        {{ end }}
 
 
-        {% if .AuthConfig.EnabledFields | contains("password") %}
+        {{ if has .AuthConfig.EnabledFields "password" }}
         <!-- Password field -->
         <label class="form-control w-full">
           <div class="label">
@@ -67,7 +67,7 @@
             <span class="label-text-alt">Must be at least 8 characters</span>
           </div>
         </label>
-        {% endif %} 
+        {{ end }} 
 
         <button type="submit" class="btn btn-primary w-full">
           <span class="loading loading-spinner loading-sm hidden" id="registerSpinner"></span>
@@ -76,8 +76,8 @@
       </fieldset>
     </form>
 
-    {% if .AuthConfig.OAuth %}
-      {% if .AuthConfig.OAuth.EnabledProviders | contains("discord") %}
+    {{ if .AuthConfig.OAuth }}
+      {{ if has .AuthConfig.OAuth.EnabledProviders "discord" }}
         <!-- OAuth Providers -->
         <div class="divider my-6">or continue with</div>
         
@@ -89,15 +89,15 @@
             Continue with Discord
           </button>
         </div>
-      {% endif %}
-    {% endif %}
+      {{ end }}
+    {{ end }}
 
-    {% else %}
+    {{ else }}
       <fieldset class="fieldset bg-base-200 border-base-300 rounded-box border gap-y-4 p-6">
         <legend class="fieldset-legend">Registration Disabled</legend>
         <p class="text-sm text-base-content/70">Account registration is currently disabled. Please contact support for assistance.</p>
       </fieldset>
-    {% endif %}
+    {{ end }}
     
     <div class="text-center mt-6">
       <p class="text-sm text-base-content/70">

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"wispy-core/auth"
 	"wispy-core/common"
 	"wispy-core/core/site"
 )
@@ -17,7 +18,7 @@ type HostRouter struct {
 }
 
 // NewHostRouter creates a new host router
-func NewHostRouter(siteManager site.SiteManager, notFound http.Handler, defaultHost string) *HostRouter {
+func NewHostRouter(siteManager site.SiteManager, notFound http.Handler, authProvider auth.AuthProvider, authConfig auth.Config, authMiddleware *auth.Middleware, defaultHost string) *HostRouter {
 	// Validate inputs
 	if siteManager == nil {
 		panic("siteManager cannot be nil")

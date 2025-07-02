@@ -121,9 +121,13 @@ func IsQuotedString(s string) bool {
 	return (firstChar == '"' && lastChar == '"') || (firstChar == '\'' && lastChar == '\'')
 }
 
-// WrapBraces wraps a string with double curly braces, e.g., WrapBraces("foo") => "{%foo%}"
+// WrapBraces wraps a string with double curly braces, e.g., WrapBraces("foo") => "{{foo%}"
 func WrapBraces(s string) string {
 	return "{{" + s + "}}"
+}
+
+func WrapDoubleQuotes(s string) string {
+	return "\"" + s + "\""
 }
 
 // GenerateUUID returns a random v4 UUID string
@@ -144,4 +148,35 @@ func GenerateUUID() string {
 func IsTemplateFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
 	return ext == ".html" || ext == ".tmpl" || ext == ".tpl" || ext == ".gohtml"
+}
+
+func NormalizeTemplateName(rootDirPath, templatePath string) string {
+	relName, _ := filepath.Rel(rootDirPath, templatePath)
+	relName = strings.TrimSuffix(relName, filepath.Ext(relName)) // Remove file extension
+	relName = strings.TrimPrefix(relName, rootDirPath+"/")
+	return relName
+}
+
+// PathToRoute converts a file path to a URL route
+func PathToRoute(pagePath string) string {
+	// Remove .html extension
+	route := strings.TrimSuffix(pagePath, ".html")
+
+	// Convert file separators to URL separators
+	route = strings.ReplaceAll(route, "\\", "/")
+
+	// Handle index files
+	route = strings.TrimSuffix(route, "/index")
+
+	// Ensure route starts with /
+	if !strings.HasPrefix(route, "/") {
+		route = "/" + route
+	}
+
+	// Handle root index
+	if route == "/index" {
+		route = "/"
+	}
+
+	return route
 }

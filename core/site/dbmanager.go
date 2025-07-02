@@ -9,7 +9,6 @@ import (
 	"time"
 	"wispy-core/common"
 	"wispy-core/config"
-	"wispy-core/core"
 	"wispy-core/core/tenant/databases"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -32,8 +31,24 @@ type databaseManager struct {
 	maxOpen     int
 }
 
+// DatabaseManager handles database connections for a site
+type DatabaseManager interface {
+	// GetConnection returns a database connection for the specified database name
+	GetConnection(dbName string) (*sql.DB, error)
+	// CreateDatabase creates a new database file if it doesn't exist
+	CreateDatabase(dbName string) error
+	// ListDatabases returns all available databases for the site
+	ListDatabases() ([]string, error)
+	// Close closes all database connections
+	Close() error
+	// ExecuteSchema executes a schema file on the specified database
+	ExecuteSchema(dbName, schemaPath string) error
+	// GetOrCreateConnection returns a database connection, creating it if it doesn't exist
+	GetOrCreateConnection(dbName string) (*sql.DB, error)
+}
+
 // NewDatabaseManager creates a new database manager for a site
-func NewDatabaseManager(siteDomain string) core.DatabaseManager {
+func NewDatabaseManager(siteDomain string) DatabaseManager {
 	globalConf := config.GlobalConf
 	if globalConf == nil {
 		common.Fatal("Global configuration not initialized")

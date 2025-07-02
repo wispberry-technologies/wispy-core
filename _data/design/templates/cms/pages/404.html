@@ -1,17 +1,10 @@
-<!--
-@name index
-@slug /404
-@layout default
-@require_auth false
-@required_roles []
--->
-{% define "page-body" %}
-  <div class="container mx-auto flex flex-col h-full max-w-4xl">
-    <h1 class="text-3xl font-bold mt-20">
-      Well this is awkward...
-    </h1>
-    <br>
-    <p>There are no pages to display.</p>
-    <a class="link text-primary" href="/"> Go Home </a>
-  </div>
-{% enddefine %}
+{{ define "body" }}
+<div class="container mx-auto flex flex-col h-full max-w-4xl">
+  <h1 class="text-3xl font-bold mt-20">
+    Well this is awkward...
+  </h1>
+  <br>
+  <p>There are no pages to display.</p>
+  <a class="link text-primary" href="/"> Go Home </a>
+</div>
+{{ end }}

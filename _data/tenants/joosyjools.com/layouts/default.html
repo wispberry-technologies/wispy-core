@@ -1,0 +1,26 @@
+<body
+	class="bg-base-100 text-base-content min-h-screen flex flex-col" 
+	style="background: var(--color-secondary);"
+>
+
+	<!-- Header -->
+	<!-- <header class="bg-base-200 shadow-sm">
+	</header> -->
+
+	<!-- Main content -->
+	<main class="container mx-auto p-4 flex-grow">
+		{{ block "body" . }}
+			<h3>Failed to load page body</h3>
+		{{ end }}
+	</main>
+
+	<!-- Footer -->
+	<footer class="p-1">
+		<div class="container text-center">
+			<p>&copy; 2025 {{.Site.Name}}. All rights reserved.</p>
+		</div>
+	</footer>
+	<!--  -->
+	<link href="https://cdn.jsdelivr.net/combine/npm/daisyui@5/base/svg.css,npm/daisyui@5/base/scrollbar.css,npm/daisyui@5/base/rootcolor.css,npm/daisyui@5/components/button.css,npm/daisyui@5/components/loading.css,npm/daisyui@5/components/label.css,npm/daisyui@5/components/input.css,npm/daisyui@5/components/link.css,npm/daisyui@5/components/countdown.css,npm/daisyui@5/utilities/join.css,npm/daisyui@5/utilities/typography.css,npm/daisyui@5/utilities/radius.css" rel="stylesheet" type="text/css" />
+	<!--  -->
+</body>

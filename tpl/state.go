@@ -18,18 +18,14 @@ type ScriptAsset struct {
 	Defer bool
 }
 
-type renderStateHeader struct {
+type renderState struct {
+	mu        sync.Mutex
 	title     string
 	inlineCSS string
 	inlineJS  string
 	styles    []StyleAsset
 	scripts   []ScriptAsset
-}
-
-type renderState struct {
-	mu   sync.Mutex
-	head renderStateHeader
-	body string
+	body      string
 }
 
 type RenderState interface {
@@ -42,91 +38,81 @@ type RenderState interface {
 	GetHeadScripts() []ScriptAsset
 	AddScripts(scripts ScriptAsset)
 	SetHeadTitle(title string)
-	SetHeadInlineCSS(css string)
-	SetHeadInlineJS(js string)
+	AddHeadInlineCSS(css string)
+	AddHeadInlineJS(js string)
 	SetBody(content string)
-	Body() string
-	// ExecuteDeferred() error
+	GetBody() string
 }
 
 func NewRenderState() RenderState {
 	return &renderState{
-		head: renderStateHeader{
-			title:     "",
-			inlineCSS: "",
-			inlineJS:  "",
-			styles:    []StyleAsset{},
-			scripts:   []ScriptAsset{},
-		},
-		body: "",
+		title:     "",
+		inlineCSS: "",
+		inlineJS:  "",
+		styles:    []StyleAsset{},
+		scripts:   []ScriptAsset{},
+		body:      "",
 	}
 }
 
 func (rs *renderState) GetHeadTitle() string {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
-	return rs.head.title
+	return rs.title
 }
 
 func (rs *renderState) GetHeadInlineCSS() string {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
-	return rs.head.inlineCSS
+	return rs.inlineCSS
 }
 
 func (rs *renderState) GetHeadInlineJS() string {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
-	return rs.head.inlineJS
+	return rs.inlineJS
 }
 
 func (rs *renderState) GetHeadStyles() []StyleAsset {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
-	return rs.head.styles
+	return rs.styles
 }
 
 func (rs *renderState) GetHeadScripts() []ScriptAsset {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
-	return rs.head.scripts
+	return rs.scripts
 }
-
-// Push operations (thread-safe)
-// func (rs *renderState) Defer(key string, fn func() error) {
-// 	rs.mu.Lock()
-// 	defer rs.mu.Unlock()
-// 	rs.deferred = append(rs.deferred, &deferredTask{Key: key, Exec: fn})
-// }
 
 func (rs *renderState) SetHeadTitle(title string) {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
-	rs.head.title = title
+	rs.title = title
 }
 
-func (rs *renderState) SetHeadInlineCSS(css string) {
+func (rs *renderState) AddHeadInlineCSS(css string) {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
-	rs.head.inlineCSS = css
+	rs.inlineCSS += css
 }
 
-func (rs *renderState) SetHeadInlineJS(js string) {
+func (rs *renderState) AddHeadInlineJS(js string) {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
-	rs.head.inlineJS = js
+	rs.inlineJS += js
 }
 
 func (rs *renderState) AddStyles(styles StyleAsset) {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
-	rs.head.styles = append(rs.head.styles, styles)
+	rs.styles = append(rs.styles, styles)
 }
 
 func (rs *renderState) AddScripts(scripts ScriptAsset) {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
-	rs.head.scripts = append(rs.head.scripts, scripts)
+	rs.scripts = append(rs.scripts, scripts)
 }
 
 func (rs *renderState) SetBody(content string) {
@@ -135,21 +121,8 @@ func (rs *renderState) SetBody(content string) {
 	rs.body = content
 }
 
-func (rs *renderState) Body() string {
+func (rs *renderState) GetBody() string {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
 	return rs.body
 }
-
-// func (rs *renderState) ExecuteDeferred() error {
-// 	rs.mu.Lock()
-// 	defer rs.mu.Unlock()
-
-// 	for _, task := range rs.deferred {
-// 		if err := task.Exec(); err != nil {
-// 			return err
-// 		}
-// 	}
-// 	rs.deferred = nil // Clear after execution
-// 	return nil
-// }

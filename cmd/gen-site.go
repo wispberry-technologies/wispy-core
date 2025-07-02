@@ -8,31 +8,15 @@ import (
 	"wispy-core/core/site"
 )
 
-// contains checks if a string is in a slice of strings
-func contains(slice []string, str string) bool {
-	for _, item := range slice {
-		if item == str {
-			return true
-		}
-	}
-	return false
-}
-
 func main() {
 
 	// Create the scaffold configuration
 	scaffoldConfig := site.ScaffoldConfig{
-		ID:               "3123123123",
-		Name:             "test",
-		Domain:           "abc.co",
-		BaseURL:          "http://abc.co",
-		ThemeName:        "default",
-		ThemeMode:        "light", // Default to light, can be overridden with a flag
-		ContentTypes:     []string{"page", "post"},
-		WithExample:      true,
-		ThemeOptions:     make(map[string]string),
-		TypographyPreset: "default",
-		ColorPreset:      "default",
+		Name:         "test",
+		Domain:       "abc.co",
+		BaseURL:      "http://abc.co",
+		ContentTypes: []string{"page", "post"},
+		WithExample:  true,
 	}
 
 	absOutputDir, err := filepath.Abs("./_data/tenants/")

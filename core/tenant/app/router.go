@@ -2,23 +2,27 @@ package app
 
 import (
 	"net/http"
+	"wispy-core/auth"
+	"wispy-core/core/site"
 
 	"github.com/go-chi/chi/v5"
 )
 
-func RegisterAppRoutes(router chi.Router) chi.Router {
-	r := router.Route("/cms-admin", func(r chi.Router) {
-		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, "/cms-admin/dashboard", http.StatusFound)
-		})
-		r.Get("/login", LoginHandler)
-		r.Get("/logout", LogoutHandler)
-		r.Get("/dashboard", DashboardHandler)
-		r.Get("/settings", SettingsHandler)
-		r.Get("/forms", FormsHandler)
-		r.Get("/forms/submissions", FormSubmissionsHandler)
-		r.Get("/forms/submissions/{formID}", FormSubmissionByIdHandler)
-	})
+func RegisterAppRoutes(router chi.Router, siteManager site.SiteManager, authProvider auth.AuthProvider, authConfig auth.Config, authMiddleware *auth.Middleware) chi.Router {
 
-	return r
+	cms := NewWispyCms()
+
+	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/wispy-cms/dashboard", http.StatusFound)
+	})
+	router.Get("/login", LoginHandler(cms))
+	router.Get("/logout", LogoutHandler(cms))
+	router.Get("/dashboard", DashboardHandler(cms))
+	router.Get("/settings", SettingsHandler(cms))
+	router.Get("/forms", FormsHandler(cms))
+	// router.Get("/forms/submit", FormSubmissionHandler(cms))
+	router.Get("/forms/submissions", FormSubmissionsHandler(cms))
+	router.Get("/forms/submissions/{formID}", FormSubmissionByIdHandler(cms))
+
+	return router
 }

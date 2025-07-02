@@ -1,6 +1,4 @@
-package wispytail
 
-const CssReset = `
 /* Base styles / Reset */
 @layer base {
   *, ::before, ::after, ::backdrop, ::file-selector-button {
@@ -162,9 +160,171 @@ const CssReset = `
     top: -0.5em;
   }
 }
-`
 
-var DefaultCssTheme = CssReset + `
+
+/* Base styles / Reset */
+@layer base {
+  *, ::before, ::after, ::backdrop, ::file-selector-button {
+    box-sizing: border-box;
+    border-width: 0;
+    border-style: solid;
+    border-color: var(--color-gray-200);
+    margin: 0;
+    padding: 0;
+  }
+
+  :host, html {
+    line-height: 1.5;
+    font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji");
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    -moz-tab-size: 4;
+    tab-size: 4;
+    font-feature-settings: normal;
+    font-variation-settings: normal;
+  }
+
+  body {
+    margin: 0;
+    line-height: inherit;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: inherit;
+    -webkit-text-decoration: inherit;
+  }
+
+  hr {
+    height: 0;
+    color: inherit;
+    border-top-width: 1px;
+  }
+
+  table {
+    text-indent: 0;
+    border-color: inherit;
+    border-collapse: collapse;
+  }
+
+  ol, ul, menu {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  fieldset {
+    margin: 0;
+    padding: 0;
+  }
+
+  legend {
+    padding: 0;
+  }
+
+  button, input, optgroup, select, textarea {
+    font: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    font-size: 100%;
+    font-weight: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    background: transparent;
+    background-image: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  input:where(:not([type='button'], [type='reset'], [type='submit'])), select, textarea {
+    border-width: 1px;
+  }
+
+  button, [type='button'], [type='reset'], [type='submit'], ::file-selector-button {
+    appearance: button;
+    -webkit-appearance: button;
+  }
+
+  button, select {
+    text-transform: none;
+  }
+
+  button:focus, input:focus, optgroup:focus, select:focus, textarea:focus {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+
+  input::placeholder, textarea::placeholder {
+    opacity: 1;
+    color: var(--color-gray-400, color-mix(in oklch, currentColor 50%, #0000));
+  }
+
+  :-moz-focusring {
+    outline: auto;
+  }
+
+  :-moz-ui-invalid {
+    box-shadow: none;
+  }
+
+  ::-webkit-search-decoration {
+    -webkit-appearance: none;
+  }
+
+  textarea {
+    resize: vertical;
+  }
+
+  summary {
+    cursor: pointer;
+  }
+
+  abbr:where([title]) {
+    text-decoration: underline dotted;
+  }
+
+  img, svg, video, canvas, audio, iframe, embed, object {
+    display: block;
+    vertical-align: middle;
+  }
+
+  img, video {
+    max-width: 100%;
+    height: auto;
+  }
+
+  code, kbd, samp, pre {
+    font-family: var(--font-mono, monospace);
+    font-size: 1em;
+  }
+
+  small {
+    font-size: 80%;
+  }
+
+  sub, sup {
+    font-size: 75%;
+    line-height: 0;
+    position: relative;
+    vertical-align: baseline;
+  }
+
+  sub {
+    bottom: -0.25em;
+  }
+
+  sup {
+    top: -0.5em;
+  }
+}
+
+
 /* Pale Wisp Theme - Light theme for Wispy Core */
 :root {
   color-scheme: light;
@@ -228,4 +388,3 @@ var DefaultCssTheme = CssReset + `
   --color-neutral: oklch(27% 0.006 286.033);
   --color-neutral-content: oklch(98% 0.001 106.423);
 }
-`

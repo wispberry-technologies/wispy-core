@@ -1,31 +1,67 @@
 package site
 
 import (
+	"fmt"
 	"maps"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
-	"wispy-core/core"
-	"wispy-core/core/site/theme"
+	"wispy-core/core/tenant/databases"
+	"wispy-core/tpl"
 
 	"github.com/go-chi/chi/v5"
 )
 
 // Site represents a tenant instance with atomic access patterns
 type site struct {
-	mu                 sync.RWMutex
-	ID                 string                 `toml:"id" json:"id"`
-	Name               string                 `toml:"name" json:"name"`
-	Domain             string                 `toml:"domain" json:"domain"`
-	BaseURL            string                 `toml:"base_url" json:"base_url"`
-	Theme              *theme.Root            `toml:"theme" json:"theme"`
-	ContentDir         string                 `toml:"content_dir" json:"content_dir"`
-	Data               map[string]interface{} `toml:"data" json:"data"`
-	Router             *chi.Mux               `toml:"-" json:"-"`
-	SiteTemplateEngine core.SiteTplEngine     `toml:"-" json:"-"`
-	DbManager          core.DatabaseManager   `toml:"-" json:"-"` // DatabaseManager is used for database operations, if applicable
+	mu      sync.RWMutex
+	ID      string `toml:"id" json:"id"`
+	Name    string `toml:"name" json:"name"`
+	Domain  string `toml:"domain" json:"domain"`
+	BaseURL string `toml:"base_url" json:"base_url"`
+	//
+	CssThemes map[string]string // Maps theme name to CSS file path
+	// ContentDir         string                 `toml:"content_dir" json:"content_dir"`
+	Data           map[string]interface{} `toml:"data" json:"data"`
+	Router         chi.Router             `toml:"-" json:"-"`
+	TemplateEngine tpl.TemplateEngine     `toml:"-" json:"-"`
+	DbManager      databases.Manager      `toml:"-" json:"-"` // DatabaseManager is used for database operations, if applicable
 	// CreatedAt and UpdatedAt are used for tracking site creation and modification times
 	CreatedAt time.Time `toml:"created_at" json:"created_at"`
 	UpdatedAt time.Time `toml:"updated_at" json:"updated_at"`
+}
+
+type Site interface {
+	GetID() string
+	GetName() string
+	GetDomain() string
+	GetBaseURL() string
+	// GetContentDir() string
+	GetStaticDir() string
+	GetAssetsDir() string
+	GetConfig() map[string]interface{}
+	GetData() map[string]interface{}
+	SetData(key string, value interface{})
+	GetCreatedAt() time.Time
+	GetUpdatedAt() time.Time
+	SetUpdatedAt(t time.Time)
+	GetRouter() chi.Router
+	GetDatabaseManager() databases.Manager
+	//
+	GetTheme(name string) (string, error) // Get CSS theme for a domain
+}
+
+// Page represents a rendered page in the system
+type Page struct {
+	ID          string                 `toml:"id" json:"id"`
+	Title       string                 `toml:"title" json:"title"`
+	Slug        string                 `toml:"slug" json:"slug"`
+	Path        string                 `toml:"path" json:"path"` // Path to the page file
+	Layout      string                 `toml:"layout" json:"layout"`
+	Theme       string                 `toml:"theme" json:"theme"`
+	Content     string                 `toml:"content" json:"content"`
+	FrontMatter map[string]interface{} `toml:"front_matter" json:"front_matter"`
 }
 
 func (s *site) GetID() string {
@@ -52,19 +88,11 @@ func (s *site) GetBaseURL() string {
 	return s.BaseURL
 }
 
-func (s *site) GetTheme() *theme.Root {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	// Return a copy of the theme to prevent external modification
-	themeCopy := *s.Theme
-	return &themeCopy
-}
-
-func (s *site) GetContentDir() string {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.ContentDir
-}
+// func (s *site) GetContentDir() string {
+// 	s.mu.RLock()
+// 	defer s.mu.RUnlock()
+// 	return s.ContentDir
+// }
 
 func (s *site) GetStaticDir() string {
 	s.mu.RLock()
@@ -91,25 +119,25 @@ func (s *site) GetConfig() map[string]interface{} {
 		"name":        s.Name,
 		"domain":      s.Domain,
 		"base_url":    s.BaseURL,
-		"content_dir": s.ContentDir,
+		// "content_dir": s.ContentDir,
 	})
 	return dataCopy
 }
 
-func (s *site) GetDatabaseManager() core.DatabaseManager {
+func (s *site) GetDatabaseManager() databases.Manager {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.DbManager
 }
 
-func (s *site) GetTemplateEngine() core.SiteTplEngine {
+func (s *site) GetTemplateEngine() tpl.TemplateEngine {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	if s.SiteTemplateEngine == nil {
+	if s.TemplateEngine == nil {
 		// Return a default implementation or nil if not set
 		return nil
 	}
-	return s.SiteTemplateEngine
+	return s.TemplateEngine
 }
 
 func (s *site) GetData() map[string]interface{} {
@@ -145,11 +173,31 @@ func (s *site) SetUpdatedAt(t time.Time) {
 	s.UpdatedAt = t
 }
 
-func (s *site) GetRouter() *chi.Mux {
+func (s *site) GetRouter() chi.Router {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.Router == nil {
+		// Initialize the router if it hasn't been set
 		s.Router = chi.NewRouter()
 	}
 	return s.Router
+}
+
+func (s *site) GetTheme(name string) (string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	// Check if the domain has a specific theme
+	if theme, exists := s.CssThemes[name]; exists {
+		return theme, nil
+	}
+
+	// Get theme from site folder
+	themeBytes, err := os.ReadFile(filepath.Join("_data", "tenants", s.Domain, "themes", name+".css"))
+	if err != nil {
+		return "", fmt.Errorf("failed to read theme file: %w", err)
+	}
+
+	// If no specific theme is set, return a default or empty string
+	return string(themeBytes), nil
 }

@@ -2,11 +2,19 @@ package app
 
 import "net/http"
 
-func FormsHandler(w http.ResponseWriter, r *http.Request) {
+func FormsHandler(cms WispyCms) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+	}
 }
 
-func FormSubmissionByIdHandler(w http.ResponseWriter, r *http.Request) {
+func FormSubmissionByIdHandler(cms WispyCms) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+	}
 }
 
-func FormSubmissionsHandler(w http.ResponseWriter, r *http.Request) {
+func FormSubmissionsHandler(cms WispyCms) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+	}
 }

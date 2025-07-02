@@ -114,7 +114,7 @@ wispy-core/
 
 **Features**:
 - ✅ Variable interpolation: `{{ variable }}`
-- ✅ Conditional rendering: `{% if condition %}...{% endif %}`
+- ✅ Conditional rendering: `{% if condition %}...{% end %}`
 - ✅ Loops: `{% for item in collection %}...{% endfor %}`
 - ✅ Template inheritance: `{% define "block" %}...{% enddefine %}`
 - ✅ Component inclusion: `{% render "template" %}`
@@ -133,7 +133,7 @@ wispy-core/
     {% for post in user.posts %}
         <article>{{ post.title }}</article>
     {% endfor %}
-{% endif %}
+{% end %}
 ```
 
 ### 3. Asset Management System ✅

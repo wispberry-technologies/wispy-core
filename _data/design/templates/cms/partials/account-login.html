@@ -25,14 +25,14 @@
           <input type="password" placeholder="password" class="input input-bordered w-full" name="password" required />
         </label>
 
-        {% if .AuthConfig.AllowedPasswordReset %}
+        {{ if .AuthConfig.AllowedPasswordReset }}
         <div class="label">
           <span class="label-text-alt"></span>
           <span class="label-text-alt">
             <a href="/forgot-password" class="link link-hover">Forgot password?</a>
           </span>
         </div>
-        {% endif %}
+        {{ end }}
         
         <div class="mt-6 mb-3">
           <button type="submit" class="btn btn-primary btn-block">
@@ -44,9 +44,9 @@
         </div>
         
         <!-- OAuth Providers -->
-        {% if .OAuthProviders %}
+        {{ if .OAuthProviders }}
           <div class="divider">or continue with</div>        
-          {% if contains(.OAuthProviders, "discord") %}
+          {{ if has .OAuthProviders "discord" }}
             <div class="form-control">
               <button type="button" onclick="loginWithOAuth('discord')" class="btn btn-outline btn-block">
                 <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
@@ -55,8 +55,8 @@
                 Continue with Discord
               </button>
             </div>
-          {% endif %}
-          {% if contains(.SiteAuth.OAuthProviders, "google") %}
+          {{ end }}
+          {{ if has .OAuthProviders "google" }}
             <div class="form-control">
               <button type="button" onclick="loginWithOAuth('google')" class="btn btn-outline btn-block">
                 <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -68,17 +68,17 @@
                 Continue with Google
               </button>
             </div>
-          {% endif %}
-        {% endif %}
+          {{ end }}
+        {{ end }}
 
-        {% if .AuthConfig.RegistrationEnabled %}
+        {{ if .AuthConfig.RegistrationEnabled }}
         <div class="text-center mt-4">
           <p class="text-sm">
             Don't have an account? 
             <a href="/register" class="link link-primary">Register here</a>
           </p>
         </div>
-        {% endif %}
+        {{ end }}
       </fieldset>
     </form>
   </div>

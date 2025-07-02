@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"wispy-core/auth"
 	"wispy-core/common"
-	"wispy-core/core"
 	"wispy-core/core/site"
 
 	"github.com/go-chi/chi/v5"
@@ -81,15 +81,17 @@ type FormSubmission struct {
 }
 
 type FormApi struct {
-	siteManager site.SiteManager
-	validate    *validator.Validate
+	siteManager    site.SiteManager
+	validate       *validator.Validate
+	authMiddleware *auth.Middleware
 }
 
-func NewFormApi(siteManager site.SiteManager) *FormApi {
+func NewFormApi(siteManager site.SiteManager, authMiddleware *auth.Middleware) *FormApi {
 	validate := validator.New()
 	return &FormApi{
-		siteManager: siteManager,
-		validate:    validate,
+		siteManager:    siteManager,
+		validate:       validate,
+		authMiddleware: authMiddleware,
 	}
 }
 
@@ -418,7 +420,7 @@ func (f *FormApi) GetFormSubmissions(w http.ResponseWriter, r *http.Request) {
 	common.RespondWithJSON(w, http.StatusOK, submissions)
 }
 
-func (f *FormApi) getDBConnection(site core.Site) (*sql.DB, error) {
+func (f *FormApi) getDBConnection(site site.Site) (*sql.DB, error) {
 	dbManager := site.GetDatabaseManager()
 	if dbManager == nil {
 		return nil, common.NewError("database manager not available")
