@@ -4,25 +4,46 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"wispy-core/auth"
 	"wispy-core/common"
+	"wispy-core/core/tenant/app/providers"
 	"wispy-core/tpl"
 	"wispy-core/wispytail"
 )
 
 func DashboardHandler(cms WispyCms) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Get current user from context
+		user, err := auth.UserFromContext(r.Context())
+		if err != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		engine := cms.GetTemplateEngine()
 		// Template paths are now relative to the template/layout directories defined in the engine
 		pagePath := "index.html" // Using index.html as specified in your request
 		layoutPath := "default.html"
+
+		// Create provider manager for this domain
+		domain := common.NormalizeHost(r.Host)
+		siteInstance, err := cms.GetSiteManager().GetSite(domain)
+		if err != nil {
+			http.Error(w, "Could not get site for domain "+domain, http.StatusNotFound)
+			return
+		}
+
+		providerManager := providers.NewProviderManager(siteInstance)
+		defer providerManager.Close()
+
 		data := tpl.TemplateData{
 			Title:       "Dashboard",
 			Description: "Admin Dashboard",
 			Site: tpl.SiteData{
 				Name:    "Wispy CMS",
-				Domain:  r.Host,
-				BaseURL: "https://" + r.Host,
+				Domain:  domain,
+				BaseURL: "https://" + domain,
 			},
 			Content: "",
 			Data: map[string]interface{}{
@@ -35,11 +56,19 @@ func DashboardHandler(cms WispyCms) http.HandlerFunc {
 					// "/static/js/admin.js",
 				},
 				"__inlineCSS": "",
+				"user":        user,
+				"pageTitle":   "Dashboard",
 			},
 		}
+
+		// Add provider functions to template context
+		templateContext := providerManager.CreateTemplateContext(r.Context())
+		for key, value := range templateContext {
+			data.Data[key] = value
+		}
 		var state tpl.RenderState
-		var err error
-		if state, err = engine.RenderWithLayout(pagePath, layoutPath, data); err != nil {
+		state, err = engine.RenderWithLayout(pagePath, layoutPath, data)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

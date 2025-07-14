@@ -1,33 +1,245 @@
-<style>
-    :root {
-        --project-color-default: transparent;
-        /* Default or transparent */
-        --project-color-red: oklch(0.60 0.22 25);
-        /* Tailwind red-500 approx. */
-        --project-color-blue: oklch(0.60 0.20 250);
-        /* Tailwind blue-500 approx. */
-        --project-color-green: oklch(0.65 0.20 140);
-        /* Tailwind green-500 approx. */
-        --project-color-yellow: oklch(0.85 0.20 90);
-        /* Tailwind yellow-500 approx. */
-        --project-color-purple: oklch(0.60 0.20 290);
-        /* Tailwind purple-500 approx. */
-        --project-color-pink: oklch(0.70 0.20 330);
-        /* Tailwind pink-500 approx. */
-    }
-</style>
+{{ define "title" }}Projects - Wispy CMS{{ end }}
 
-<dialog id="createProjectModal" class="modal">
-    <div class="modal-box">
-        <!-- Close button -->
-        <form method="dialog">
-            <button class="btn btn-sm absolute right-2 top-2">close</button>
-        </form>
+{{ define "body" }}
+<div class="">
+    {{template "components/cms-navbar" dict "currentPage" "projects"}}
+    
+    <main class="container mx-auto px-4 py-8">
+        <div class="mb-8 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-base-content">Projects</h1>
+                <p class="text-base-content/70 mt-2">Manage your website projects and content</p>
+            </div>
+            <button onclick="createProjectModal.showModal()" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                New Project
+            </button>
+        </div>
+        
+        <!-- Project Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="stat bg-base-100 rounded-box shadow">
+                <div class="stat-title">Total Projects</div>
+                <div class="stat-value text-primary">8</div>
+                <div class="stat-desc">Active projects</div>
+            </div>
+            <div class="stat bg-base-100 rounded-box shadow">
+                <div class="stat-title">In Progress</div>
+                <div class="stat-value text-warning">3</div>
+                <div class="stat-desc">Currently working on</div>
+            </div>
+            <div class="stat bg-base-100 rounded-box shadow">
+                <div class="stat-title">Completed</div>
+                <div class="stat-value text-success">5</div>
+                <div class="stat-desc">Finished projects</div>
+            </div>
+            <div class="stat bg-base-100 rounded-box shadow">
+                <div class="stat-title">This Month</div>
+                <div class="stat-value text-secondary">2</div>
+                <div class="stat-desc">New projects</div>
+            </div>
+        </div>
+        
+        <!-- Projects Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Project Card 1 -->
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="badge badge-primary">Website</div>
+                        <div class="dropdown dropdown-end">
+                            <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                </svg>
+                            </div>
+                            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                                <li><a>Edit</a></li>
+                                <li><a>Duplicate</a></li>
+                                <li><a>Archive</a></li>
+                                <li><a class="text-error">Delete</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <h2 class="card-title">Corporate Website</h2>
+                    <p class="text-base-content/70 mb-4">Modern corporate website with responsive design and CMS integration.</p>
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="avatar-group -space-x-2">
+                            <div class="avatar">
+                                <div class="w-8 rounded-full bg-primary text-primary-content text-xs flex items-center justify-center">
+                                    <span>JD</span>
+                                </div>
+                            </div>
+                            <div class="avatar">
+                                <div class="w-8 rounded-full bg-secondary text-secondary-content text-xs flex items-center justify-center">
+                                    <span>SM</span>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="text-sm text-base-content/70">2 collaborators</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div class="badge badge-success">Completed</div>
+                        <div class="text-sm text-base-content/70">Due: Jan 30</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Project Card 2 -->
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="badge badge-secondary">E-commerce</div>
+                        <div class="dropdown dropdown-end">
+                            <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                </svg>
+                            </div>
+                            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                                <li><a>Edit</a></li>
+                                <li><a>Duplicate</a></li>
+                                <li><a>Archive</a></li>
+                                <li><a class="text-error">Delete</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <h2 class="card-title">Online Store</h2>
+                    <p class="text-base-content/70 mb-4">Full-featured e-commerce platform with payment integration and inventory management.</p>
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="avatar-group -space-x-2">
+                            <div class="avatar">
+                                <div class="w-8 rounded-full bg-accent text-accent-content text-xs flex items-center justify-center">
+                                    <span>MJ</span>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="text-sm text-base-content/70">1 collaborator</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div class="badge badge-warning">In Progress</div>
+                        <div class="text-sm text-base-content/70">Due: Feb 15</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Project Card 3 -->
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="badge badge-accent">Blog</div>
+                        <div class="dropdown dropdown-end">
+                            <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                </svg>
+                            </div>
+                            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                                <li><a>Edit</a></li>
+                                <li><a>Duplicate</a></li>
+                                <li><a>Archive</a></li>
+                                <li><a class="text-error">Delete</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <h2 class="card-title">Tech Blog</h2>
+                    <p class="text-base-content/70 mb-4">Personal tech blog with markdown support and comment system.</p>
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="avatar-group -space-x-2">
+                            <div class="avatar">
+                                <div class="w-8 rounded-full bg-info text-info-content text-xs flex items-center justify-center">
+                                    <span>AK</span>
+                                </div>
+                            </div>
+                            <div class="avatar">
+                                <div class="w-8 rounded-full bg-warning text-warning-content text-xs flex items-center justify-center">
+                                    <span>LM</span>
+                                </div>
+                            </div>
+                            <div class="avatar">
+                                <div class="w-8 rounded-full bg-error text-error-content text-xs flex items-center justify-center">
+                                    <span>RT</span>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="text-sm text-base-content/70">3 collaborators</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <div class="badge badge-warning">In Progress</div>
+                        <div class="text-sm text-base-content/70">Due: Mar 1</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
 
-        <form id="create-project-form" action="/api/v1/projects" method="post">
-        <fieldset class="fieldset w-sm p-4">
-            <legend class="fieldset-legend">Project details</legend>
-            <label class="label">Title</label>
+<!-- Create Project Modal -->
+{{template "components/modal" dict "id" "createProjectModal" "title" "Create New Project" "customContent" "
+    <form id=\"create-project-form\" action=\"/api/v1/projects\" method=\"post\" class=\"space-y-4\">
+        <div class=\"form-control\">
+            <label class=\"label\">
+                <span class=\"label-text\">Project Title <span class=\"text-error\">*</span></span>
+            </label>
+            <input type=\"text\" name=\"title\" placeholder=\"Enter project title\" class=\"input input-bordered\" required />
+        </div>
+        
+        <div class=\"form-control\">
+            <label class=\"label\">
+                <span class=\"label-text\">Description</span>
+            </label>
+            <textarea name=\"description\" placeholder=\"Describe your project...\" class=\"textarea textarea-bordered h-24\"></textarea>
+        </div>
+        
+        <div class=\"form-control\">
+            <label class=\"label\">
+                <span class=\"label-text\">Project Type</span>
+            </label>
+            <select name=\"type\" class=\"select select-bordered\">
+                <option value=\"website\">Website</option>
+                <option value=\"ecommerce\">E-commerce</option>
+                <option value=\"blog\">Blog</option>
+                <option value=\"portfolio\">Portfolio</option>
+                <option value=\"other\">Other</option>
+            </select>
+        </div>
+        
+        <div class=\"form-control\">
+            <label class=\"label\">
+                <span class=\"label-text\">Due Date</span>
+            </label>
+            <input type=\"date\" name=\"due_date\" class=\"input input-bordered\" />
+        </div>
+        
+        <div class=\"form-control\">
+            <label class=\"label\">
+                <span class=\"label-text\">Priority</span>
+            </label>
+            <select name=\"priority\" class=\"select select-bordered\">
+                <option value=\"low\">Low</option>
+                <option value=\"medium\" selected>Medium</option>
+                <option value=\"high\">High</option>
+            </select>
+        </div>
+    </form>
+" "buttons" (slice (dict "text" "Cancel" "style" "btn-outline") (dict "text" "Create Project" "style" "btn-primary" "onclick" "document.getElementById('create-project-form').submit()"))}}
+
+<script>
+// Add any JavaScript for project management here
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle project creation form submission
+    document.getElementById('create-project-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        // Handle form submission here
+        console.log('Project creation submitted');
+        // Close modal
+        document.getElementById('createProjectModal').close();
+    });
+});
+</script>
+{{ end }}
             <input type="text" class="input validator" name="name" placeholder="My awesome project" required minlength="4" />
             <p class="validator-hint text-xs text-error">Project title must be at least 4 characters</p>
             

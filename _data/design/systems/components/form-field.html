@@ -1,0 +1,85 @@
+<div class="form-control {{.class}}">
+    {{if .label}}
+        {{template "atoms/label" dict "for" .name "text" .label "required" .required "help" .help}}
+    {{end}}
+    
+    {{if eq .type "textarea"}}
+        <textarea 
+            name="{{.name}}" 
+            id="{{.id | default .name}}"
+            placeholder="{{.placeholder}}"
+            class="textarea textarea-bordered {{if .error}}textarea-error{{end}} {{if .disabled}}textarea-disabled{{end}} {{.inputClass}}"
+            {{if .required}}required{{end}}
+            {{if .disabled}}disabled{{end}}
+            {{if .readonly}}readonly{{end}}
+            {{if .rows}}rows="{{.rows}}"{{end}}
+            {{if .cols}}cols="{{.cols}}"{{end}}
+            {{if .maxlength}}maxlength="{{.maxlength}}"{{end}}
+            {{if .ariaLabel}}aria-label="{{.ariaLabel}}"{{end}}
+            {{if .ariaDescribedBy}}aria-describedby="{{.ariaDescribedBy}}"{{end}}
+        >{{.value}}</textarea>
+    {{else if eq .type "select"}}
+        <select 
+            name="{{.name}}" 
+            id="{{.id | default .name}}"
+            class="select select-bordered {{if .error}}select-error{{end}} {{if .disabled}}select-disabled{{end}} {{.inputClass}}"
+            {{if .required}}required{{end}}
+            {{if .disabled}}disabled{{end}}
+            {{if .multiple}}multiple{{end}}
+            {{if .ariaLabel}}aria-label="{{.ariaLabel}}"{{end}}
+            {{if .ariaDescribedBy}}aria-describedby="{{.ariaDescribedBy}}"{{end}}
+        >
+            {{if .placeholder}}<option value="">{{.placeholder}}</option>{{end}}
+            {{range .options}}
+                <option value="{{.value}}" {{if eq .value $.value}}selected{{end}} {{if .disabled}}disabled{{end}}>{{.label}}</option>
+            {{end}}
+        </select>
+    {{else if eq .type "checkbox"}}
+        <label class="label cursor-pointer">
+            <span class="label-text">{{.label}}</span>
+            <input 
+                type="checkbox" 
+                name="{{.name}}" 
+                id="{{.id | default .name}}"
+                value="{{.value | default "1"}}"
+                class="checkbox {{if .error}}checkbox-error{{end}} {{.inputClass}}"
+                {{if .checked}}checked{{end}}
+                {{if .disabled}}disabled{{end}}
+                {{if .ariaLabel}}aria-label="{{.ariaLabel}}"{{end}}
+                {{if .ariaDescribedBy}}aria-describedby="{{.ariaDescribedBy}}"{{end}}
+            />
+        </label>
+    {{else if eq .type "radio"}}
+        <div class="flex flex-col gap-2">
+            {{range .options}}
+                <label class="label cursor-pointer justify-start gap-2">
+                    <input 
+                        type="radio" 
+                        name="{{$.name}}" 
+                        value="{{.value}}"
+                        class="radio {{if $.error}}radio-error{{end}} {{$.inputClass}}"
+                        {{if eq .value $.value}}checked{{end}}
+                        {{if .disabled}}disabled{{end}}
+                        {{if $.ariaLabel}}aria-label="{{$.ariaLabel}}"{{end}}
+                        {{if $.ariaDescribedBy}}aria-describedby="{{$.ariaDescribedBy}}"{{end}}
+                    />
+                    <span class="label-text">{{.label}}</span>
+                </label>
+            {{end}}
+        </div>
+    {{else}}
+        {{template "atoms/input" dict "type" .type "name" .name "id" (.id | default .name) "placeholder" .placeholder "value" .value "class" .inputClass "required" .required "disabled" .disabled "readonly" .readonly "autocomplete" .autocomplete "minlength" .minlength "maxlength" .maxlength "pattern" .pattern "step" .step "min" .min "max" .max "ariaLabel" .ariaLabel "ariaDescribedBy" .ariaDescribedBy "error" .error}}
+    {{end}}
+    
+    {{if .error}}
+        <label class="label">
+            <span class="label-text-alt text-error" id="{{.name}}-error">{{.error}}</span>
+        </label>
+    {{end}}
+    
+    {{if .description}}
+        <label class="label">
+            <span class="label-text-alt text-base-content/70" id="{{.name}}-description">{{.description}}</span>
+        </label>
+    {{end}}
+</div>

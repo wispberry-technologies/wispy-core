@@ -1,10 +1,9 @@
-{{ define "body" }}
-<div class="container mx-auto flex flex-col h-full max-w-4xl">
-  <h1 class="text-3xl font-bold mt-20">
-    Well this is awkward...
-  </h1>
-  <br>
-  <p>There are no pages to display.</p>
-  <a class="link text-primary" href="/"> Go Home </a>
+{{define "title"}}Page Not Found - Wispy CMS{{end}}
+
+{{define "description"}}The page you're looking for could not be found.{{end}}
+
+{{define "body"}}
+<div class=" flex items-center justify-center">
+    {{template "components/empty-state" dict "title" "Page Not Found" "description" "The page you're looking for doesn't exist or has been moved." "icon" "info" "actions" (slice (dict "text" "← Back to Dashboard" "style" "btn-primary") (dict "text" "Contact Support" "style" "btn-outline")) "class" "min-h-0"}}
 </div>
-{{ end }}
+{{end}}

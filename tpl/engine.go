@@ -81,6 +81,52 @@ func getDefaultFuncMap(rs RenderState) template.FuncMap {
 		"has": func(items []string, item string) bool {
 			return slices.Contains(items, item)
 		},
+		"dict": func(keysAndValues ...interface{}) map[string]interface{} {
+			dict := make(map[string]interface{})
+			for i := 0; i < len(keysAndValues); i += 2 {
+				if i+1 < len(keysAndValues) {
+					key := fmt.Sprintf("%v", keysAndValues[i])
+					dict[key] = keysAndValues[i+1]
+				}
+			}
+			return dict
+		},
+		"slice": func(items ...interface{}) []interface{} {
+			return items
+		},
+		"substr": func(start, length int, s string) string {
+			if start < 0 || start >= len(s) {
+				return ""
+			}
+			end := start + length
+			if end > len(s) {
+				end = len(s)
+			}
+			return s[start:end]
+		},
+		"default": func(defaultValue interface{}, value interface{}) interface{} {
+			if value == nil {
+				return defaultValue
+			}
+			// Check for empty string
+			if str, ok := value.(string); ok && str == "" {
+				return defaultValue
+			}
+			// Check for zero values
+			if fmt.Sprintf("%v", value) == "" {
+				return defaultValue
+			}
+			return value
+		},
+		"eq": func(a, b interface{}) bool {
+			return fmt.Sprintf("%v", a) == fmt.Sprintf("%v", b)
+		},
+		"add": func(a, b int) int {
+			return a + b
+		},
+		"sub": func(a, b int) int {
+			return a - b
+		},
 	}
 }
 
@@ -246,7 +292,7 @@ func (te *templateEngine) RenderWithLayout(templatePath, layoutPath string, data
 
 	// Execute the combined template (layout + content blocks)
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
+	if err := tmpl.Execute(&buf, data.Data); err != nil {
 		return nil, fmt.Errorf("failed to render template with layout: %w", err)
 	}
 
@@ -281,7 +327,7 @@ func (te *templateEngine) RenderTemplate(templatePath string, data TemplateData)
 	PopulateRenderStateFromTemplateData(rs, data)
 
 	var contentBuf bytes.Buffer
-	if err := tmpl.Execute(&contentBuf, data); err != nil {
+	if err := tmpl.Execute(&contentBuf, data.Data); err != nil {
 		return nil, fmt.Errorf("failed to render body template %s: %w", templatePath, err)
 	}
 

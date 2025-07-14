@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+	"wispy-core/auth"
 	"wispy-core/core/tenant/databases"
 	"wispy-core/tpl"
 
@@ -23,10 +24,16 @@ type site struct {
 	//
 	CssThemes map[string]string // Maps theme name to CSS file path
 	// ContentDir         string                 `toml:"content_dir" json:"content_dir"`
-	Data           map[string]interface{} `toml:"data" json:"data"`
-	Router         chi.Router             `toml:"-" json:"-"`
-	TemplateEngine tpl.TemplateEngine     `toml:"-" json:"-"`
-	DbManager      databases.Manager      `toml:"-" json:"-"` // DatabaseManager is used for database operations, if applicable
+	Data   map[string]interface{} `toml:"data" json:"data"`
+	Config map[string]interface{} `toml:"config" json:"config"` // Site configuration from config.toml
+	//
+	Router         chi.Router         `toml:"-" json:"-"`
+	TemplateEngine tpl.TemplateEngine `toml:"-" json:"-"`
+	// DatabaseManager is used for database operations, if applicable
+	DbManager databases.Manager `toml:"-" json:"-"`
+	//
+	AuthManager auth.AuthProvider `toml:"-" json:"-"`
+	//
 	// CreatedAt and UpdatedAt are used for tracking site creation and modification times
 	CreatedAt time.Time `toml:"created_at" json:"created_at"`
 	UpdatedAt time.Time `toml:"updated_at" json:"updated_at"`
@@ -88,12 +95,6 @@ func (s *site) GetBaseURL() string {
 	return s.BaseURL
 }
 
-// func (s *site) GetContentDir() string {
-// 	s.mu.RLock()
-// 	defer s.mu.RUnlock()
-// 	return s.ContentDir
-// }
-
 func (s *site) GetStaticDir() string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -111,17 +112,10 @@ func (s *site) GetAssetsDir() string {
 func (s *site) GetConfig() map[string]interface{} {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	// Return a copy of the Data map to prevent external modification
-	dataCopy := make(map[string]interface{})
-	maps.Copy(dataCopy, map[string]interface{}{
-		"FAKE_CONFIG": "This is a placeholder for actual configuration data",
-		"id":          s.ID,
-		"name":        s.Name,
-		"domain":      s.Domain,
-		"base_url":    s.BaseURL,
-		// "content_dir": s.ContentDir,
-	})
-	return dataCopy
+	// Return a copy of the Config map to prevent external modification
+	configCopy := make(map[string]interface{})
+	maps.Copy(configCopy, s.Config)
+	return configCopy
 }
 
 func (s *site) GetDatabaseManager() databases.Manager {

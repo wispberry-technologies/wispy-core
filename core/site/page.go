@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"wispy-core/common"
+	"wispy-core/config"
 	"wispy-core/tpl"
 	"wispy-core/wispytail"
 
@@ -89,21 +90,21 @@ func CreatePageRoute(router chi.Router, s Site, templateEngine tpl.TemplateEngin
 
 // setupStaticRoutes configures static file serving
 func SetupStaticRoutes(router chi.Router, s Site) {
+	gConfig := config.GetGlobalConfig()
 	// Assets route
 	router.Get("/assets/*", func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Implement authentication check
-		// Auth not implemented here rejecting request
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-
-		// path := r.URL.Path[len("/assets/"):]
-		// assetPath := filepath.Join("_data/tenants", s.GetDomain(), "assets", path)
-		// http.ServeFile(w, r, assetPath)
+		// Serve assets from the tenant's assets directory
+		gConfig.GetCoreAuthMiddleware().RequireAuthFunc(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			path := r.URL.Path[len("/assets/"):]
+			assetPath := filepath.Join("_data/tenants", s.GetDomain(), "assets", path)
+			http.ServeFile(w, r, assetPath)
+		}))
 	})
 
 	// Public files route
 	router.Get("/public/*", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path[len("/public/"):]
-		publicPath := filepath.Join("_data/tenants", s.GetDomain(), "public", path)
+		publicPath := filepath.Join(gConfig.GetSitesPath(), s.GetDomain(), "public", path)
 		http.ServeFile(w, r, publicPath)
 	})
 }

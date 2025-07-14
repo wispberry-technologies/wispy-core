@@ -1,0 +1,55 @@
+<div class="search-filters card bg-base-100 shadow {{.class}}">
+    <div class="card-body">
+        <form class="flex flex-wrap gap-4 items-end" method="GET">
+            {{range .filters}}
+                {{if eq .type "search"}}
+                    <div class="form-control flex-1 min-w-64">
+                        <label class="label">
+                            <span class="label-text">{{.label}}</span>
+                        </label>
+                        <div class="input-group">
+                            <input type="text" name="{{.name}}" placeholder="{{.placeholder}}" value="{{.value}}" class="input input-bordered flex-1" />
+                            <button type="submit" class="btn btn-square" aria-label="Search">
+                                {{template "atoms/icon" dict "name" "search" "class" "h-5 w-5"}}
+                            </button>
+                        </div>
+                    </div>
+                {{else if eq .type "select"}}
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">{{.label}}</span>
+                        </label>
+                        <select name="{{.name}}" class="select select-bordered">
+                            {{range .options}}
+                                <option value="{{.value}}" {{if eq .value $.value}}selected{{end}}>{{.label}}</option>
+                            {{end}}
+                        </select>
+                    </div>
+                {{else if eq .type "date"}}
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">{{.label}}</span>
+                        </label>
+                        <input type="date" name="{{.name}}" value="{{.value}}" class="input input-bordered" />
+                    </div>
+                {{end}}
+            {{end}}
+            
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">&nbsp;</span>
+                </label>
+                <div class="flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        {{template "atoms/icon" dict "name" "filter" "class" "h-4 w-4"}}
+                        Apply
+                    </button>
+                    <a href="{{.clearUrl}}" class="btn btn-ghost">
+                        {{template "atoms/icon" dict "name" "x" "class" "h-4 w-4"}}
+                        Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>

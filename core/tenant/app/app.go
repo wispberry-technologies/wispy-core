@@ -2,21 +2,34 @@ package app
 
 import (
 	"path/filepath"
+	"wispy-core/auth"
 	"wispy-core/common"
+	"wispy-core/config"
+	"wispy-core/core/site"
 	"wispy-core/tpl"
 )
 
 type wispyCms struct {
-	tplEngine tpl.TemplateEngine
-	theme     string
+	authMiddleware auth.Middleware
+	authProvider   auth.AuthProvider
+	tplEngine      tpl.TemplateEngine
+	theme          string
+	siteManager    site.SiteManager
 }
 
 type WispyCms interface {
 	GetTemplateEngine() tpl.TemplateEngine
 	GetTheme() string
+	GetSiteManager() site.SiteManager
 }
 
-func NewWispyCms() WispyCms {
+func NewWispyCms(siteManager site.SiteManager) WispyCms {
+	gConfig := config.GetGlobalConfig()
+	if gConfig == nil {
+		common.Error("Global configuration is not initialized!")
+		panic("Global configuration is required to initialize Wispy CMS")
+	}
+
 	supportingTemplatesDirs := []string{
 		filepath.Join("_data", "design", "templates", "cms", "partials"),
 		filepath.Join("_data", "design", "systems", "components"),
@@ -37,8 +50,9 @@ func NewWispyCms() WispyCms {
 	}
 
 	return &wispyCms{
-		tplEngine: templateEngine,
-		theme:     "robot-green",
+		tplEngine:   templateEngine,
+		theme:       "robot-green",
+		siteManager: siteManager,
 	}
 }
 
@@ -48,4 +62,8 @@ func (wc *wispyCms) GetTemplateEngine() tpl.TemplateEngine {
 
 func (wc *wispyCms) GetTheme() string {
 	return wc.theme
+}
+
+func (wc *wispyCms) GetSiteManager() site.SiteManager {
+	return wc.siteManager
 }

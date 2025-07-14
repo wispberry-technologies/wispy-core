@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	"wispy-core/auth"
 	"wispy-core/common"
 	"wispy-core/core/site"
 )
@@ -18,7 +17,7 @@ type HostRouter struct {
 }
 
 // NewHostRouter creates a new host router
-func NewHostRouter(siteManager site.SiteManager, notFound http.Handler, authProvider auth.AuthProvider, authConfig auth.Config, authMiddleware *auth.Middleware, defaultHost string) *HostRouter {
+func NewHostRouter(siteManager site.SiteManager, notFound http.Handler, defaultHost string) *HostRouter {
 	// Validate inputs
 	if siteManager == nil {
 		panic("siteManager cannot be nil")
@@ -45,6 +44,15 @@ func extractHost(hostWithPort string) string {
 	return hostWithPort
 }
 
+// extractDomainFromLocalhost extracts the actual domain from localhost subdomain patterns
+// Example: "joosyjools.com.localhost" -> "joosyjools.com"
+func extractDomainFromLocalhost(host string) string {
+	if strings.HasSuffix(host, ".localhost") {
+		return strings.TrimSuffix(host, ".localhost")
+	}
+	return host
+}
+
 // isDebugRequested checks if debug info was requested via query param or header
 func isDebugRequested(r *http.Request) bool {
 	return r.URL.Query().Get("__include_debug_info__") == "true" ||
@@ -53,9 +61,6 @@ func isDebugRequested(r *http.Request) bool {
 
 // respondWithNotFound responds with a not found error
 func respondWithNotFound(w http.ResponseWriter, r *http.Request, host string, err error, includeDebug bool, handler http.Handler) {
-	common.Warning("No site found for host: %s", host)
-	common.Debug("defaultHost is set to: %s", host)
-
 	if includeDebug {
 		http.Error(w, fmt.Sprintf("Site not found for host: %s\nError: %v", host, err), http.StatusNotFound)
 		return
@@ -67,16 +72,16 @@ func respondWithNotFound(w http.ResponseWriter, r *http.Request, host string, er
 // ServeHTTP implements http.Handler
 func (hr *HostRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	host := extractHost(r.Host)
+	originalHost := host
 	includeDebug := isDebugRequested(r)
 
 	// Handle local development case
 	if common.IsLocalDevelopment() {
-		if host == "localhost" || host == "127.0.0.1" {
-			// check if request had query parameter for debug targeting host (localhost=example.com)
-			if targetHost := r.URL.Query().Get("localhost"); targetHost != "" {
-				common.Debug("Debug targeting host: %s", targetHost)
-				host = targetHost
-			}
+		if strings.HasSuffix(host, ".localhost") {
+			// Handle subdomain pattern like "joosyjools.com.localhost"
+			extractedDomain := extractDomainFromLocalhost(host)
+			common.Debug("Debug targeting host via subdomain: %s (from %s)", extractedDomain, originalHost)
+			host = extractedDomain
 		}
 	}
 
@@ -87,9 +92,6 @@ func (hr *HostRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil && hr.defaultHost != "" && host != hr.defaultHost {
 		site, err = hr.siteManager.GetSite(hr.defaultHost)
 	}
-
-	common.Debug("No site found for host: %s, error: %v", host, err)
-	common.Debug("domains: %v", hr.siteManager.Domains().GetDomains())
 
 	// Still no site found, return not found
 	if err != nil {
@@ -106,7 +108,10 @@ func (hr *HostRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// If the router is nil, return not found with a different error
 	if router == nil {
 		routerErr := fmt.Errorf("no router configured for site")
-		respondWithNotFound(w, r, host, routerErr, includeDebug, hr.notFound)
+		common.Error(routerErr.Error())
+		// Return request too soon, no router configured for site
+		// This is a common case when the site is not fully initialized or the router is not set up yet.
+		http.Error(w, "Site is not ready", http.StatusTooEarly)
 		return
 	}
 

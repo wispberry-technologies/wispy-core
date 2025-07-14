@@ -1,5 +1,9 @@
-{{ define "body" }}
+{{define "title"}}Sign In - Wispy CMS{{end}}
 
-<h3>Login</h3>
+{{define "description"}}Sign in to your Wispy CMS admin panel to manage your content and forms.{{end}}
 
-{{ end}}
+{{define "body"}}
+{{template "components/login-form" dict 
+    "Data" .Data
+}}
+{{end}}

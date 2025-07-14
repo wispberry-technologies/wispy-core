@@ -1,0 +1,39 @@
+<div class="stats shadow w-full {{.class}}">
+    <div class="stat">
+        <div class="stat-figure text-primary">
+            {{template "atoms/icon" dict "name" "forms" "class" "w-8 h-8 stroke-current"}}
+        </div>
+        <div class="stat-title">Forms</div>
+        <div class="stat-value text-primary">{{.formCount | default 0}}</div>
+        <div class="stat-desc">{{.formDesc | default "Active forms"}}</div>
+    </div>
+    
+    <div class="stat">
+        <div class="stat-figure text-secondary">
+            {{template "atoms/icon" dict "name" "submissions" "class" "w-8 h-8 stroke-current"}}
+        </div>
+        <div class="stat-title">Submissions</div>
+        <div class="stat-value text-secondary">{{.submissionCount | default 0}}</div>
+        <div class="stat-desc">{{.submissionDesc | default "Total submissions"}}</div>
+    </div>
+    
+    <div class="stat">
+        <div class="stat-figure text-accent">
+            {{template "atoms/icon" dict "name" "cog" "class" "w-8 h-8 stroke-current"}}
+        </div>
+        <div class="stat-title">{{.customStatTitle | default "Settings"}}</div>
+        <div class="stat-value text-accent">{{.customStatValue | default .settingsCount | default 0}}</div>
+        <div class="stat-desc">{{.customStatDesc | default "Configured items"}}</div>
+    </div>
+    
+    {{if .showFourthStat}}
+    <div class="stat">
+        <div class="stat-figure text-info">
+            {{template "atoms/icon" dict "name" (.fourthStatIcon | default "info") "class" "w-8 h-8 stroke-current"}}
+        </div>
+        <div class="stat-title">{{.fourthStatTitle}}</div>
+        <div class="stat-value text-info">{{.fourthStatValue}}</div>
+        <div class="stat-desc">{{.fourthStatDesc}}</div>
+    </div>
+    {{end}}
+</div>

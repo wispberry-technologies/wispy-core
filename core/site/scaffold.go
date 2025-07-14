@@ -35,7 +35,7 @@ func Scaffold(rootDir string, cfg ScaffoldConfig) (Site, error) {
 	dirs := []string{
 		"content",
 		"data",
-		"databases/sqlite",
+		"databases",
 		"assets/css",
 		"assets/js",
 		"design/partials",
@@ -360,7 +360,7 @@ func ScaffoldSqliteDatabases(sitePath string) error {
 	databases := databases.DatabaseScaffolds
 
 	for name := range databases {
-		dbPath := filepath.Join(sitePath, "databases", "sqlite", name+".db")
+		dbPath := filepath.Join(sitePath, "databases", name+".db")
 		if err := dbm.CreateDatabase(dbPath); err != nil {
 			return fmt.Errorf("failed to create database %s: %w", name, err)
 		}

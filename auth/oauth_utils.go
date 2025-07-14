@@ -8,7 +8,7 @@ import (
 
 // CreateSessionForOAuthUser creates a session for a user who authenticated via OAuth
 // without requiring password verification
-func (p *DefaultAuthProvider) CreateSessionForOAuthUser(ctx context.Context, user *User) (*Session, error) {
+func (p *defaultAuthProvider) CreateSessionForOAuthUser(ctx context.Context, user *User) (*Session, error) {
 	// Verify this is indeed an OAuth user
 	if user.OAuthProvider == "" || user.OAuthID == "" {
 		return nil, fmt.Errorf("user is not authenticated via OAuth")
@@ -30,6 +30,6 @@ func (p *DefaultAuthProvider) CreateSessionForOAuthUser(ctx context.Context, use
 }
 
 // For testing, allows overriding the current time
-func (p *DefaultAuthProvider) getTime() time.Time {
+func (p *defaultAuthProvider) getTime() time.Time {
 	return time.Now()
 }

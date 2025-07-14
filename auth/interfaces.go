@@ -187,4 +187,7 @@ type Config struct {
 	CookieDomain   string `json:"cookie_domain"`   // Domain for the cookie
 	CookieSecure   bool   `json:"cookie_secure"`   // Use secure cookies
 	CookieHTTPOnly bool   `json:"cookie_httponly"` // HTTP only flag
+
+	// URL settings
+	LoginURL string `json:"login_url"` // URL to redirect to when authentication is required
 }

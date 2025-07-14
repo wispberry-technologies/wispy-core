@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+	"wispy-core/auth"
+	"wispy-core/common"
 
 	"github.com/pelletier/go-toml/v2"
 )
@@ -154,15 +156,23 @@ func (sm *siteManager) LoadAllSites() (map[string]Site, error) {
 
 // LoadSiteByDomain loads a site configuration by domain name
 func (sm *siteManager) LoadSiteByDomain(domain string) (Site, error) {
-	configPath := filepath.Join(sm.tenantsRootDir, domain, "config.toml")
+	// Normalize domain for config file lookup (removes port and .localhost)
+	normalizedDomain := common.NormalizeHost(domain)
+	configPath := filepath.Join(sm.tenantsRootDir, normalizedDomain, "config.toml")
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config: %w", err)
+		return nil, fmt.Errorf("failed to read configuration: %w", err)
 	}
 
-	// Temporary struct for TOML parsing
-	var config struct {
+	// Parse the entire configuration as a map
+	var fullConfig map[string]interface{}
+	if err := toml.Unmarshal(data, &fullConfig); err != nil {
+		return nil, fmt.Errorf("failed to parse config: %w", err)
+	}
+
+	// Also parse the site-specific configuration for structured access
+	var siteConfig struct {
 		Site struct {
 			Name      string    `toml:"name"`
 			Domain    string    `toml:"domain"`
@@ -172,12 +182,12 @@ func (sm *siteManager) LoadSiteByDomain(domain string) (Site, error) {
 		} `toml:"site"`
 	}
 
-	if err := toml.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse config: %w", err)
+	if err := toml.Unmarshal(data, &siteConfig); err != nil {
+		return nil, fmt.Errorf("failed to parse site config: %w", err)
 	}
 
 	// Use domain from config or fallback to directory name
-	siteDomain := config.Site.Domain
+	siteDomain := siteConfig.Site.Domain
 	if siteDomain == "" {
 		siteDomain = domain
 	}
@@ -185,17 +195,29 @@ func (sm *siteManager) LoadSiteByDomain(domain string) (Site, error) {
 	// Create Site instance
 	s := &site{
 		mu:        sync.RWMutex{},
-		Name:      config.Site.Name,
+		Name:      siteConfig.Site.Name,
 		Domain:    siteDomain,
-		BaseURL:   config.Site.BaseURL,
+		BaseURL:   siteConfig.Site.BaseURL,
 		CssThemes: make(map[string]string),
 		Data:      make(map[string]interface{}),
-		CreatedAt: config.Site.CreatedAt,
-		UpdatedAt: config.Site.UpdatedAt,
+		Config:    fullConfig, // Store the full configuration
+		CreatedAt: siteConfig.Site.CreatedAt,
+		UpdatedAt: siteConfig.Site.UpdatedAt,
 	}
 
 	// Setup Database manager
 	s.DbManager = NewDatabaseManager(s.Domain)
+
+	// Setup authentication manager
+	// Auth
+	// Setup authentication and authorization
+	authConfig := auth.DefaultConfig()
+	authProvider, aProviderErr := auth.NewDefaultAuthProvider(authConfig)
+	if aProviderErr != nil {
+		common.Fatal("Failed to create auth provider: %v", aProviderErr)
+	}
+	s.AuthManager = authProvider
+	// authMiddleware := auth.NewMiddleware(authProvider, authConfig)
 
 	return s, nil
 }
@@ -205,12 +227,21 @@ func (sm *siteManager) GetSite(domain string) (Site, error) {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
+	// First try exact match
 	site, found := sm.sites[domain]
-	if !found {
-		return nil, fmt.Errorf("site not found for domain: %s", domain)
+	if found {
+		return site, nil
 	}
 
-	return site, nil
+	// Use common.NormalizeHost to handle domain normalization
+	normalizedDomain := common.NormalizeHost(domain)
+
+	site, found = sm.sites[normalizedDomain]
+	if found {
+		return site, nil
+	}
+
+	return nil, fmt.Errorf("site not found for domain: %s (tried: %s)", domain, normalizedDomain)
 }
 
 // UpdateSite updates a site by domain

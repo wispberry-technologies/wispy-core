@@ -1,0 +1,48 @@
+{{define "title"}}Settings - Wispy CMS{{end}}
+
+{{define "description"}}Configure your CMS settings and preferences.{{end}}
+
+{{define "body"}}
+<div class="">
+    {{template "components/cms-navbar" dict 
+        "currentPage" "settings" 
+        "user" .user
+    }}
+    
+    <main class="content-focus py-8">
+        {{template "components/page-header" dict 
+            "title" "Settings" 
+            "description" "Configure your CMS settings and preferences" 
+            "breadcrumbs" (slice 
+                (dict "text" "Dashboard" "href" "/wispy-cms/dashboard") 
+                (dict "text" "Settings" "href" "")
+            )
+        }}
+        
+        <!-- Success Message -->
+        {{if .hasSuccess}}
+            {{template "atoms/alert" dict 
+                "type" "alert-success" 
+                "message" .successMessage 
+                "icon" true 
+                "dismissible" true 
+                "class" "mb-6"
+            }}
+        {{end}}
+        
+        <!-- Error Message -->
+        {{if .hasError}}
+            {{template "atoms/alert" dict 
+                "type" "alert-error" 
+                "message" .errorMessage 
+                "icon" true 
+                "dismissible" true 
+                "class" "mb-6"
+            }}
+        {{end}}
+
+
+
+    </main>
+</div>
+{{end}}

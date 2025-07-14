@@ -1,0 +1,24 @@
+<div role="alert" class="alert {{.type | default "alert-info"}} {{.class}}">
+    {{if .icon}}
+        {{if eq .type "alert-error"}}
+            {{template "atoms/icon" dict "name" "x" "class" "h-6 w-6 shrink-0 stroke-current" "ariaLabel" "Error"}}
+        {{else if eq .type "alert-success"}}
+            {{template "atoms/icon" dict "name" "check" "class" "h-6 w-6 shrink-0 stroke-current" "ariaLabel" "Success"}}
+        {{else if eq .type "alert-warning"}}
+            {{template "atoms/icon" dict "name" "exclamation" "class" "h-6 w-6 shrink-0 stroke-current" "ariaLabel" "Warning"}}
+        {{else}}
+            {{template "atoms/icon" dict "name" "info" "class" "h-6 w-6 shrink-0 stroke-current" "ariaLabel" "Information"}}
+        {{end}}
+    {{end}}
+    <div class="flex flex-col">
+        {{if .title}}
+            <span class="font-medium">{{.title}}</span>
+        {{end}}
+        <span>{{.message}}</span>
+    </div>
+    {{if .dismissible}}
+        <button type="button" class="btn btn-sm btn-ghost ml-auto" aria-label="Close alert">
+            {{template "atoms/icon" dict "name" "x" "class" "h-4 w-4"}}
+        </button>
+    {{end}}
+</div>

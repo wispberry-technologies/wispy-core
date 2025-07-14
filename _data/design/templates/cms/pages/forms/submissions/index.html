@@ -1,4 +1,349 @@
 
-<h1>
-  Hi I am the forms-submissions index page.
-</h1>
+{{define "title"}}Form Submissions - Wispy CMS{{end}}
+
+{{define "description"}}View and manage all form submissions from your website.{{end}}
+
+{{define "body"}}
+<div class="">
+    {{template "components/cms-navbar" dict 
+        "currentPage" "forms" 
+        "user" .user
+    }}
+    
+    <main class="content-focus py-8">
+        {{template "components/page-header" dict 
+            "title" "Form Submissions" 
+            "description" "View and manage all form submissions" 
+            "breadcrumbs" (slice 
+                (dict "text" "Dashboard" "href" "/wispy-cms/dashboard") 
+                (dict "text" "Forms" "href" "/wispy-cms/forms") 
+                (dict "text" "Submissions" "href" "")
+            ) 
+            "actions" (slice 
+                (dict "text" "← Back to Forms" "style" "btn-outline") 
+                (dict "text" "Export CSV" "style" "btn-primary btn-sm" "icon" "download")
+            )
+        }}
+        
+        <!-- Search and Filters -->
+        {{template "components/search-filters" dict 
+            "filters" (slice 
+                (dict "type" "select" "name" "form" "label" "Filter by Form" "value" .FormFilter "options" (slice 
+                    (dict "value" "" "label" "All Forms") 
+                    (dict "value" "contact" "label" "Contact Form") 
+                    (dict "value" "newsletter" "label" "Newsletter Signup") 
+                    (dict "value" "feedback" "label" "Feedback Form")
+                )) 
+                (dict "type" "select" "name" "date_range" "label" "Date Range" "value" .DateRange "options" (slice 
+                    (dict "value" "" "label" "All Time") 
+                    (dict "value" "today" "label" "Today") 
+                    (dict "value" "week" "label" "This Week") 
+                    (dict "value" "month" "label" "This Month")
+                )) 
+                (dict "type" "select" "name" "status" "label" "Status" "value" .StatusFilter "options" (slice 
+                    (dict "value" "" "label" "All Status") 
+                    (dict "value" "unread" "label" "Unread") 
+                    (dict "value" "read" "label" "Read")
+                )) 
+                (dict "type" "search" "name" "search" "label" "Search" "placeholder" "Search submissions..." "value" .Search)
+            ) 
+            "clearUrl" "/wispy-cms/forms/submissions"
+        }}
+        
+        <!-- Submissions Table -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="card-title">{{if .Search}}Search Results{{else}}Recent Submissions{{end}}</h2>
+                    <div class="flex gap-2">
+                        {{template "atoms/button" dict 
+                            "text" "Mark All Read" 
+                            "style" "btn-ghost btn-sm" 
+                            "icon" "check"
+                        }}
+                        {{template "atoms/button" dict 
+                            "text" "Bulk Actions" 
+                            "style" "btn-outline btn-sm" 
+                            "icon" "dots-vertical"
+                        }}
+                    </div>
+                </div>
+                
+                {{$submissions := call .GetSubmissions .FormFilter .StatusFilter 0}}
+                {{if $submissions}}
+                    {{template "components/table" dict 
+                        "checkboxes" true 
+                        "headers" (slice 
+                            (dict "text" "Form" "sortable" true) 
+                            (dict "text" "Name" "sortable" true) 
+                            (dict "text" "Email" "sortable" true) 
+                            (dict "text" "Subject" "sortable" false) 
+                            (dict "text" "Date" "sortable" true) 
+                            (dict "text" "Status" "sortable" true)
+                        ) 
+                        "rows" .Submissions 
+                        "actions" (slice 
+                            (dict "text" "View Details" "href" "#" "icon" "eye") 
+                            (dict "text" "Mark as Read" "href" "#" "icon" "check") 
+                            (dict "text" "Reply" "href" "#" "icon" "mail") 
+                            (dict "text" "Export" "href" "#" "icon" "download") 
+                            (dict "text" "Delete" "href" "#" "icon" "trash" "class" "text-error")
+                        ) 
+                        "pagination" .Pagination 
+                        "emptyMessage" "No submissions found matching your criteria."
+                    }}
+                {{else}}
+                    {{template "components/empty-state" dict 
+                        "title" "No Submissions Yet" 
+                        "description" "When visitors submit forms on your website, they'll appear here for you to review and manage." 
+                        "icon" "submissions" 
+                        "actions" (slice 
+                            (dict "text" "View All Forms" "style" "btn-primary") 
+                            (dict "text" "Learn More" "style" "btn-outline")
+                        )
+                    }}}
+                {{end}}
+            </div>
+        </div>
+        
+        <!-- Bulk Actions Modal -->
+        {{template "components/modal" dict 
+            "id" "bulk-actions-modal" 
+            "title" "Bulk Actions" 
+            "content" "Select an action to perform on the selected submissions:" 
+            "buttons" (slice 
+                (dict "text" "Mark as Read" "style" "btn-primary" "onclick" "bulkMarkAsRead()") 
+                (dict "text" "Delete Selected" "style" "btn-error" "onclick" "bulkDelete()") 
+                (dict "text" "Cancel" "style" "btn-ghost" "onclick" "closeBulkModal()")
+            )
+        }}
+        
+        <!-- Submission Details Modal -->
+        {{template "components/modal" dict 
+            "id" "submission-details-modal" 
+            "title" "Submission Details" 
+            "size" "max-w-4xl" 
+            "customContent" "<div id=\"submission-details-content\"></div>" 
+            "buttons" (slice 
+                (dict "text" "Reply" "style" "btn-primary") 
+                (dict "text" "Mark as Read" "style" "btn-ghost") 
+                (dict "text" "Close" "style" "btn-ghost")
+            )
+        }}}
+        
+        <!-- Help Section -->
+        <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="card bg-base-100 shadow">
+                <div class="card-body">
+                    <h3 class="card-title text-lg">Managing Submissions</h3>
+                    <p class="text-base-content/70">Learn how to organize and respond to form submissions.</p>
+                    <div class="card-actions justify-end">
+                        <a href="/wispy-cms/help/submissions" class="btn btn-ghost btn-sm">
+                            {{template "atoms/icon" dict "name" "info" "class" "h-4 w-4"}}
+                            View Guide
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card bg-base-100 shadow">
+                <div class="card-body">
+                    <h3 class="card-title text-lg">Automated Responses</h3>
+                    <p class="text-base-content/70">Set up automatic replies and notifications.</p>
+                    <div class="card-actions justify-end">
+                        <a href="/wispy-cms/forms/automation" class="btn btn-ghost btn-sm">
+                            {{template "atoms/icon" dict "name" "cog" "class" "h-4 w-4"}}
+                            Configure
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{{end}}
+                                <th>
+                                    <input type="checkbox" class="checkbox checkbox-sm" />
+                                </th>
+                                <th>Form</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Subject</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
+                                <td>
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-2 h-2 bg-primary rounded-full"></div>
+                                        <span class="text-sm">Contact Form</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="flex items-center gap-3">
+                                        <div class="avatar placeholder">
+                                            <div class="bg-neutral text-neutral-content rounded-full w-8">
+                                                <span class="text-xs">JD</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="font-bold">John Doe</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="text-sm">john@example.com</div>
+                                </td>
+                                <td>
+                                    <div class="text-sm max-w-xs truncate">Website inquiry about services</div>
+                                </td>
+                                <td>
+                                    <div class="text-sm">Jan 18, 2025</div>
+                                    <div class="text-xs opacity-50">2 hours ago</div>
+                                </td>
+                                <td>
+                                    {{template "atoms/badge" dict "text" "New" "style" "badge-warning"}}
+                                </td>
+                                <td>
+                                    <div class="dropdown dropdown-end">
+                                        <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                            </svg>
+                                        </div>
+                                        <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                                            <li><a>View Details</a></li>
+                                            <li><a>Mark as Read</a></li>
+                                            <li><a>Reply</a></li>
+                                            <li><a>Export</a></li>
+                                            <li><a class="text-error">Delete</a></li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
+                                <td>
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-2 h-2 bg-secondary rounded-full"></div>
+                                        <span class="text-sm">Newsletter</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="flex items-center gap-3">
+                                        <div class="avatar placeholder">
+                                            <div class="bg-neutral text-neutral-content rounded-full w-8">
+                                                <span class="text-xs">SM</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="font-bold">Sarah Miller</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="text-sm">sarah@example.com</div>
+                                </td>
+                                <td>
+                                    <div class="text-sm max-w-xs truncate">Newsletter subscription</div>
+                                </td>
+                                <td>
+                                    <div class="text-sm">Jan 18, 2025</div>
+                                    <div class="text-xs opacity-50">4 hours ago</div>
+                                </td>
+                                <td>
+                                    {{template "atoms/badge" dict "text" "Read" "style" "badge-success"}}
+                                </td>
+                                <td>
+                                    <div class="dropdown dropdown-end">
+                                        <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                            </svg>
+                                        </div>
+                                        <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                                            <li><a>View Details</a></li>
+                                            <li><a>Mark as Unread</a></li>
+                                            <li><a>Reply</a></li>
+                                            <li><a>Export</a></li>
+                                            <li><a class="text-error">Delete</a></li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><input type="checkbox" class="checkbox checkbox-sm" /></td>
+                                <td>
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-2 h-2 bg-accent rounded-full"></div>
+                                        <span class="text-sm">Feedback</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="flex items-center gap-3">
+                                        <div class="avatar placeholder">
+                                            <div class="bg-neutral text-neutral-content rounded-full w-8">
+                                                <span class="text-xs">MJ</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="font-bold">Mike Johnson</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="text-sm">mike@example.com</div>
+                                </td>
+                                <td>
+                                    <div class="text-sm max-w-xs truncate">Great service, very satisfied!</div>
+                                </td>
+                                <td>
+                                    <div class="text-sm">Jan 17, 2025</div>
+                                    <div class="text-xs opacity-50">1 day ago</div>
+                                </td>
+                                <td>
+                                    {{template "atoms/badge" dict "text" "Read" "style" "badge-success"}}
+                                </td>
+                                <td>
+                                    <div class="dropdown dropdown-end">
+                                        <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                            </svg>
+                                        </div>
+                                        <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                                            <li><a>View Details</a></li>
+                                            <li><a>Mark as Unread</a></li>
+                                            <li><a>Reply</a></li>
+                                            <li><a>Export</a></li>
+                                            <li><a class="text-error">Delete</a></li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="flex justify-between items-center mt-6">
+                    <div class="text-sm text-base-content/70">
+                        Showing 1-10 of 179 submissions
+                    </div>
+                    <div class="join">
+                        <button class="join-item btn btn-outline btn-sm">«</button>
+                        <button class="join-item btn btn-outline btn-sm">1</button>
+                        <button class="join-item btn btn-outline btn-sm btn-active">2</button>
+                        <button class="join-item btn btn-outline btn-sm">3</button>
+                        <button class="join-item btn btn-outline btn-sm">»</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{{ end }}

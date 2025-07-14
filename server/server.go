@@ -12,7 +12,6 @@ import (
 	"github.com/go-chi/httprate"
 	"golang.org/x/crypto/acme/autocert"
 
-	"wispy-core/auth"
 	"wispy-core/common"
 	"wispy-core/config"
 	"wispy-core/core/apiv1"
@@ -95,14 +94,6 @@ func main() {
 	// Initialize site manager
 	siteManager := site.NewSiteManager(sitesPath)
 
-	// Auth
-	authConfig := auth.DefaultConfig()
-	authProvider, aProviderErr := auth.NewDefaultAuthProvider(authConfig)
-	if aProviderErr != nil {
-		common.Fatal("Failed to create auth provider: %v", aProviderErr)
-	}
-	authMiddleware := auth.NewMiddleware(authProvider, authConfig)
-
 	// Load all sites
 	sites, err := siteManager.LoadAllSites()
 	if err != nil {
@@ -123,17 +114,17 @@ func main() {
 	rootRouter.Route("/api", func(r chi.Router) {
 
 		// Mount API v1 routes
-		apiv1.MountApiV1(r, siteManager, authProvider, authConfig, authMiddleware)
+		apiv1.MountApiV1(r, siteManager)
 	})
 
 	// Mounting tenant app routes
 	// This will handle routes for the Wispy CMS application
 	rootRouter.Route("/wispy-cms", func(r chi.Router) {
-		app.RegisterAppRoutes(r, siteManager, authProvider, authConfig, authMiddleware)
+		app.RegisterAppRoutes(r, siteManager)
 	})
 
 	// Create host router with the site manager
-	hostRouter := network.NewHostRouter(siteManager, notFoundHandler, authProvider, authConfig, authMiddleware, "localhost")
+	hostRouter := network.NewHostRouter(siteManager, notFoundHandler, "localhost")
 
 	// Set the host router as the main handler
 	rootRouter.Mount("/", hostRouter)
@@ -173,8 +164,9 @@ func main() {
 	httpServer = &http.Server{
 		Addr: httpAddr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Check if this is an ACME challenge
-			if strings.HasPrefix(r.URL.Path, "/.well-known/acme-challenge/") {
+			// Check if this is an ACME challenge and we have a cert manager
+			if certManager != nil && strings.HasPrefix(r.URL.Path, "/.well-known/acme-challenge/") {
+				common.Debug("Handling ACME challenge for path: %s", r.URL.Path)
 				certManager.HTTPHandler(nil).ServeHTTP(w, r)
 				return
 			}
@@ -191,16 +183,16 @@ func main() {
 		MaxHeaderBytes: 1 << 20,
 	}
 
-	// Start HTTP server in a goroutine (only if not in local mode and port is available)
+	// Start HTTP server in a goroutine (only if HTTP redirect is enabled)
 	go func() {
-		common.Info("Starting HTTP server on http://%s", httpAddr)
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := httpServer.ListenAndServe(); err != nil {
 			common.Warning("HTTP server failed: %v", err)
 		}
 	}()
 
 	// Start HTTPS server (blocking)
-	// go func() {
+	// go func() { // Uncomment this if you want to run HTTPS server in a goroutine
+	// This is useful for local development to avoid blocking the main thread
 	common.Info("Starting HTTPS server on https://%s", httpsAddr)
 	if err := httpsServer.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 		common.Fatal("HTTPS server failed to start: %v", err)

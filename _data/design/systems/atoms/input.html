@@ -1,0 +1,20 @@
+<input 
+    type="{{.type | default "text"}}" 
+    name="{{.name}}" 
+    id="{{.id | default .name}}"
+    placeholder="{{.placeholder}}"
+    value="{{.value}}"
+    class="input input-bordered {{if .error}}input-error{{end}} {{if .disabled}}input-disabled{{end}} {{.class}}"
+    {{if .required}}required{{end}}
+    {{if .disabled}}disabled{{end}}
+    {{if .readonly}}readonly{{end}}
+    {{if .autocomplete}}autocomplete="{{.autocomplete}}"{{end}}
+    {{if .minlength}}minlength="{{.minlength}}"{{end}}
+    {{if .maxlength}}maxlength="{{.maxlength}}"{{end}}
+    {{if .pattern}}pattern="{{.pattern}}"{{end}}
+    {{if .step}}step="{{.step}}"{{end}}
+    {{if .min}}min="{{.min}}"{{end}}
+    {{if .max}}max="{{.max}}"{{end}}
+    {{if .ariaLabel}}aria-label="{{.ariaLabel}}"{{end}}
+    {{if .ariaDescribedBy}}aria-describedby="{{.ariaDescribedBy}}"{{end}}
+/>

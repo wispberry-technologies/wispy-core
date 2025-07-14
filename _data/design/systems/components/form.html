@@ -1,0 +1,44 @@
+<form class="{{.class}}" {{if .action}}action="{{.action}}"{{end}} {{if .method}}method="{{.method}}"{{else}}method="POST"{{end}} {{if .enctype}}enctype="{{.enctype}}"{{end}} {{if .novalidate}}novalidate{{end}}>
+    {{if .title}}
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-base-content">{{.title}}</h2>
+            {{if .description}}
+                <p class="text-base-content/70 mt-2">{{.description}}</p>
+            {{end}}
+        </div>
+    {{end}}
+    
+    {{if .errorMessage}}
+        {{template "atoms/alert" dict "type" "alert-error" "message" .errorMessage "icon" true "class" "mb-6"}}
+    {{end}}
+    
+    {{if .successMessage}}
+        {{template "atoms/alert" dict "type" "alert-success" "message" .successMessage "icon" true "class" "mb-6"}}
+    {{end}}
+    
+    {{if .fields}}
+        <div class="space-y-4">
+            {{range .fields}}
+                {{template "components/form-field" .}}
+            {{end}}
+        </div>
+    {{end}}
+    
+    {{if .customContent}}
+        <div class="my-6">
+            {{.customContent}}
+        </div>
+    {{end}}
+    
+    {{if .actions}}
+        <div class="flex flex-col sm:flex-row gap-2 justify-end mt-6">
+            {{range .actions}}
+                {{template "atoms/button" dict "text" .text "style" .style "class" .class "type" .type "onclick" .onclick}}
+            {{end}}
+        </div>
+    {{end}}
+    
+    {{if .csrfToken}}
+        <input type="hidden" name="csrf_token" value="{{.csrfToken}}" />
+    {{end}}
+</form>

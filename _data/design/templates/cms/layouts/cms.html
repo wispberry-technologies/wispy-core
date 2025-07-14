@@ -1,51 +1,82 @@
-<!-- daisyUI CSS -->
-{{ asset "css-inline" "@assets/css/daisyui@5.css" }}
-{{ asset "css-inline" "@assets/themes/midnight-wisp.css" }}
-<style>
-    html,
-    body {
-        height: 100%;
-        background-color: var(--color-base-300);
-    }
+<!DOCTYPE html>
+<html lang="en" data-theme="{{.Theme | default "robot-green"}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{block "title"}}Wispy CMS{{end}}</title>
+    <meta name="description" content="{{block "description"}}Modern content management system{{end}}">
+    
+    <!-- daisyUI CSS -->
+    {{ asset "css-inline" "@assets/css/daisyui@5.css" }}
+    {{ asset "css-inline" "@assets/themes/midnight-wisp.css" }}
+    
+    <style>
+        html, body {
+            height: 100%;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: hsl(var(--b3));
+        }
 
-    .dots-background {
-        height: 100%;
-        --dot-bg: var(--color-base-300);
-        --dot-color: color-mix(in oklab, var(--color-base-content) 30%, transparent 0%);
-        --dot-size: 1px;
-        --dot-space: 1.5rem;
-        background:
-            linear-gradient(90deg, var(--dot-bg) calc(var(--dot-space) - var(--dot-size)), transparent 1%) center / var(--dot-space) var(--dot-space),
-            linear-gradient(var(--dot-bg) calc(var(--dot-space) - var(--dot-size)), transparent 1%) center / var(--dot-space) var(--dot-space),
-            var(--dot-color);
-    }
-</style>
-<body class="min-h-screen text-base-content flex flex-col dots-background">
-    <!-- Main Content -->
-    <main class="flex">
-        <nav>
-          <ul class="menu bg-base-200 rounded-box w-56">
-            <li>
-              <a> {{ icon "outline/home" class="h-5 w-5" }} Home </a>
-            </li>
-            <li>
-              <a> {{ icon "outline/home" class="h-5 w-5" }} Item 1 </a>
-            </li>
-            <li>
-              <a> {{ icon "outline/cog-6-tooth" class="h-5 w-5" }} Item 4 </a>
-            </li>
-          </ul>
-        </nav>  
-        <div>
-          {{ block "body" }} <p> Could not load page body.</p> {{ end }}
+        .dots-background {
+            min-height: 100vh;
+            --dot-bg: hsl(var(--b3));
+            --dot-color: color-mix(in oklab, hsl(var(--bc)) 30%, transparent 0%);
+            --dot-size: 1px;
+            --dot-space: 1.5rem;
+            background:
+                linear-gradient(90deg, var(--dot-bg) calc(var(--dot-space) - var(--dot-size)), transparent 1%) center / var(--dot-space) var(--dot-space),
+                linear-gradient(var(--dot-bg) calc(var(--dot-space) - var(--dot-size)), transparent 1%) center / var(--dot-space) var(--dot-space),
+                var(--dot-color);
+        }
+
+        .content-focus {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .content-focus {
+                padding: 0 0.5rem;
+            }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: hsl(var(--b3));
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: hsl(var(--bc) / 0.3);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: hsl(var(--bc) / 0.5);
+        }
+    </style>
+    
+    {{block "head"}}{{end}}
+</head>
+<body class="min-h-screen text-base-content flex flex-col" style="background: var(--color-body);">
+    {{block "body"}}
+        <div class="flex-1 flex flex-col">
+            <p class="p-8 text-center text-base-content/70">Could not load page content.</p>
         </div>
-    </main>
-    <!-- Footer -->
-    {{ block "footer" }}
-        <footer class="footer footer-center p-4 text-base-content opacity-60">
-            <div>
-                <p>&copy; 2025 {{ .Site.Name }}. Powered by Wispy-CMS.</p>
+    {{end}}
+    
+    {{block "footer"}}
+        <footer class="footer footer-center p-4 text-base-content/60 border-t border-base-content/10">
+            <div class="content-focus">
+                <p>&copy; 2025 {{.Site.Name | default "Wispy CMS"}}. Powered by <span class="text-primary font-medium">Wispy</span>.</p>
             </div>
         </footer>
-    {{ end }}
+    {{end}}
+    
+    {{block "scripts"}}{{end}}
 </body>
+</html>

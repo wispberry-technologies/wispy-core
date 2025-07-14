@@ -20,5 +20,25 @@
 - No stack traces in production.  
 - Use provided utils for consistency.  
 - Isolate tenant data in multi-tenant setups.  
+- All comments within template must use `{{/* comment */}}` syntax.
+- Use `{{template "name" dict "key" "value"}}` for templates...
+``
+{{template "components/modal" dict "id" "submission-details-modal" "title" "Submission Details" "size" "max-w-4xl" "customContent" "<div id=\"submission-details-content\"></div>" "buttons" (slice (dict "text" "Reply" "style" "btn-primary") (dict "text" "Mark as Read" "style" "btn-ghost") (dict "text" "Close" "style" "btn-ghost"))}}
+``
+--->
+``
+        <!-- Submission Details Modal -->
+        {{template "components/modal" dict 
+            "id" "submission-details-modal" 
+            "title" "Submission Details" 
+            "size" "max-w-4xl" 
+            "customContent" "<div id=\"submission-details-content\"></div>" 
+            "buttons" (slice 
+                (dict "text" "Reply" "style" "btn-primary")
+                (dict "text" "Mark as Read" "style" "btn-ghost")
+                (dict "text" "Close" "style" "btn-ghost")
+            )
+        }}
+``
 
 *(Keep responses secure, structured, and logged.)*

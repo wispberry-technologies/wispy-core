@@ -1,0 +1,18 @@
+<button 
+    type="{{.type | default "button"}}" 
+    class="btn {{.style | default "btn-primary"}} {{.size | default "btn-md"}} {{.class}}"
+    {{if .onclick}}onclick="{{.onclick}}"{{end}}
+    {{if .disabled}}disabled{{end}}
+    {{if .ariaLabel}}aria-label="{{.ariaLabel}}"{{end}}>
+    {{if .icon}}
+        {{if .iconPosition | eq "left"}}
+            {{template "atoms/icon" dict "name" .icon "class" "h-5 w-5"}}
+        {{end}}
+    {{end}}
+    {{if .text}}{{.text}}{{end}}
+    {{if .icon}}
+        {{if ne .iconPosition "left"}}
+            {{template "atoms/icon" dict "name" .icon "class" "h-5 w-5"}}
+        {{end}}
+    {{end}}
+</button>

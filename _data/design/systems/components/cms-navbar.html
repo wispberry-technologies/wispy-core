@@ -1,0 +1,72 @@
+<nav class="navbar bg-base-100 shadow-lg {{.class}}" role="navigation" aria-label="Main navigation">
+    <div class="navbar-start">
+        <a href="/wispy-cms/dashboard" class="btn btn-ghost text-xl font-bold">
+            <span class="text-primary">Wispy</span>
+            <span class="text-base-content">CMS</span>
+        </a>
+    </div>
+    
+    <!-- Mobile menu button -->
+    <div class="navbar-center lg:hidden">
+        <div class="dropdown">
+            <div tabindex="0" role="button" class="btn btn-ghost btn-circle" aria-label="Open menu">
+                {{template "atoms/icon" dict "name" "menu" "class" "h-5 w-5"}}
+            </div>
+            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow">
+                <li><a href="/wispy-cms/dashboard" {{if eq .currentPage "dashboard"}}class="active"{{end}}>
+                    {{template "atoms/icon" dict "name" "home" "class" "h-5 w-5"}}
+                    Dashboard
+                </a></li>
+                <li><a href="/wispy-cms/forms" {{if eq .currentPage "forms"}}class="active"{{end}}>
+                    {{template "atoms/icon" dict "name" "forms" "class" "h-5 w-5"}}
+                    Forms
+                </a></li>
+                <li><a href="/wispy-cms/settings" {{if eq .currentPage "settings"}}class="active"{{end}}>
+                    {{template "atoms/icon" dict "name" "cog" "class" "h-5 w-5"}}
+                    Settings
+                </a></li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Desktop navigation -->
+    <div class="navbar-center hidden lg:flex">
+        <ul class="menu menu-horizontal px-1">
+            <li><a href="/wispy-cms/dashboard" {{if eq .currentPage "dashboard"}}class="active"{{end}}>
+                {{template "atoms/icon" dict "name" "home" "class" "h-5 w-5"}}
+                Dashboard
+            </a></li>
+            <li><a href="/wispy-cms/forms" {{if eq .currentPage "forms"}}class="active"{{end}}>
+                {{template "atoms/icon" dict "name" "forms" "class" "h-5 w-5"}}
+                Forms
+            </a></li>
+            <li><a href="/wispy-cms/settings" {{if eq .currentPage "settings"}}class="active"{{end}}>
+                {{template "atoms/icon" dict "name" "cog" "class" "h-5 w-5"}}
+                Settings
+            </a></li>
+        </ul>
+    </div>
+    
+    <div class="navbar-end">
+        <div class="dropdown dropdown-end">
+            <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar placeholder" aria-label="User menu">
+                <div class="w-10 rounded-full bg-neutral text-neutral-content">
+                    <span class="text-xs">{{if .user}}{{if .user.DisplayName}}{{substr 0 1 .user.DisplayName | upper}}{{else if .user.Username}}{{substr 0 1 .user.Username | upper}}{{else}}U{{end}}{{else}}U{{end}}</span>
+                </div>
+            </div>
+            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow">
+                <li class="menu-title">
+                    <span>{{if .user}}{{.user.DisplayName | default .user.Username | default "User"}}{{else}}User{{end}}</span>
+                </li>
+                <li><a href="/wispy-cms/profile">
+                    {{template "atoms/icon" dict "name" "user" "class" "h-4 w-4"}}
+                    Profile
+                </a></li>
+                <li><a href="/wispy-cms/logout">
+                    {{template "atoms/icon" dict "name" "logout" "class" "h-4 w-4"}}
+                    Sign out
+                </a></li>
+            </ul>
+        </div>
+    </div>
+</nav>

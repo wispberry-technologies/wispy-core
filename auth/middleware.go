@@ -38,8 +38,12 @@ func (m *Middleware) RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, session, err := m.getUserFromRequest(r)
 		if err != nil {
-			// Redirect to login page
-			http.Redirect(w, r, "/login", http.StatusFound)
+			// Redirect to login page - use configured login URL or default to /login
+			loginURL := m.config.LoginURL
+			if loginURL == "" {
+				loginURL = "/login"
+			}
+			http.Redirect(w, r, loginURL, http.StatusFound)
 			return
 		}
 
@@ -62,8 +66,12 @@ func (m *Middleware) RequireRole(role string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, session, err := m.getUserFromRequest(r)
 		if err != nil {
-			// Redirect to login page
-			http.Redirect(w, r, "/login", http.StatusFound)
+			// Redirect to login page - use configured login URL or default to /login
+			loginURL := m.config.LoginURL
+			if loginURL == "" {
+				loginURL = "/login"
+			}
+			http.Redirect(w, r, loginURL, http.StatusFound)
 			return
 		}
 

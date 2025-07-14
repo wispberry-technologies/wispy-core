@@ -1,0 +1,99 @@
+<div class="hero ">
+    <div class="hero-content flex-col lg:flex-row-reverse max-w-6xl w-full">
+        <div class="text-center lg:text-left lg:w-1/2">
+            <h1 class="text-5xl font-bold text-base-content">
+                Welcome to 
+                <span class="text-primary">Wispy</span>
+                <span class="text-secondary">CMS</span>
+            </h1>
+            <p class="py-6 text-lg text-base-content/70">
+                Your modern, content-focused management system. Sign in to access your dashboard and manage your forms, content, and settings.
+            </p>
+            <div class="flex items-center gap-4 text-base-content/60">
+                <div class="flex items-center gap-2">
+                    {{template "atoms/icon" dict 
+                        "name" "check" 
+                        "class" "h-5 w-5 text-success"
+                    }}
+                    <span>Secure Authentication</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    {{template "atoms/icon" dict 
+                        "name" "check" 
+                        "class" "h-5 w-5 text-success"
+                    }}
+                    <span>Mobile Responsive</span>
+                </div>
+            </div>
+        </div>
+        <div class="card flex-shrink-0 w-full max-w-md shadow-2xl bg-base-100 lg:w-1/2">
+            <form class="card-body" action="/wispy-cms/login" method="POST" novalidate>
+                <div class="text-center mb-6">
+                    <h2 class="text-2xl font-bold text-base-content">Sign In</h2>
+                    <p class="text-base-content/70">Enter your credentials to continue</p>
+                </div>
+                
+                {{if .hasError}}
+                    {{template "atoms/alert" dict 
+                        "type" "alert-error" 
+                        "message" .errorMessage 
+                        "icon" true 
+                        "class" "mb-4"
+                    }}
+                {{end}}
+                
+                {{if .hasSuccess}}
+                    {{template "atoms/alert" dict 
+                        "type" "alert-success" 
+                        "message" .successMessage 
+                        "icon" true 
+                        "class" "mb-4"
+                    }}
+                {{end}}
+                
+                {{template "components/form-field" dict 
+                    "label" "Email Address" 
+                    "type" "email" 
+                    "name" "email" 
+                    "placeholder" "Enter your email" 
+                    "value" .email 
+                    "required" true 
+                    "autocomplete" "email" 
+                    "ariaDescribedBy" "email-error" 
+                    "inputClass" "w-full"
+                }}
+                
+                {{template "components/form-field" dict 
+                    "label" "Password" 
+                    "type" "password" 
+                    "name" "password" 
+                    "placeholder" "Enter your password" 
+                    "required" true 
+                    "autocomplete" "current-password" 
+                    "ariaDescribedBy" "password-error" 
+                    "inputClass" "w-full"
+                }}
+                
+                <div class="form-control mt-2">
+                    <label class="label cursor-pointer justify-start gap-2">
+                        <input type="checkbox" name="remember_me" class="checkbox checkbox-sm" />
+                        <span class="label-text">Remember me</span>
+                    </label>
+                </div>
+                
+                <div class="form-control mt-6">
+                    {{template "atoms/button" dict 
+                        "text" "Sign In" 
+                        "type" "submit" 
+                        "style" "btn-primary" 
+                        "class" "w-full"
+                    }}
+                </div>
+                
+                <div class="text-center mt-4">
+                    <a href="/wispy-cms/forgot-password" class="link link-hover text-sm">Forgot your password?</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

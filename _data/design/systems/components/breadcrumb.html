@@ -1,0 +1,13 @@
+<nav class="breadcrumbs text-sm {{.class}}" aria-label="Breadcrumb">
+    <ul>
+        {{range .items}}
+            <li>
+                {{if .href}}
+                    <a href="{{.href}}" class="link link-hover">{{.text}}</a>
+                {{else}}
+                    <span class="text-base-content/70">{{.text}}</span>
+                {{end}}
+            </li>
+        {{end}}
+    </ul>
+</nav>

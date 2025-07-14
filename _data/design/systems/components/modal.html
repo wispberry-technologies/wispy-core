@@ -1,0 +1,37 @@
+<dialog id="{{.id}}" class="modal {{.class}}">
+    <div class="modal-box {{.size}}">
+        <div class="flex justify-between items-center mb-4">
+            {{if .title}}
+                <h3 class="font-bold text-lg">{{.title}}</h3>
+            {{end}}
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost" aria-label="Close modal">
+                    {{template "atoms/icon" dict "name" "x" "class" "h-4 w-4"}}
+                </button>
+            </form>
+        </div>
+        
+        {{if .content}}
+            <div class="py-4">
+                <p>{{.content}}</p>
+            </div>
+        {{end}}
+        
+        {{if .customContent}}
+            <div class="py-4">
+                {{.customContent}}
+            </div>
+        {{end}}
+        
+        {{if .buttons}}
+            <div class="modal-action">
+                {{range .buttons}}
+                    {{template "atoms/button" dict "text" .text "style" .style "class" .class "type" .type "onclick" .onclick}}
+                {{end}}
+            </div>
+        {{end}}
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button aria-label="Close modal by clicking backdrop">close</button>
+    </form>
+</dialog>

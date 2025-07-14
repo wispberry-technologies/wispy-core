@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	"wispy-core/common"
 )
 
 // InitAuth initializes the auth package with the given configuration
-func InitAuth(config Config) (*DefaultAuthProvider, *Middleware, *AuthHandlers, *OAuthHandlers, error) {
+func InitAuth(config Config) (AuthProvider, *Middleware, *AuthHandlers, *OAuthHandlers, error) {
 	// Create the auth provider
 	authProvider, err := NewDefaultAuthProvider(config)
 	if err != nil {
@@ -35,7 +36,7 @@ func DefaultConfig() Config {
 		PasswordMinChars: 8,
 		AllowSignup:      true,
 		CookieName:       "auth_token",
-		CookieSecure:     false, // Set to true in production
+		CookieSecure:     common.IsProduction(),
 		CookieHTTPOnly:   true,
 	}
 }
@@ -96,7 +97,7 @@ func RegisterHandlers(mux *http.ServeMux, authHandlers *AuthHandlers, oauthHandl
 }
 
 // InitSQLiteAuth initializes auth with a SQLite database
-func InitSQLiteAuth(dbPath string, config Config) (*DefaultAuthProvider, *Middleware, *AuthHandlers, *OAuthHandlers, error) {
+func InitSQLiteAuth(dbPath string, config Config) (AuthProvider, *Middleware, *AuthHandlers, *OAuthHandlers, error) {
 	// Override configuration with SQLite settings
 	config.DBType = "sqlite3"
 	config.DBConn = dbPath
@@ -105,9 +106,9 @@ func InitSQLiteAuth(dbPath string, config Config) (*DefaultAuthProvider, *Middle
 }
 
 // InitWithDB initializes auth with an existing database connection
-func InitWithDB(db *sql.DB, dbType string, config Config) (*DefaultAuthProvider, *Middleware, *AuthHandlers, *OAuthHandlers, error) {
+func InitWithDB(db *sql.DB, dbType string, config Config) (AuthProvider, *Middleware, *AuthHandlers, *OAuthHandlers, error) {
 	// Create the auth provider directly
-	authProvider := &DefaultAuthProvider{
+	authProvider := &defaultAuthProvider{
 		config:         config,
 		oauthProviders: make(map[string]OAuthProvider),
 	}

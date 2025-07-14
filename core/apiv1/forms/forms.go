@@ -10,6 +10,7 @@ import (
 
 	"wispy-core/auth"
 	"wispy-core/common"
+	"wispy-core/config"
 	"wispy-core/core/site"
 
 	"github.com/go-chi/chi/v5"
@@ -77,26 +78,27 @@ type FormApi struct {
 	authMiddleware *auth.Middleware
 }
 
-func NewFormApi(siteManager site.SiteManager, authMiddleware *auth.Middleware) *FormApi {
+func NewFormApi(siteManager site.SiteManager) *FormApi {
+	globalConfig := config.GetGlobalConfig()
 	validate := validator.New()
 	return &FormApi{
 		siteManager:    siteManager,
 		validate:       validate,
-		authMiddleware: authMiddleware,
+		authMiddleware: globalConfig.GetCoreAuthMiddleware(),
 	}
 }
 
 func (f *FormApi) MountApi(r chi.Router) {
 	r.Route("/forms", func(r chi.Router) {
 		r.Post("/submit", f.FormSubmission)
-
-		r.Get("/submissions/by-email/{email}", f.GetSubmissionsByEmail)
-		r.Get("/submissions/by-name/{name}", f.GetSubmissionsByName)
-		r.Get("/submissions/by-phone/{phone}", f.GetSubmissionsByPhone)
-		r.Get("/submissions/with-tags/{tag}", f.GetSubmissionsWithTag)
-
 		r.Group(func(r chi.Router) {
-			// r.Use(authMiddleware)
+			r.Use(f.authMiddleware.RequireAuth)
+
+			r.Get("/submissions/by-email/{email}", f.GetSubmissionsByEmail)
+			r.Get("/submissions/by-name/{name}", f.GetSubmissionsByName)
+			r.Get("/submissions/by-phone/{phone}", f.GetSubmissionsByPhone)
+			r.Get("/submissions/with-tags/{tag}", f.GetSubmissionsWithTag)
+
 			r.Post("/", f.CreateForm)
 			r.Get("/", f.ListForms)
 			r.Get("/{formID}", f.GetForm)
@@ -106,9 +108,10 @@ func (f *FormApi) MountApi(r chi.Router) {
 }
 
 func (f *FormApi) FormSubmission(w http.ResponseWriter, r *http.Request) {
-	site, err := f.siteManager.GetSite(r.Host)
+	domain := common.NormalizeHost(r.Host)
+	site, err := f.siteManager.GetSite(domain)
 	if err != nil {
-		common.RespondWithError(w, r, http.StatusNotFound, "Site not found", err)
+		common.RespondWithError(w, r, http.StatusNotFound, "Site not found for domain "+domain, err)
 		return
 	}
 
@@ -347,9 +350,10 @@ func (f *FormApi) GetSubmissionsWithTag(w http.ResponseWriter, r *http.Request) 
 }
 
 func (f *FormApi) querySubmissionsByField(w http.ResponseWriter, r *http.Request, field, value string) {
-	site, err := f.siteManager.GetSite(r.Host)
+	domain := common.NormalizeHost(r.Host)
+	site, err := f.siteManager.GetSite(domain)
 	if err != nil {
-		common.RespondWithError(w, r, http.StatusNotFound, "Site not found", err)
+		common.RespondWithError(w, r, http.StatusNotFound, "Site not found for domain "+domain, err)
 		return
 	}
 
@@ -370,9 +374,10 @@ func (f *FormApi) querySubmissionsByField(w http.ResponseWriter, r *http.Request
 }
 
 func (f *FormApi) CreateForm(w http.ResponseWriter, r *http.Request) {
-	site, err := f.siteManager.GetSite(r.Host)
+	domain := common.NormalizeHost(r.Host)
+	site, err := f.siteManager.GetSite(domain)
 	if err != nil {
-		common.RespondWithError(w, r, http.StatusNotFound, "Site not found", err)
+		common.RespondWithError(w, r, http.StatusNotFound, "Site not found for domain "+domain, err)
 		return
 	}
 
@@ -456,9 +461,10 @@ func (f *FormApi) CreateForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f *FormApi) ListForms(w http.ResponseWriter, r *http.Request) {
-	site, err := f.siteManager.GetSite(r.Host)
+	domain := common.NormalizeHost(r.Host)
+	site, err := f.siteManager.GetSite(domain)
 	if err != nil {
-		common.RespondWithError(w, r, http.StatusNotFound, "Site not found", err)
+		common.RespondWithError(w, r, http.StatusNotFound, "Site not found for domain "+domain, err)
 		return
 	}
 
@@ -479,9 +485,10 @@ func (f *FormApi) ListForms(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f *FormApi) GetForm(w http.ResponseWriter, r *http.Request) {
-	site, err := f.siteManager.GetSite(r.Host)
+	domain := common.NormalizeHost(r.Host)
+	site, err := f.siteManager.GetSite(domain)
 	if err != nil {
-		common.RespondWithError(w, r, http.StatusNotFound, "Site not found", err)
+		common.RespondWithError(w, r, http.StatusNotFound, "Site not found for domain "+domain, err)
 		return
 	}
 
@@ -503,9 +510,10 @@ func (f *FormApi) GetForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f *FormApi) GetFormSubmissions(w http.ResponseWriter, r *http.Request) {
-	site, err := f.siteManager.GetSite(r.Host)
+	domain := common.NormalizeHost(r.Host)
+	site, err := f.siteManager.GetSite(domain)
 	if err != nil {
-		common.RespondWithError(w, r, http.StatusNotFound, "Site not found", err)
+		common.RespondWithError(w, r, http.StatusNotFound, "Site not found for domain "+domain, err)
 		return
 	}
 

@@ -118,6 +118,8 @@ func NormalizeHost(host string) string {
 		return "localhost"
 	}
 
+	h = strings.TrimSuffix(h, ".localhost")
+
 	return h
 }
 

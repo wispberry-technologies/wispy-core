@@ -1,0 +1,30 @@
+<div class="card bg-base-100 shadow-xl {{.class}}">
+    {{if .image}}
+        <figure><img src="{{.image}}" alt="{{.imageAlt}}" class="{{.imageClass}}" /></figure>
+    {{end}}
+    <div class="card-body">
+        {{if .title}}
+            <h2 class="card-title">
+                {{.title}}
+                {{if .badge}}
+                    {{template "atoms/badge" dict "text" .badge.text "style" .badge.style "class" .badge.class}}
+                {{end}}
+            </h2>
+        {{end}}
+        {{if .description}}
+            <p class="text-base-content/70">{{.description}}</p>
+        {{end}}
+        {{if .content}}
+            <div class="prose prose-sm max-w-none">
+                {{.content}}
+            </div>
+        {{end}}
+        {{if .actions}}
+            <div class="card-actions justify-end mt-4">
+                {{range .actions}}
+                    {{template "atoms/button" dict "text" .text "style" .style "class" .class "type" .type "onclick" .onclick}}
+                {{end}}
+            </div>
+        {{end}}
+    </div>
+</div>

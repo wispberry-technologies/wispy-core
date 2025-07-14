@@ -49,17 +49,16 @@ type DatabaseManager interface {
 
 // NewDatabaseManager creates a new database manager for a site
 func NewDatabaseManager(siteDomain string) DatabaseManager {
-	globalConf := config.GlobalConf
+	globalConf := config.GetGlobalConfig()
 	if globalConf == nil {
 		common.Fatal("Global configuration not initialized")
 	}
 
-	// Construct database directory path: SitesPath + Domain + /databases/sqlite/
+	// Construct database directory path: SitesPath + Domain + /databases/
 	dbDir := filepath.Join(
 		globalConf.GetSitesPath(),
 		siteDomain,
 		"databases",
-		"sqlite",
 	)
 
 	// Ensure database directory exists

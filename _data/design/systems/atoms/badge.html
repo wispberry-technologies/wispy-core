@@ -1,0 +1,6 @@
+<span class="badge {{.style | default "badge-neutral"}} {{.size | default "badge-md"}} {{.class}}" {{if .ariaLabel}}aria-label="{{.ariaLabel}}"{{end}}>
+    {{if .icon}}
+        {{template "atoms/icon" dict "name" .icon "class" "h-4 w-4"}}
+    {{end}}
+    {{.text}}
+</span>

@@ -1,5 +1,70 @@
-{{ define "body" }}
+{{define "title"}}Dashboard - Wispy CMS{{end}}
 
-<h3> Dashboard </h3>
+{{define "description"}}Your Wispy CMS dashboard - manage forms, view submissions, and configure settings.{{end}}
 
-{{ end }}
+{{define "body"}}
+<div class="">
+    {{template "components/cms-navbar" dict 
+        "currentPage" "dashboard" 
+        "user" .Data.user
+    }}
+    
+    <main class="content-focus py-8">
+        {{template "components/page-header" dict 
+            "title" "Dashboard" 
+            "description" "Welcome to your Wispy CMS control panel" 
+            "breadcrumbs" (slice 
+                (dict "text" "Dashboard" "href" "")
+            )
+        }}
+        
+        
+        <!-- Recent Activity -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Recent Activity Card -->
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title">Recent Activity</h2>
+                    <div class="divider"></div>
+                    <div class="overflow-x-auto">
+                        <table class="table w-full">
+                            <thead>
+                                <tr>
+                                    <th>Activity</th>
+                                    <th>Description</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{$activity := call .GetRecentActivity 5}}
+                                {{if $activity}}
+                                    {{range $activity}}
+                                        <tr>
+                                            <td>{{.Title}}</td>
+                                            <td>{{.Description}}</td>
+                                            <td>{{.Timestamp}}</td>
+                                        </tr>
+                                    {{end}}
+                                {{else}}
+                                    <tr>
+                                        <td colspan="3" class="text-center py-8">
+                                            <div class="text-base-content/50">
+                                                {{template "atoms/icon" dict 
+                                                    "name" "info" 
+                                                    "class" "h-8 w-8 mx-auto mb-2"
+                                                }}
+                                                <p>No recent activity</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {{end}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </main>
+</div>
+{{end}}

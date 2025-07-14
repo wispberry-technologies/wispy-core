@@ -1,4 +1,91 @@
 
-<h1>
-  Hi I am the forms index page.
-</h1>
+{{define "title"}}Forms Management - Wispy CMS{{end}}
+
+{{define "description"}}Manage your website forms, view submissions, and track performance.{{end}}
+
+{{define "body"}}
+<div class="">
+    {{template "components/cms-navbar" dict 
+        "currentPage" "forms" 
+        "user" .user
+    }}
+    
+    <main class="content-focus py-8">
+        {{template "components/page-header" dict 
+            "title" "Forms Management" 
+            "description" "Manage your website forms and view submissions" 
+            "breadcrumbs" (slice 
+                (dict "text" "Dashboard" "href" "/wispy-cms/dashboard") 
+                (dict "text" "Forms" "href" "")
+            ) 
+            "actions" (slice 
+                (dict "text" "Create New Form" "style" "btn-primary")
+            )
+        }}
+        
+        <!-- Search and Filters -->
+        {{template "components/search-filters" dict 
+            "filters" (slice 
+                (dict "type" "search" "name" "search" "label" "Search Forms" "placeholder" "Search by name or description..." "value" .Search) 
+                (dict "type" "select" "name" "status" "label" "Status" "value" .StatusFilter "options" (slice 
+                    (dict "value" "" "label" "All Status") 
+                    (dict "value" "active" "label" "Active") 
+                    (dict "value" "draft" "label" "Draft") 
+                    (dict "value" "disabled" "label" "Disabled")
+                )) 
+                (dict "type" "select" "name" "sort" "label" "Sort By" "value" .SortBy "options" (slice 
+                    (dict "value" "name" "label" "Name") 
+                    (dict "value" "created" "label" "Created Date") 
+                    (dict "value" "submissions" "label" "Submissions")
+                ))
+            ) 
+            "clearUrl" "/wispy-cms/forms"
+        }}
+        
+        <!-- Forms List -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="card-title">{{if .Search}}Search Results{{else}}Active Forms{{end}}</h2>
+                    <div class="flex gap-2">
+                        <!-- {{template "atoms/button" dict "text" "Export Data" "style" "btn-outline btn-sm" "icon" "download"}}
+                        {{template "atoms/button" dict "text" "Import Forms" "style" "btn-outline btn-sm" "icon" "upload"}} -->
+                    </div>
+                </div>
+                
+                {{$forms := call .GetForms 0}}
+                {{if $forms}}
+                    {{template "components/table" dict 
+                        "headers" (slice 
+                            (dict "text" "Form Name" "sortable" true) 
+                            (dict "text" "Created" "sortable" true) 
+                            (dict "text" "Submissions" "sortable" true) 
+                            (dict "text" "Status" "sortable" false)
+                        ) 
+                        "rows" .Forms 
+                        "actions" (slice 
+                            (dict "text" "View Submissions" "href" "/wispy-cms/forms/submissions" "icon" "eye") 
+                            (dict "text" "Edit Form" "href" "#" "icon" "edit") 
+                            (dict "text" "Duplicate" "href" "#" "icon" "duplicate") 
+                            (dict "text" "Delete" "href" "#" "icon" "trash" "class" "text-error")
+                        ) 
+                        "pagination" .Pagination 
+                        "emptyMessage" "No forms found matching your criteria."
+                    }}
+                {{else}}
+                    {{template "components/empty-state" dict 
+                        "title" "No Forms Yet" 
+                        "description" "Get started by creating your first form to collect submissions from your website visitors." 
+                        "icon" "forms" 
+                        "actions" (slice 
+                            (dict "text" "Create Your First Form" "style" "btn-primary") 
+                            (dict "text" "Learn More" "style" "btn-outline")
+                        )
+                    }}
+                {{end}}
+            </div>
+        </div>
+        
+    </main>
+</div>
+{{end}}

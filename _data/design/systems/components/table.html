@@ -1,0 +1,104 @@
+<div class="overflow-x-auto {{.class}}">
+    <table class="table table-zebra">
+        <thead>
+            <tr>
+                {{if .checkboxes}}
+                    <th>
+                        <label>
+                            <input type="checkbox" class="checkbox checkbox-sm" id="select-all" />
+                            <span class="sr-only">Select all</span>
+                        </label>
+                    </th>
+                {{end}}
+                {{range .headers}}
+                    <th class="{{.class}}">
+                        {{if .sortable}}
+                            <button class="btn btn-ghost btn-sm p-0 font-normal text-left" aria-label="Sort by {{.text}}">
+                                {{.text}}
+                                {{if .sorted}}
+                                    {{template "atoms/icon" dict "name" "chevron-down" "class" "h-4 w-4"}}
+                                {{end}}
+                            </button>
+                        {{else}}
+                            {{.text}}
+                        {{end}}
+                    </th>
+                {{end}}
+                {{if .actions}}
+                    <th class="w-16">
+                        <span class="sr-only">Actions</span>
+                    </th>
+                {{end}}
+            </tr>
+        </thead>
+        <tbody>
+            {{range .rows}}
+                <tr class="{{.class}}">
+                    {{if $.checkboxes}}
+                        <td>
+                            <label>
+                                <input type="checkbox" class="checkbox checkbox-sm" name="selected[]" value="{{.id}}" />
+                                <span class="sr-only">Select row</span>
+                            </label>
+                        </td>
+                    {{end}}
+                    {{range .columns}}
+                        <td class="{{.class}}">
+                            {{if .html}}
+                                {{.html}}
+                            {{else}}
+                                {{.text}}
+                            {{end}}
+                        </td>
+                    {{end}}
+                    {{if $.actions}}
+                        <td>
+                            <div class="dropdown dropdown-end">
+                                <div tabindex="0" role="button" class="btn btn-ghost btn-sm" aria-label="More actions">
+                                    {{template "atoms/icon" dict "name" "dots-vertical" "class" "h-4 w-4"}}
+                                </div>
+                                <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                                    {{range $.actions}}
+                                        <li>
+                                            <a href="{{.href}}" class="{{.class}}" {{if .onclick}}onclick="{{.onclick}}"{{end}}>
+                                                {{if .icon}}
+                                                    {{template "atoms/icon" dict "name" .icon "class" "h-4 w-4"}}
+                                                {{end}}
+                                                {{.text}}
+                                            </a>
+                                        </li>
+                                    {{end}}
+                                </ul>
+                            </div>
+                        </td>
+                    {{end}}
+                </tr>
+            {{else}}
+                <tr>
+                    <td colspan="100" class="text-center py-8">
+                        <div class="text-base-content/50">
+                            {{template "atoms/icon" dict "name" "info" "class" "h-8 w-8 mx-auto mb-2"}}
+                            <p>{{.emptyMessage | default "No data available"}}</p>
+                        </div>
+                    </td>
+                </tr>
+            {{end}}
+        </tbody>
+    </table>
+    
+    {{if .pagination}}
+        <div class="flex justify-center mt-6">
+            <div class="join">
+                <button class="join-item btn btn-outline" {{if not .pagination.hasPrev}}disabled{{end}}>
+                    {{template "atoms/icon" dict "name" "arrow-left" "class" "h-4 w-4"}}
+                </button>
+                <button class="join-item btn btn-outline">
+                    Page {{.pagination.current}} of {{.pagination.total}}
+                </button>
+                <button class="join-item btn btn-outline" {{if not .pagination.hasNext}}disabled{{end}}>
+                    {{template "atoms/icon" dict "name" "arrow-right" "class" "h-4 w-4"}}
+                </button>
+            </div>
+        </div>
+    {{end}}
+</div>

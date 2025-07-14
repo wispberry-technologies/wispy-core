@@ -149,7 +149,7 @@ func (h *OAuthHandlers) HandleOAuthCallback(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Create a session for the OAuth user using our special method
-	session, err := h.authProvider.(*DefaultAuthProvider).CreateSessionForOAuthUser(r.Context(), user)
+	session, err := h.authProvider.(*defaultAuthProvider).CreateSessionForOAuthUser(r.Context(), user)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create session: %v", err), http.StatusInternalServerError)
 		return

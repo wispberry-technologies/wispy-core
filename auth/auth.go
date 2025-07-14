@@ -13,7 +13,7 @@ import (
 )
 
 // DefaultAuthProvider implements AuthProvider interface
-type DefaultAuthProvider struct {
+type defaultAuthProvider struct {
 	config            Config
 	userStore         UserStore
 	sessionStore      SessionStore
@@ -23,8 +23,8 @@ type DefaultAuthProvider struct {
 }
 
 // NewDefaultAuthProvider creates a new default auth provider
-func NewDefaultAuthProvider(config Config) (*DefaultAuthProvider, error) {
-	provider := &DefaultAuthProvider{
+func NewDefaultAuthProvider(config Config) (AuthProvider, error) {
+	provider := &defaultAuthProvider{
 		config:            config,
 		oauthProviders:    make(map[string]OAuthProvider),
 		resetTokens:       make(map[string]*PasswordResetToken),
@@ -39,7 +39,7 @@ func NewDefaultAuthProvider(config Config) (*DefaultAuthProvider, error) {
 }
 
 // Configure implements AuthProvider.Configure
-func (p *DefaultAuthProvider) Configure(config Config) error {
+func (p *defaultAuthProvider) Configure(config Config) error {
 	p.config = config
 
 	// Set up the database based on config
@@ -100,17 +100,17 @@ func (p *DefaultAuthProvider) Configure(config Config) error {
 }
 
 // GetUserStore implements AuthProvider.GetUserStore
-func (p *DefaultAuthProvider) GetUserStore() UserStore {
+func (p *defaultAuthProvider) GetUserStore() UserStore {
 	return p.userStore
 }
 
 // GetSessionStore implements AuthProvider.GetSessionStore
-func (p *DefaultAuthProvider) GetSessionStore() SessionStore {
+func (p *defaultAuthProvider) GetSessionStore() SessionStore {
 	return p.sessionStore
 }
 
 // Login implements AuthProvider.Login
-func (p *DefaultAuthProvider) Login(ctx context.Context, email, password string) (*Session, error) {
+func (p *defaultAuthProvider) Login(ctx context.Context, email, password string) (*Session, error) {
 	// Find user by email
 	user, err := p.userStore.GetUserByEmail(ctx, email)
 	if err != nil {
@@ -145,7 +145,7 @@ func (p *DefaultAuthProvider) Login(ctx context.Context, email, password string)
 }
 
 // Register implements AuthProvider.Register
-func (p *DefaultAuthProvider) Register(ctx context.Context, email, username, password string) (*User, error) {
+func (p *defaultAuthProvider) Register(ctx context.Context, email, username, password string) (*User, error) {
 	// Check if registration is allowed
 	if !p.config.AllowSignup {
 		return nil, errors.New("registration is disabled")
@@ -192,7 +192,7 @@ func (p *DefaultAuthProvider) Register(ctx context.Context, email, username, pas
 }
 
 // Logout implements AuthProvider.Logout
-func (p *DefaultAuthProvider) Logout(ctx context.Context, sessionToken string) error {
+func (p *defaultAuthProvider) Logout(ctx context.Context, sessionToken string) error {
 	session, err := p.sessionStore.GetSessionByToken(ctx, sessionToken)
 	if err != nil {
 		return nil // If session doesn't exist, consider it already logged out
@@ -202,7 +202,7 @@ func (p *DefaultAuthProvider) Logout(ctx context.Context, sessionToken string) e
 }
 
 // GetOAuthProvider implements AuthProvider.GetOAuthProvider
-func (p *DefaultAuthProvider) GetOAuthProvider(name string) (OAuthProvider, error) {
+func (p *defaultAuthProvider) GetOAuthProvider(name string) (OAuthProvider, error) {
 	provider, exists := p.oauthProviders[name]
 	if !exists {
 		return nil, fmt.Errorf("OAuth provider not found: %s", name)
@@ -211,14 +211,14 @@ func (p *DefaultAuthProvider) GetOAuthProvider(name string) (OAuthProvider, erro
 }
 
 // RegisterOAuthProviders implements AuthProvider.RegisterOAuthProviders
-func (p *DefaultAuthProvider) RegisterOAuthProviders(providers ...OAuthProvider) {
+func (p *defaultAuthProvider) RegisterOAuthProviders(providers ...OAuthProvider) {
 	for _, provider := range providers {
 		p.oauthProviders[provider.Name()] = provider
 	}
 }
 
 // ValidateSession implements AuthProvider.ValidateSession
-func (p *DefaultAuthProvider) ValidateSession(ctx context.Context, token string) (*Session, *User, error) {
+func (p *defaultAuthProvider) ValidateSession(ctx context.Context, token string) (*Session, *User, error) {
 	session, err := p.sessionStore.GetSessionByToken(ctx, token)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid session: %w", err)
@@ -240,7 +240,7 @@ func (p *DefaultAuthProvider) ValidateSession(ctx context.Context, token string)
 }
 
 // RefreshSession implements AuthProvider.RefreshSession
-func (p *DefaultAuthProvider) RefreshSession(ctx context.Context, token string) (*Session, error) {
+func (p *defaultAuthProvider) RefreshSession(ctx context.Context, token string) (*Session, error) {
 	// Get the existing session
 	oldSession, err := p.sessionStore.GetSessionByToken(ctx, token)
 	if err != nil {
@@ -315,7 +315,7 @@ func (p *DefaultAuthProvider) RefreshSession(ctx context.Context, token string) 
 }
 
 // GeneratePasswordResetToken implements AuthProvider.GeneratePasswordResetToken
-func (p *DefaultAuthProvider) GeneratePasswordResetToken(ctx context.Context, email string) (string, error) {
+func (p *defaultAuthProvider) GeneratePasswordResetToken(ctx context.Context, email string) (string, error) {
 	// Find user by email
 	user, err := p.userStore.GetUserByEmail(ctx, email)
 	if err != nil {
@@ -332,7 +332,7 @@ func (p *DefaultAuthProvider) GeneratePasswordResetToken(ctx context.Context, em
 }
 
 // CreatePasswordResetToken creates a new password reset token for a user
-func (p *DefaultAuthProvider) CreatePasswordResetToken(ctx context.Context, userID string) (*PasswordResetToken, error) {
+func (p *defaultAuthProvider) CreatePasswordResetToken(ctx context.Context, userID string) (*PasswordResetToken, error) {
 	// Generate a secure random token
 	tokenBytes := make([]byte, 32)
 	_, err := rand.Read(tokenBytes)
@@ -364,7 +364,7 @@ func (p *DefaultAuthProvider) CreatePasswordResetToken(ctx context.Context, user
 }
 
 // ResetPassword implements AuthProvider.ResetPassword
-func (p *DefaultAuthProvider) ResetPassword(ctx context.Context, token, newPassword string) error {
+func (p *defaultAuthProvider) ResetPassword(ctx context.Context, token, newPassword string) error {
 	// Validate the token
 	resetToken, err := p.ValidatePasswordResetToken(ctx, token)
 	if err != nil {
@@ -392,7 +392,7 @@ func (p *DefaultAuthProvider) ResetPassword(ctx context.Context, token, newPassw
 }
 
 // ValidatePasswordResetToken validates a password reset token
-func (p *DefaultAuthProvider) ValidatePasswordResetToken(ctx context.Context, token string) (*PasswordResetToken, error) {
+func (p *defaultAuthProvider) ValidatePasswordResetToken(ctx context.Context, token string) (*PasswordResetToken, error) {
 	// Look up the token
 	resetToken, exists := p.resetTokens[token]
 	if !exists {
@@ -411,7 +411,7 @@ func (p *DefaultAuthProvider) ValidatePasswordResetToken(ctx context.Context, to
 }
 
 // DeletePasswordResetToken deletes a password reset token
-func (p *DefaultAuthProvider) DeletePasswordResetToken(ctx context.Context, token string) error {
+func (p *defaultAuthProvider) DeletePasswordResetToken(ctx context.Context, token string) error {
 	resetToken, exists := p.resetTokens[token]
 	if !exists {
 		return nil // Token already deleted or doesn't exist
@@ -425,7 +425,7 @@ func (p *DefaultAuthProvider) DeletePasswordResetToken(ctx context.Context, toke
 }
 
 // Helper method to create a new session
-func (p *DefaultAuthProvider) createSession(ctx context.Context, userID string) (*Session, error) {
+func (p *defaultAuthProvider) createSession(ctx context.Context, userID string) (*Session, error) {
 	// Generate a token
 	token, err := p.generateToken(userID)
 	if err != nil {
@@ -449,7 +449,7 @@ func (p *DefaultAuthProvider) createSession(ctx context.Context, userID string) 
 }
 
 // Helper method to generate a secure random token
-func (p *DefaultAuthProvider) generateToken(userID string) (string, error) {
+func (p *defaultAuthProvider) generateToken(userID string) (string, error) {
 	// Generate random bytes for the token
 	const tokenLength = 32
 	randomBytes := make([]byte, tokenLength)

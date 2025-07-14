@@ -1,0 +1,9 @@
+<label for="{{.for}}" class="label {{.class}}">
+    <span class="label-text">
+        {{.text}}
+        {{if .required}}<span class="text-error ml-1" aria-hidden="true">*</span>{{end}}
+    </span>
+    {{if .help}}
+        <span class="label-text-alt">{{.help}}</span>
+    {{end}}
+</label>

@@ -1,0 +1,29 @@
+<div class="page-header {{.class}}">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+            {{if .breadcrumbs}}
+                {{template "components/breadcrumb" dict "items" .breadcrumbs "class" "mb-2"}}
+            {{end}}
+            <h1 class="text-3xl font-bold text-base-content">{{.title}}</h1>
+            {{if .description}}
+                <p class="text-base-content/70 mt-2">{{.description}}</p>
+            {{end}}
+        </div>
+        
+        {{if .actions}}
+            <div class="flex flex-col sm:flex-row gap-2">
+                {{range .actions}}
+                    {{template "atoms/button" dict "text" .text "style" .style "class" .class "type" .type "onclick" .onclick}}
+                {{end}}
+            </div>
+        {{end}}
+    </div>
+    
+    {{if .tabs}}
+        <div class="tabs tabs-boxed mb-6">
+            {{range .tabs}}
+                <a href="{{.href}}" class="tab {{if .active}}tab-active{{end}}">{{.text}}</a>
+            {{end}}
+        </div>
+    {{end}}
+</div>
